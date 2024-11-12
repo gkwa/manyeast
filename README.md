@@ -21,11 +21,9 @@ brew install boilerplate
 boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/golangci
 ```
 
-this overwrites these files:
+Your local files will be updated with these remote templates:
 
-```
-./golangci.yml
-```
+- `./golangci.yml` ([view template](https://github.com/gkwa/manyeast/blob/master/golangci/.golangci.yml))
 
 ### manyeast/prettier
 
@@ -34,10 +32,8 @@ this overwrites these files:
 boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/prettier
 ```
 
-this overwrites these files:
+Your local files will be updated with these remote templates:
 
-```
-./.prettierrc.json
-./.prettierignore
-./justfile
-```
+- `./.prettierrc.json` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierrc.json))
+- `./.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
+- `./justfile` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/justfile))
