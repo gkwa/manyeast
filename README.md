@@ -2,6 +2,8 @@
 
 Quick config deployment with boilerplate.
 
+> ⚠️ **Warning**: This README and the list of affected files will be out of date as templates evolve. The files in your local directory will be overwritten with the latest remote templates.
+
 ## Install
 
 ```bash
@@ -21,7 +23,9 @@ brew install boilerplate
 boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/golangci
 ```
 
-Your local files will be updated with these remote templates:
+Visit [golangci/](https://github.com/gkwa/manyeast/tree/master/golangci) to see what files will be overwritten before running.
+
+Current templates (as of November 12, 2024):
 
 - `./golangci.yml` ([view template](https://github.com/gkwa/manyeast/blob/master/golangci/.golangci.yml))
 
@@ -32,7 +36,9 @@ Your local files will be updated with these remote templates:
 boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/prettier
 ```
 
-Your local files will be updated with these remote templates:
+Visit [prettier/](https://github.com/gkwa/manyeast/tree/master/prettier) to see what files will be overwritten before running.
+
+Current templates (as of November 12, 2024):
 
 - `./.prettierrc.json` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierrc.json))
 - `./.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
