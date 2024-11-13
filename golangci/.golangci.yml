@@ -1,7 +1,15 @@
 linters:
-  enable-all: true
-  disable:
-    - exportloopref
+  disable-all: true
+  enable:
+    - gofmt
+    - golint
+    - govet
+    - errcheck
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - misspell
 run:
   deadline: 5m
 issues:
