@@ -1,20 +1,20 @@
 linters:
   disable-all: true
   enable:
-    - gofmt # Standard Go formatting
-    - revive # Replacement for golint
-    - govet # Reports suspicious constructs
-    - staticcheck # Advanced static analysis
-    - gosimple # Simplifies code
-    - ineffassign # Detects ineffective assignments
-    - unused # Checks for unused constants, variables, functions
-    - errcheck # Checks error handling
-    - misspell # Finds commonly misspelled words
     - bodyclose # Checks whether HTTP response bodies are closed
-    - gocyclo # Checks cyclomatic complexity
-    - gosec # Inspects source code for security problems
+    - errcheck # Checks error handling
     - gocritic # Provides many diagnostics
+    - gocyclo # Checks cyclomatic complexity
+    - gofmt # Standard Go formatting
+    - gosec # Inspects source code for security problems
+    - gosimple # Simplifies code
+    - govet # Reports suspicious constructs
+    - ineffassign # Detects ineffective assignments
+    - misspell # Finds commonly misspelled words
+    - revive # Replacement for golint
+    - staticcheck # Advanced static analysis
     - typecheck # Like the front end of a Go compiler
+    - unused # Checks for unused constants, variables, functions
 run:
   deadline: 5m
 issues:
