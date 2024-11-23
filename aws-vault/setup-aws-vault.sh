@@ -1,26 +1,18 @@
 #!/bin/bash
 
-print_usage() {
-    echo "Usage: source setup-aws-vault.sh"
-    echo "Note: This script must be sourced, not executed directly"
-    echo "      because it needs to modify your current shell's environment"
-}
+mkdir -p ~/.aws ~/.aws-vault
 
-# Check if the script is being sourced
-if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
-    echo "Error: This script must be sourced, not executed directly"
-    print_usage
-    exit 1
-fi
+cat > ~/.aws/config << 'EOF'
+[default]
+region = us-east-1
 
-# Prompt for the passphrase securely (hidden input)
-echo -n "Enter AWS Vault file passphrase: "
-read -rs AWS_VAULT_FILE_PASSPHRASE
-echo # Add newline after hidden input
+[profile myprofile]
+region = us-east-1
+EOF
 
-# Export the variable
-export AWS_VAULT_FILE_PASSPHRASE
+cat >> ~/.bashrc << 'EOF'
+export AWS_VAULT_BACKEND=file
+export AWS_VAULT_FILE_DIR=~/.aws-vault
+EOF
 
-# Confirm to user
-echo "AWS Vault passphrase has been set for this shell session"
-echo "You can now use aws-vault commands without being prompted for the passphrase"
+source ~/.bashrc
