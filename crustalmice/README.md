@@ -29,12 +29,14 @@ boilerplate --template-url github.com/gkwa/manyeast/crustalmice --output-folder=
 1. Run the startup script:
 
 ```bash
+cd /tmp/mytest/
 ./run.sh
 ```
 
 2. To destroy resources:
 
 ```bash
+cd /tmp/mytest/
 ./clean.sh
 ```
 
