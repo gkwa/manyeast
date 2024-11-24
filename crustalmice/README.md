@@ -1,5 +1,3 @@
--- README.md --
-
 # Incus Instance Terraform Project
 
 A Terraform project that creates and manages Incus instances with automatic curl installation.
