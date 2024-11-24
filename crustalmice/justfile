@@ -1,0 +1,9 @@
+set shell := ["bash", "-uec"]
+
+default:
+    @just --list
+
+fmt:
+    terraform fmt .
+    prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
+    just --unstable --fmt
