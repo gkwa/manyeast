@@ -1,4 +1,5 @@
 -- README.md --
+
 # Incus Instance Terraform Project
 
 A Terraform project that creates and manages Incus instances with automatic curl installation.
@@ -26,11 +27,13 @@ boilerplate --template-url github.com/gkwa/manyeast/crustalmice --output-folder=
 ## Usage
 
 1. Run the startup script:
+
 ```bash
 ./run.sh
 ```
 
 2. To destroy resources:
+
 ```bash
 ./clean.sh
 ```
