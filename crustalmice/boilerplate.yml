@@ -1,0 +1,5 @@
+variables:
+  - name: OutputImage
+    description: Save image to this name (default 'crustalmice')
+    type: string
+    default: crustalmice

@@ -7,12 +7,10 @@ terraform {
 }
 
 resource "incus_instance" "instance1" {
-  image = "crustalmice"
-  name  = "crustalmice"
+  image = "{{.OutputImage}}"
+  name  = "{{.OutputImage}}"
 
   config = {
     "boot.autostart" = false
   }
-
-
 }

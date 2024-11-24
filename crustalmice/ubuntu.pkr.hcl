@@ -9,7 +9,7 @@ packer {
 
 source "incus" "jammy" {
   image        = "images:ubuntu/jammy"
-  output_image = "crustalmice"
+  output_image = "{{.OutputImage}}"
   reuse        = true
 }
 
