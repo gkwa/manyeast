@@ -1,5 +1,5 @@
 variables:
   - name: OutputImage
-    description: Save image to this name (default 'crustalmice')
+    description: Save image to this name, defaults to directory name
     type: string
-    default: crustalmice
+    default: "{{ base outputFolder }}"
