@@ -1,52 +1,88 @@
-# Incus Instance Terraform Project
+# Grumpycaribou - Homebrew Template for Incus
 
-A Terraform project that creates and manages Incus instances with automatic curl installation.
+A template project that automates Homebrew installation and configuration in Incus containers.
 
-## Generate Boilerplate
+## Overview
 
-```bash
-boilerplate --template-url github.com/gkwa/manyeast/crustalmice --output-folder=/tmp/mytest
-```
-
-## Files Generated in /tmp/mytest/
-
-- `/tmp/mytest/clean.sh`: Destroys the Terraform-managed infrastructure
-- `/tmp/mytest/main.tf`: Terraform configuration for Incus instance
-- `/tmp/mytest/provision.sh`: Cross-platform script for installing curl
-- `/tmp/mytest/run.sh`: Main script that builds image and applies Terraform configuration
-- `/tmp/mytest/ubuntu.pkr.hcl`: Packer configuration for building Ubuntu base image
+This template creates a standardized Homebrew environment in Incus containers. It handles installation, configuration, and sets up proper user permissions and environment variables.
 
 ## Prerequisites
 
-- Incus
-- Terraform
+- Incus 
 - Packer
+- Terraform
+- Access to the internet for downloading packages
 
-## Usage
-
-1. Run the startup script:
-
-```bash
-cd /tmp/mytest/
-./run.sh
-```
-
-2. To destroy resources:
+## Quick Start
 
 ```bash
-cd /tmp/mytest/
-./clean.sh
+boilerplate --non-interactive --template-url github.com/gkwa/manyeast/grumpycaribou --output-folder=test
+cd test
+bash -xe run.sh
 ```
+
+## Configuration
+
+Template variables are configurable through `boilerplate.yml`. For example:
+
+```yaml
+variables:
+  # Base image configuration
+  - name: Distro
+    type: string
+    default: ubuntu
+  - name: Release
+    type: string
+    default: jammy
+
+  # Output naming
+  - name: OutputImage1
+    type: string
+    default: "{{ base outputFolder }}-homebrew"
+```
+
+These variables control the base distro, release version, and output naming patterns.
+
+## Generated Files
+
+- `001-homebrew-base.sh`: Base Homebrew installation script
+- `001-ubuntu-homebrew.pkr.hcl`: Packer config for base Ubuntu image
+- `002-homebrew-configured.sh`: Homebrew environment configuration
+- `002-homebrew-configured.pkr.hcl`: Packer config for configured image
+- `main.tf`: Terraform configuration for instance creation
+- `run.sh`: Main execution script
+- `clean.sh`: Cleanup script
 
 ## Features
 
-- Creates Ubuntu Jammy-based Incus instance
-- Cross-platform curl installation
-- Automated image building with Packer
-- Infrastructure as Code with Terraform
+- Automated Homebrew installation
+- Proper user permissions setup
+- Environment variable configuration
+- Cross-distribution package management
+- Automated image building
+- Infrastructure as Code deployment
+- Customizable naming through boilerplate.yml
 
-## Image Details
+## Process Flow
 
-Base: Ubuntu Jammy  
-Name: mytest  
-Autostart: Disabled
+1. Creates base Ubuntu Jammy image with Homebrew
+2. Configures Homebrew environment variables
+3. Sets up user permissions and shell configurations
+4. Creates final container with working Homebrew installation
+
+## Example Usage
+
+After installation, Homebrew is ready to use:
+
+```bash
+incus exec test-homebrew-configured -- bash -l -c 'brew install hashicorp/tap/packer'
+```
+
+## Cleanup
+
+To remove all created resources:
+
+```bash
+cd test
+./clean.sh
+```
