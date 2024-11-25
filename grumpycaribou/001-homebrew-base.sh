@@ -15,7 +15,7 @@ install_packages() {
     elif [ -f /etc/arch-release ]; then
         sudo pacman -S base-devel procps-ng curl file git
     elif command -v apk &>/dev/null; then
-        apk add --no-cache build-base linux-headers procps curl file git
+        apk add --no-cache build-base linux-headers procps curl file git sudo bash ruby ruby-dev gcompat
     else
         echo "Unsupported distribution"
         exit 1
@@ -23,16 +23,22 @@ install_packages() {
 }
 
 setup_linuxbrew_user() {
+    cat >/etc/sudoers.d/alpine <<'EOF'
+root ALL=(ALL) ALL
+EOF
+    chmod 0440 /etc/sudoers.d/alpine
+
     if ! id -u linuxbrew &>/dev/null; then
         sudo useradd --create-home linuxbrew --shell /bin/bash
     fi
     if ! test -f /etc/sudoers.d/linuxbrew; then
         echo "linuxbrew ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/linuxbrew
     fi
+
 }
 
 install_homebrew() {
-    local script=$(mktemp /tmp/homebrew-XXXXX.sh)
+    local script=$(mktemp -p /tmp homebrew-XXXXXX)
     chmod a+rx $script
     cat >$script <<EOF
 timeout 30s curl --retry 9999 --connect-timeout 1 -sSf https://www.google.com >/dev/null
