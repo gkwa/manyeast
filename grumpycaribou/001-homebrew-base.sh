@@ -15,7 +15,7 @@ install_packages() {
     elif [ -f /etc/arch-release ]; then
         sudo pacman -S base-devel procps-ng curl file git
     elif command -v apk &>/dev/null; then
-        sudo apk add --no-cache build-base linux-headers procps curl file git
+        apk add --no-cache build-base linux-headers procps curl file git
     else
         echo "Unsupported distribution"
         exit 1
