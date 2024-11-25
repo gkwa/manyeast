@@ -1,53 +1,37 @@
 variables:
- - name: Script2
-   description: Second script to run
-   type: string
-   default: "002-homebrew-configured.pkr.hcl"
- - name: Script1
-   description: First script to run
-   type: string
-   default: "001-{{ .Distro }}-homebrew.pkr.hcl"
- - name: Container2Name
-   description: Name for second container
-   type: string
-   default: "{{ .OutputImage2 }}"
- - name: OutputImage2
-   description: Output image name for second stage
-   type: string
-   default: "{{ base outputFolder }}-homebrew-configured"
- - name: Container1Name
-   description: Name for first container
-   type: string
-   default: "{{ .OutputImage1 }}"
- - name: OutputImage1
-   description: Output image name for first stage
-   type: string
-   default: "{{ base outputFolder }}-homebrew"
- - name: Release
-   description: Distribution release version
-   type: enum
-   default: jammy
-   options:
-     - jammy
-     - focal
-     - bionic
-     - bullseye
-     - bookworm
-     - edge
-     - latest
- - name: Distro
-   description: Linux distribution
-   type: enum
-   default: ubuntu
-   options:
-     - ubuntu
-     - debian
-     - alpine
-     - fedora
-     - centos
-     - redhat
- - name: Image1
-   description: Base image reference
-   type: string
-   default: "images:{{ .Distro }}/{{ .Release }}/cloud"
-
+  - name: Script2
+    description: a
+    type: string
+    default: "002-homebrew-configured.pkr.hcl"
+  - name: Script1
+    description: a
+    type: string
+    default: "001-{{ .Distro }}-homebrew.pkr.hcl"
+  - name: Container2Name
+    description: a
+    type: string
+    default: "{{ .OutputImage2 }}"
+  - name: OutputImage2
+    description: a
+    type: string
+    default: "{{ base outputFolder }}-homebrew-configured"
+  - name: Container1Name
+    description: a
+    type: string
+    default: "{{ .OutputImage1 }}"
+  - name: OutputImage1
+    description: a
+    type: string
+    default: "{{ base outputFolder }}-homebrew"
+  - name: Release
+    description: a
+    type: string
+    default: jammy
+  - name: Distro
+    description: b
+    type: string
+    default: ubuntu
+  - name: Image1
+    description: c
+    type: string
+    default: "images:{{ .Distro }}/{{ .Release }}/cloud"

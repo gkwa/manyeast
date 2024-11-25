@@ -15,11 +15,6 @@ build {
     ]
   }
 
-  provisioner "file" {
-    source = "001-homebrew-base.sh"
-    destination = "/tmp/001-homebrew-base.sh"
-  }
-
   provisioner "shell" {
     scripts = [
       "001-homebrew-base.sh",
