@@ -44,16 +44,6 @@ EOF
     fi
 }
 
-
-
-
-
-
-
-
-
-
-
 install_homebrew() {
     local script=$(mktemp -p /tmp homebrew-XXXXXX)
     chmod a+rx $script
@@ -64,15 +54,11 @@ export PATH=${HOMEBREW_PREFIX}/bin:\$PATH
 {{- if eq .Distro "alpine" }}
 # Alpine-specific installation
 LD_PRELOAD=/lib/libgcompat.so.0 NONINTERACTIVE=1 /bin/bash -c "\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
 {{- else }}
 # RedHat/CentOS/Fedora installation
 NONINTERACTIVE=1 /bin/bash -c "\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
 {{- end }}
-
 $HOMEBREW_SHELLENV_COMMAND
-
 
 if [ -f ~/.profile ]; then
     if ! grep HOMEBREW_AUTO_UPDATE_SECS ~/.profile; then
@@ -90,11 +76,6 @@ EOF
     fi
     rm -f $script
 }
-
-
-
-
-
 
 install_packages
 setup_linuxbrew_user
