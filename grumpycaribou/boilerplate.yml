@@ -35,3 +35,5 @@ variables:
     description: c
     type: string
     default: "images:{{ .Distro }}/{{ .Release }}/cloud"
+partials:
+  - partials/*.sh
