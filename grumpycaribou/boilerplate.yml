@@ -35,7 +35,3 @@ variables:
     description: c
     type: string
     default: "images:{{ .Distro }}/{{ .Release }}/cloud"
-  - name: Image1
-    description: d
-    type: string
-    default: "images:ubuntu/jammy/cloud"
