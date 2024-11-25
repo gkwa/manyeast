@@ -20,21 +20,17 @@ Template variables are configurable through `boilerplate.yml`. For example:
 
 ```yaml
 variables:
-  # Base image configuration
   - name: Distro
     type: string
     default: ubuntu
   - name: Release
     type: string
     default: jammy
-
-  # Output naming
   - name: OutputImage1
     type: string
     default: "{{ base outputFolder }}-homebrew"
+  # ...and many more variables for customization
 ```
-
-These variables control the base distro, release version, and output naming patterns.
 
 ## Generated Files
 
@@ -82,8 +78,8 @@ cd test
 
 ## Dependencies
 
-- [Incus](https://github.com/lxc/incus#incus) - Container and VM manager
-- [Packer](https://developer.hashicorp.com/packer/install) - Machine image builder
-- [Terraform](https://developer.hashicorp.com/terraform/install) - Infrastructure as Code tool
-- [Boilerplate](https://github.com/gruntwork-io/boilerplate) - Template engine
-- [Packer Incus Plugin](https://github.com/bketelsen/incus) - Packer plugin for Incus
+- [Packer](https://developer.hashicorp.com/packer/install)
+- [Boilerplate](https://github.com/gruntwork-io/boilerplate)
+- [Incus](https://github.com/lxc/incus#incus)
+- [Packer Incus Plugin](https://github.com/bketelsen/incus)
+- [Terraform](https://developer.hashicorp.com/terraform/install)
