@@ -6,7 +6,7 @@ variables:
   - name: Script1
     description: a
     type: string
-    default: "001-{{ .Distro }}-homebrew.pkr.hcl"
+    default: "001-homebrew.pkr.hcl"
   - name: Container2Name
     description: a
     type: string

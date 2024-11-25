@@ -4,12 +4,12 @@ packer init .
 
 if ! incus image info {{ .OutputImage1 }} &>/dev/null; then
     echo "Building base image {{ .OutputImage1 }}..."
-    packer build {{ .Script1 }}
+    packer build -on-error=abort {{ .Script1 }}
 fi
 
 if ! incus image info {{ .OutputImage2 }} &>/dev/null; then
     echo "Building configured image {{ .OutputImage2 }}..."
-    packer build {{ .Script2 }}
+    packer build -on-error=abort {{ .Script2 }}
 fi
 
 # Clean up existing containers

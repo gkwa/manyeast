@@ -1,4 +1,4 @@
-source "incus" "{{ .Release }}" {
+source "incus" "{{ .Distro }}{{ .Release }}" {
   image          = "{{ .Image1 }}"
   output_image   = "{{ .OutputImage1 }}"
   container_name = "{{ .Container1Name }}"
@@ -7,7 +7,12 @@ source "incus" "{{ .Release }}" {
 }
 
 build {
-  sources = ["incus.{{ .Release }}"]
+  sources = ["incus.{{ .Distro }}{{ .Release }}"]
+
+  provisioner "file" {
+    source = "001-homebrew-base.sh"
+    destination = "/root/001-homebrew-base.sh"
+  }
 
   provisioner "shell" {
     inline = [
@@ -21,4 +26,3 @@ build {
     ]
   }
 }
-
