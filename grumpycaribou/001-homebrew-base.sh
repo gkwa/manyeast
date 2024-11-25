@@ -14,6 +14,8 @@ install_packages() {
         sudo yum -y install procps-ng curl file git
     elif [ -f /etc/arch-release ]; then
         sudo pacman -S base-devel procps-ng curl file git
+    elif command -v apk &>/dev/null; then
+        sudo apk add --no-cache build-base linux-headers procps curl file git
     else
         echo "Unsupported distribution"
         exit 1
