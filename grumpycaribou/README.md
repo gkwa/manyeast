@@ -6,13 +6,6 @@ A template project that automates Homebrew installation and configuration in Inc
 
 This template creates a standardized Homebrew environment in Incus containers. It handles installation, configuration, and sets up proper user permissions and environment variables.
 
-## Prerequisites
-
-- Incus
-- Packer
-- Terraform
-- Access to the internet for downloading packages
-
 ## Quick Start
 
 ```bash
@@ -86,3 +79,11 @@ To remove all created resources:
 cd test
 ./clean.sh
 ```
+
+## Dependencies
+
+- [Incus](https://github.com/lxc/incus#incus) - Container and VM manager
+- [Packer](https://developer.hashicorp.com/packer/install) - Machine image builder
+- [Terraform](https://developer.hashicorp.com/terraform/install) - Infrastructure as Code tool
+- [Boilerplate](https://github.com/gruntwork-io/boilerplate) - Template engine
+- [Packer Incus Plugin](https://github.com/bketelsen/incus) - Packer plugin for Incus
