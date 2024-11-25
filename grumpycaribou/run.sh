@@ -21,5 +21,5 @@ terraform plan -out=tfplan
 terraform apply tfplan
 
 # Test that brew command runs as expected with example app packer
-incus exec {{ .Container2Name }} -- bash -l -c 'brew install hashicorp/tap/packer && packer version'
+incus exec {{ .Container2Name }} -- bash -l -c 'brew install hashicorp/tap/packer'
 incus exec {{ .Container2Name }} -- bash -l -c 'packer version'
