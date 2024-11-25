@@ -79,7 +79,7 @@ cd test
 ## Dependencies
 
 - [Packer](https://developer.hashicorp.com/packer/install)
-- [Boilerplate](https://github.com/gruntwork-io/boilerplate)
+- [Boilerplate](https://github.com/gruntwork-io/boilerplate?tab=readme-ov-file#boilerplate)
 - [Incus](https://github.com/lxc/incus#incus)
-- [Packer Incus Plugin](https://github.com/bketelsen/incus)
+- [Packer Incus Plugin](https://github.com/bketelsen/incus?tab=readme-ov-file#incus)
 - [Terraform](https://developer.hashicorp.com/terraform/install)
