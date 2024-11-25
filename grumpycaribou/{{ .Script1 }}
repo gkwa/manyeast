@@ -1,0 +1,24 @@
+source "incus" "{{ .Release }}" {
+  image          = "{{ .Image1 }}"
+  output_image   = "{{ .OutputImage1 }}"
+  container_name = "{{ .Container1Name }}"
+  reuse          = true
+  skip_publish   = false
+}
+
+build {
+  sources = ["incus.{{ .Release }}"]
+
+  provisioner "shell" {
+    inline = [
+      "cloud-init status --wait",
+    ]
+  }
+
+  provisioner "shell" {
+    scripts = [
+      "001-homebrew-base.sh",
+    ]
+  }
+}
+

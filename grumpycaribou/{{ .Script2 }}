@@ -1,0 +1,24 @@
+source "incus" "homebrew_configued" {
+  image          = "{{ .OutputImage1 }}"
+  output_image   = "{{ .OutputImage2 }}"
+  container_name = "{{ .Container2Name }}"
+  reuse          = true
+  skip_publish   = false
+}
+
+build {
+  sources = ["incus.homebrew_configued"]
+
+  provisioner "shell" {
+    inline = [
+      "cloud-init status --wait",
+    ]
+  }
+
+  provisioner "shell" {
+    scripts = [
+      "002-homebrew-configured.sh",
+    ]
+  }
+}
+
