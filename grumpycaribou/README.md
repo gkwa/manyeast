@@ -8,7 +8,7 @@ This template creates a standardized Homebrew environment in Incus containers. I
 
 ## Prerequisites
 
-- Incus 
+- Incus
 - Packer
 - Terraform
 - Access to the internet for downloading packages
