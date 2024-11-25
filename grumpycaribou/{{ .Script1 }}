@@ -1,4 +1,4 @@
-source "incus" "{{ .Distro }}{{ .Release }}" {
+source "incus" "{{ regexReplaceAll `[^a-zA-Z0-9]` .Distro "_" }}{{ regexReplaceAll `[^a-zA-Z0-9]` .Release "_" }}" {
   image          = "{{ .Image1 }}"
   output_image   = "{{ .OutputImage1 }}"
   container_name = "{{ .Container1Name }}"
@@ -7,7 +7,7 @@ source "incus" "{{ .Distro }}{{ .Release }}" {
 }
 
 build {
-  sources = ["incus.{{ .Distro }}{{ .Release }}"]
+ sources = ["incus.{{ regexReplaceAll `[^a-zA-Z0-9]` .Distro "_" }}{{ regexReplaceAll `[^a-zA-Z0-9]` .Release "_" }}"]
 
   provisioner "file" {
     source = "001-homebrew-base.sh"
