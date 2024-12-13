@@ -3,6 +3,12 @@ set shell := ["bash", "-uec"]
 default:
     @just --list
 
+pre-commit:
+    pre-commit sample-config >.pre-commit-config.yaml
+    pre-commit install --config .pre-commit-config.yaml
+    git add .pre-commit-config.yaml
+    pre-commit run --all-files
+
 fmt:
     prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
     just --unstable --fmt
