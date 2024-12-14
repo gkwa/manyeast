@@ -6,11 +6,18 @@ shell_files := `find . -name .git -prune -o -name '*.sh' -print`
 default:
     @just --list
 
-pre-commit:
+pre-commit: check-git-status
     pre-commit sample-config >.pre-commit-config.yaml
     pre-commit install --config .pre-commit-config.yaml
     git add .pre-commit-config.yaml
     pre-commit run --all-files
+
+# Checks if the git working directory is clean
+check-git-status:
+    #!/usr/bin/env bash
+    git status --porcelain || exit 0
+    echo "Error: Git working directory is not clean. Please commit or stash your changes first."
+    exit 1
 
 [group('maint')]
 fmt:
@@ -22,4 +29,3 @@ fmt:
 [group('lint')]
 lint:
     test -z "{{ shell_files }}" || shellcheck {{ shell_files }}
-
