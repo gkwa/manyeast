@@ -6,6 +6,7 @@ shell_files := `find . -name .git -prune -o -name '*.sh' -print`
 default:
     @just --list
 
+[group('maint')]
 pre-commit: check-git-status
     pre-commit sample-config >.pre-commit-config.yaml
     pre-commit install --config .pre-commit-config.yaml
