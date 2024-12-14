@@ -1,5 +1,8 @@
 set shell := ["bash", "-uec"]
 
+shell_files := `find . -name .git -prune -o -name '*.sh' -print`
+
+[group('maint')]
 default:
     @just --list
 
@@ -9,6 +12,14 @@ pre-commit:
     git add .pre-commit-config.yaml
     pre-commit run --all-files
 
+[group('maint')]
 fmt:
+    test -z "{{ shell_files }}" || shfmt -w -s -i 4 {{ shell_files }}
+    terraform fmt -recursive .
     prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
     just --unstable --fmt
+
+[group('lint')]
+lint:
+    test -z "{{ shell_files }}" || shellcheck {{ shell_files }}
+
