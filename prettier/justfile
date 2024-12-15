@@ -22,11 +22,11 @@ check-git-status:
 
 [group('maint')]
 fmt:
-    test -z "{{ shell_files }}" || shfmt -w -s -i 4 {{ shell_files }}
+    test -z "{{"{{"}} shell_files {{"}}"}}" || shfmt -w -s -i 4 {{"{{"}} shell_files {{"}}"}}
     terraform fmt -recursive .
     prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
     just --unstable --fmt
 
 [group('lint')]
 lint:
-    test -z "{{ shell_files }}" || shellcheck {{ shell_files }}
+    test -z "{{"{{"}} shell_files {{"}}"}}" || shellcheck {{"{{"}} shell_files {{"}}"}}
