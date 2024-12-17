@@ -1,6 +1,6 @@
 set shell := ["bash", "-uec"]
 
-shell_files := `find . -name .git -prune -o -name '*.sh' -print`
+shell_files := `find . -name .git -prune -o -name '*.sh' -print | tr '\n' ' '`
 
 [group('maint')]
 default:
