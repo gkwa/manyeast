@@ -4,7 +4,7 @@ default:
     @just --list
 
 test: setup
-    incus exec my-ubuntu -- cat /etc/os-release
+    incus exec {{.OutputImage}} -- cat /etc/os-release
 
 image:
     packer init .

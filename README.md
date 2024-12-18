@@ -44,7 +44,6 @@ Current templates (as of November 12, 2024):
 - `./.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
 - `./justfile` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/justfile))
 
-
 ### manyeast/crustalmice
 
 ```bash
@@ -66,4 +65,14 @@ tree
 └── ubuntu.pkr.hcl
 
 1 directory, 5 files
+```
+
+### manyeast/grumpycaribou
+
+Deploy homebrew to ubuntu image
+
+```bash
+boilerplate --non-interactive --output-folder=homebrew --template-url github.com/gkwa/manyeast/grumpycaribou
+cd homebrew
+bash -xe run.sh
 ```
