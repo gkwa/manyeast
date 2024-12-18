@@ -51,7 +51,8 @@ Current templates (as of November 12, 2024):
 boilerplate --non-interactive --output-folder=my-ubuntu --template-url github.com/gkwa/manyeast/crustalmice
 cd my-ubuntu
 just setup
-incus image ls my-ubuntu
+incus image ls my-ubuntu # list image
+incus ls my-ubuntu # list running container
 incus exec my-ubuntu -- cat /etc/os-release
 tree
 ```
