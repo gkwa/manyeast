@@ -49,7 +49,8 @@ Current templates (as of November 12, 2024):
 
 ```bash
 boilerplate --non-interactive --output-folder=my-ubuntu --template-url github.com/gkwa/manyeast/crustalmice
-cd my-ubuntu && just setup
+cd my-ubuntu
+just setup
 incus exec my-ubuntu -- cat /etc/os-release
 tree
 ```
