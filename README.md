@@ -51,4 +51,16 @@ Current templates (as of November 12, 2024):
 boilerplate --non-interactive --output-folder=my-ubuntu --template-url github.com/gkwa/manyeast/crustalmice
 cd my-ubuntu && just setup
 incus exec my-ubuntu -- cat /etc/os-release
+tree
+```
+
+```
+.
+├── README.md
+├── justfile
+├── main.tf
+├── provision.sh
+└── ubuntu.pkr.hcl
+
+1 directory, 5 files
 ```
