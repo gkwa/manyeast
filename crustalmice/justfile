@@ -3,6 +3,24 @@ set shell := ["bash", "-uec"]
 default:
     @just --list
 
+test: setup
+    incus exec my-ubuntu -- cat /etc/os-release
+
+image:
+    #!/usr/bin/env bash
+    packer init .
+    packer build ubuntu.pkr.hcl
+
+setup: image
+    terraform init
+    terraform plan -out=tfplan
+    terraform apply tfplan
+    incus ls {{.OutputImage}}
+    incus exec {{.OutputImage}} -- curl --version
+
+teardown:
+    terraform destroy -auto-approve
+
 fmt:
     packer fmt -recursive .
     terraform fmt .

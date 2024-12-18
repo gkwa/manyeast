@@ -43,3 +43,12 @@ Current templates (as of November 12, 2024):
 - `./.prettierrc.json` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierrc.json))
 - `./.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
 - `./justfile` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/justfile))
+
+
+### manyeast/crustalmice
+
+```bash
+boilerplate --non-interactive --output-folder=my-ubuntu --template-url github.com/gkwa/manyeast/crustalmice
+cd my-ubuntu && just setup
+incus exec my-ubuntu -- cat /etc/os-release
+```

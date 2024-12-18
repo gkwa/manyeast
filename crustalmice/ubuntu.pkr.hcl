@@ -10,7 +10,6 @@ packer {
 source "incus" "jammy" {
   image        = "images:ubuntu/jammy"
   output_image = "{{.OutputImage}}"
-  reuse        = true
 }
 
 build {
