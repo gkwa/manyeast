@@ -7,7 +7,6 @@ test: setup
     incus exec my-ubuntu -- cat /etc/os-release
 
 image:
-    #!/usr/bin/env bash
     packer init .
     packer build ubuntu.pkr.hcl
 
