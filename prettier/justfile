@@ -1,6 +1,6 @@
 set shell := ["bash", "-uec"]
 
-shell_files := `find . -name .git -prune -o -name '*.sh' -print | tr '\n' ' '`
+shell_files:=`find . \( -name .git -o -name node_modules -o -name .venv -o -name .ruff_cache \) -prune -o -name "*.sh" -print | tr '\n' ' '`
 
 [group('maint')]
 default:
