@@ -7,6 +7,7 @@ default:
 [group('maint')]
 pre-commit:
     pre-commit install --config .pre-commit-config.yaml
+    pre-commit autoupdate
     git add .pre-commit-config.yaml
     pre-commit run --all-files
 
