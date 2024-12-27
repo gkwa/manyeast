@@ -57,3 +57,8 @@ repos:
         pass_filenames: false
         types:
           - file
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.4
+    hooks:
+      - id: actionlint
+        files: .github/workflows/
