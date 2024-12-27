@@ -3,7 +3,7 @@
 set -e
 
 HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
-HOMEBREW_SHELLENV_COMMAND='eval "$('${HOMEBREW_PREFIX}'/bin/brew shellenv)"'
+HOMEBREW_SHELLENV_COMMAND="eval \"\$(${HOMEBREW_PREFIX}/bin/brew shellenv)\""
 
 update_package_lists() {
     if command -v apk &>/dev/null; then
@@ -45,9 +45,10 @@ EOF
 }
 
 install_homebrew() {
-    local script=$(mktemp -p /tmp homebrew-XXXXXX)
-    chmod a+rx $script
-    cat >$script <<EOF
+    local script
+    script=$(mktemp -p /tmp homebrew-XXXXXX)
+    chmod a+rx "$script"
+    cat >"$script" <<EOF
 timeout 30s curl --retry 9999 --connect-timeout 1 -sSf https://www.google.com >/dev/null
 export PATH=${HOMEBREW_PREFIX}/bin:\$PATH
 
@@ -70,11 +71,11 @@ brew --version
 EOF
     cd /home/linuxbrew
     if [ ! -f "${HOMEBREW_PREFIX}/bin/brew" ]; then
-        sudo --login --user linuxbrew bash -e $script
+        sudo --login --user linuxbrew bash -e "$script"
     else
         echo "Homebrew is already installed. Skipping installation."
     fi
-    rm -f $script
+    rm -f "$script"
 }
 
 install_packages

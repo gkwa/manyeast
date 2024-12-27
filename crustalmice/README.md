@@ -47,6 +47,6 @@ cd /tmp/mytest/
 
 ## Image Details
 
-Base: Ubuntu Jammy  
-Name: mytest  
+Base: Ubuntu Jammy
+Name: mytest
 Autostart: Disabled

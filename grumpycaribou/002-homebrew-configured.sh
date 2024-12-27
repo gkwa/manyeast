@@ -3,7 +3,7 @@
 set -e
 
 HOMEBREW_PREFIX="/home/linuxbrew/.linuxbrew"
-HOMEBREW_SHELLENV_COMMAND='eval "$('${HOMEBREW_PREFIX}'/bin/brew shellenv)"'
+HOMEBREW_SHELLENV_COMMAND="eval \"\$(${HOMEBREW_PREFIX}/bin/brew shellenv)\""
 
 add_homebrew_shellenv() {
     local file="$1"

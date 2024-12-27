@@ -1,9 +1,15 @@
 set shell := ["bash", "-uec"]
 
+[group('maint')]
 default:
     @just --list
 
+[group('maint')]
+pre-commit:
+    pre-commit install --config .pre-commit-config.yaml
+    git add .pre-commit-config.yaml
+    pre-commit run --all-files
+
+[group('maint')]
 fmt:
-    shfmt -w -s -i 4 grumpycaribou/*.sh
-    prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
-    just --unstable --fmt
+    pre-commit run --all-files
