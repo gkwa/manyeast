@@ -20,9 +20,4 @@ setup: image
 teardown:
     terraform destroy -auto-approve
 
-fmt:
-    shfmt -w -s -i 4 *.sh
-    packer fmt -recursive .
-    terraform fmt .
-    prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
-    just --unstable --fmt
+{{ template "just-prettier" }}

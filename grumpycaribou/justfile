@@ -43,9 +43,4 @@ teardown:
     incus info {{ .Container2Name }} &>/dev/null && incus rm --force {{ .Container2Name }}
     incus info {{ .Container1Name }} &>/dev/null && incus rm --force {{ .Container1Name }}
 
-fmt:
-    shfmt -w -s -i 4 *.sh
-    packer fmt -recursive .
-    terraform fmt .
-    prettier --ignore-path=.prettierignore --config=.prettierrc.json --write .
-    just --unstable --fmt
+{{ template "just-prettier" }}
