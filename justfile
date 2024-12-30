@@ -1,15 +1,7 @@
+mod fmt
+
 set shell := ["bash", "-uec"]
 
 [group('maint')]
 default:
     @just --list
-
-[group('maint')]
-pre-commit:
-    pre-commit install --config .pre-commit-config.yaml
-    git add .pre-commit-config.yaml
-    pre-commit run --all-files
-
-[group('maint')]
-fmt:
-    pre-commit run --all-files
