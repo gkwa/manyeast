@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: prettier
         name: prettier
-        entry: prettier --ignore-path=.prettierignore --config=.prettierrc.json --write
+        entry: prettier --ignore-path=fmt/.prettierignore --config=fmt/.prettierrc.json --write
         language: node
         types_or:
           - css
