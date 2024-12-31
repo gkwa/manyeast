@@ -10,4 +10,8 @@ pre-commit:
 
 [group('maint')]
 fmt:
-    pre-commit run --all-files
+    #!/usr/bin/env bash
+    if ! just fmt; then
+        echo "First fmt attempt failed, trying again..."
+        just fmt
+    fi
