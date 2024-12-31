@@ -19,5 +19,3 @@ setup: image
 
 teardown:
     terraform destroy -auto-approve
-
-{{ template "just-prettier" }}

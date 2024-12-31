@@ -1,5 +1,0 @@
-variables:
-  - name: outputFolder
-    description: Name of the project
-    type: string
-    default: fmt

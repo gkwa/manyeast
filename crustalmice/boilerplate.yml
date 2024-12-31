@@ -3,6 +3,3 @@ variables:
     description: Save image to this name, defaults to directory name
     type: string
     default: "{{ base outputFolder }}"
-
-partials:
-  - ../partials/*.just
