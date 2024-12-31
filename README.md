@@ -33,16 +33,16 @@ Current templates (as of November 12, 2024):
 
 ```bash
 # Deploy prettier config
-boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/prettier
+boilerplate --non-interactive --output-folder=.fmt --template-url github.com/gkwa/manyeast/prettier
 ```
 
 Visit [prettier/](https://github.com/gkwa/manyeast/tree/master/prettier) to see what files will be overwritten before running.
 
 Current templates (as of November 12, 2024):
 
-- `./.prettierrc.json` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierrc.json))
-- `./.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
-- `./justfile` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/justfile))
+- `.fmt/.prettierrc.json` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierrc.json))
+- `.fmt/.prettierignore` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/.prettierignore))
+- `.fmt/justfile` ([view template](https://github.com/gkwa/manyeast/blob/master/prettier/justfile))
 
 ### manyeast/crustalmice
 
