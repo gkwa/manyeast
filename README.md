@@ -25,7 +25,7 @@ boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/golangci
 
 Visit [golangci/](https://github.com/gkwa/manyeast/tree/master/golangci) to see what files will be overwritten before running.
 
-Current templates (as of November 12, 2024):
+Current templates (as of Dec 31, 2024):
 
 - `./golangci.yml` ([view template](https://github.com/gkwa/manyeast/blob/master/golangci/.golangci.yml))
 
