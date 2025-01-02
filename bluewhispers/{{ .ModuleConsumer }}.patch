@@ -1,0 +1,15 @@
+diff --git a/{{ .ModuleConsumer }}/dagger/main.go b/{{ .ModuleConsumer }}/dagger/main.go
+index 2df7f6e..e035dd2 100644
+--- a/{{ .ModuleConsumer }}/dagger/main.go
++++ b/{{ .ModuleConsumer }}/dagger/main.go
+@@ -22,8 +22,8 @@ import (
+ type {{ .ModuleConsumer|capitalize }} struct{}
+
+ // Returns a container that echoes whatever string argument is provided
+-func (m *{{ .ModuleConsumer|capitalize }}) ContainerEcho(stringArg string) *dagger.Container {
+-	return dag.Container().From("alpine:latest").WithExec([]string{"echo", stringArg})
++func (m *{{ .ModuleConsumer|capitalize }}) ContainerEcho(ctx context.Context, stringArg string) (string, error) {
++	return dag.{{ .Module|capitalize }}().ContainerEcho(stringArg).Stdout(ctx)
+ }
+
+ // Returns lines that match a pattern in the files of the provided Directory

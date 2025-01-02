@@ -1,0 +1,10 @@
+default:
+    @just --list
+
+set working-directory := '{{ .Module }}/{{ .ModuleConsumer }}'
+
+test:
+    dagger call container-echo --string-arg hello
+
+functions:
+    dagger functions

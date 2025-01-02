@@ -1,0 +1,17 @@
+rm -rf {{ .Module}}
+mkdir {{ .Module}}
+cd {{ .Module}}
+git init
+dagger init --sdk=go --source=.
+git add -A
+git commit -am "boilerplate dagger module"
+mkdir -p {{ .ModuleConsumer }}
+echo /{{ .ModuleConsumer }} >>.gitignore
+git add .gitignore
+git commit -am "ignore test app in {{ .Module}} repo"
+cd {{ .ModuleConsumer }}
+dagger init --sdk=go --source=./dagger
+dagger install ..
+cd $(git rev-parse --show-toplevel)/
+git apply {{ outputFolder}}/{{ .ModuleConsumer }}.patch
+git apply {{ outputFolder}}/{{ .Module }}.patch

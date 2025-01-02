@@ -1,0 +1,10 @@
+variables:
+  - name: ModuleConsumer
+    description: app name that will make use of the module
+    type: string
+    default: myapp
+
+  - name: Module
+    description: name of module
+    type: string
+    default: mymod
