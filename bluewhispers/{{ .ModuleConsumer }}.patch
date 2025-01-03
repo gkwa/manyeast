@@ -1,7 +1,7 @@
-diff --git a/{{ .ModuleConsumer }}/dagger/main.go b/{{ .ModuleConsumer }}/dagger/main.go
+diff --git a/main.go b/main.go
 index 2df7f6e..e035dd2 100644
---- a/{{ .ModuleConsumer }}/dagger/main.go
-+++ b/{{ .ModuleConsumer }}/dagger/main.go
+--- a/main.go
++++ b/main.go
 @@ -22,8 +22,8 @@ import (
  type {{ .ModuleConsumer|capitalize }} struct{}
 
