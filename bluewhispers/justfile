@@ -7,6 +7,9 @@ setup:
 test:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger call container-echo --string-arg hello
 
+setup-failing:
+    bash -xe setup_fail
+
 functions:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
 
