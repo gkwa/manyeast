@@ -17,7 +17,7 @@ mymod/           # Your module
 
 1. The test client (`myapp`) should be temporary and excluded from git in the module's repository.
 
-2. In a real-world scenario, client applications would live in their own repositories. However, for local testing, the client needs to be a subdirectory of the module to enable local development and testing.
+2. In a real-world scenario, client applications would live in their own repositories. However, for local testing, the client needs to be a subdirectory--at any depth--of the module to enable local development and testing.
 
 ## Usage
 
