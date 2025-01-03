@@ -4,8 +4,8 @@ default:
 setup:
     bash -xe setup
 
-test:
+test: setup
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger call container-echo --string-arg hello
 
-functions:
+functions: setup
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
