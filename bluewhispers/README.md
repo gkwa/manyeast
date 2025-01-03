@@ -1,6 +1,6 @@
 Motivation:
 
-creating dagger module and testing it locally
+create a dagger module and test it locally
 
 requires creating this heirarachy:
 
