@@ -2,9 +2,9 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-rm -rf {{ .Module}}
-mkdir {{ .Module}}
-cd {{ .Module}}
+rm -rf {{ .Module }}
+mkdir {{ .Module }}
+cd {{ .Module }}
 git init
 dagger init --sdk=go --source=.
 git add -A
@@ -12,10 +12,10 @@ git commit -am "boilerplate dagger module"
 mkdir -p {{ .ModuleConsumer }}
 echo /{{ .ModuleConsumer }} >>.gitignore
 git add .gitignore
-git commit -am "ignore test app in {{ .Module}} repo"
+git commit -am "ignore test app in {{ .Module }} repo"
 cd {{ .ModuleConsumer }}
 dagger init --sdk=go --source=./dagger
 dagger install ..
-cd $SCRIPT_DIR/{{ .Module}}
-git apply {{ outputFolder}}/{{ .ModuleConsumer }}.patch
-git apply {{ outputFolder}}/{{ .Module }}.patch
+cd $SCRIPT_DIR/{{ .Module }}
+git apply {{ outputFolder }}/{{ .ModuleConsumer }}.patch
+git apply {{ outputFolder }}/{{ .Module }}.patch
