@@ -16,3 +16,5 @@ echo /{{ .Module }} >>.gitignore
 cd {{ .Module }}
 dagger init --sdk=go --source=.
 dagger install ..
+patch --forward --batch --directory="$SCRIPT_DIR/{{ .Module }}" --input={{ outputFolder }}/{{ .Module }}.patch
+patch --forward --batch --directory="$SCRIPT_DIR/{{ .Module }}/{{ .ModuleConsumer }}/dagger" --input={{ outputFolder }}/{{ .ModuleConsumer }}.patch
