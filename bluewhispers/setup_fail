@@ -17,5 +17,5 @@ cd {{ .Module }}
 dagger init --sdk=go --source=.
 dagger install ..
 cd ../..
-patch --forward --batch --directory="{{ .ModuleConsumer }}/dagger" --input={{ outputFolder }}/{{ .Module }}.patch
-patch --forward --batch --directory="{{ .ModuleConsumer }}/{{ .Module }}" --input={{ outputFolder }}/{{ .ModuleConsumer }}.patch
+patch --forward --batch --directory="{{ .ModuleConsumer }}/dagger" --input={{ outputFolder }}/{{ .ModuleConsumer }}.patch
+patch --forward --batch --directory="{{ .ModuleConsumer }}/{{ .Module }}" --input={{ outputFolder }}/{{ .Module }}.patch
