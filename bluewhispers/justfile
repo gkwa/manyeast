@@ -1,14 +1,17 @@
 default:
     @just --list
 
-setup:
-    bash -xe setup
+setup-mod-app:
+    bash -xe setup-mod-app
 
-test:
+test-mod-app:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger call container-echo --string-arg hello
 
-setup-failing:
-    bash -xe setup_fail
+setup-app-mod:
+    bash -xe setup-app-mod
+
+test-app-mod:
+    cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
 
 functions:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
