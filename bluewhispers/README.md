@@ -10,10 +10,14 @@ The setup requires creating a specific hierarchy for local testing:
 
 ```
 mymod/           # Your module
-└── myapp/      # Test client (ephemeral)
+└── myapp/       # Test client (ephemeral)
 ```
 
-**Important**: The test client (`myapp`) should be temporary and excluded from git in the module's repository. In a real-world scenario, client applications would live in their own repositories. However, for local testing, the client needs to be a subdirectory of the module to enable local development and testing.
+**Important**:
+
+1. The test client (`myapp`) should be temporary and excluded from git in the module's repository.
+
+2. In a real-world scenario, client applications would live in their own repositories. However, for local testing, the client needs to be a subdirectory of the module to enable local development and testing.
 
 ## Usage
 
