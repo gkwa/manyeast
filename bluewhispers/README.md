@@ -21,8 +21,7 @@ Single-line command:
 
 ```bash
 # get me clean starting point
-dir=$(mktemp -d /tmp/testXXX) && cd $dir
-boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
+dir=$(mktemp -d /tmp/testXXX) && cd $dir && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
 ```
 
 After running boilerplate command:
