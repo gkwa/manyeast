@@ -6,14 +6,14 @@ This guide demonstrates how to create and test a Dagger module locally.
 
 The key is "locally" - allowing you to develop and test your module before publishing.
 
-The setup requires creating a specific hierarchy:
+The setup requires creating a specific hierarchy for local testing:
 
 ```
-mod/
-└── mod client/
+mymod/           # Your module
+└── myapp/      # Test client (ephemeral)
 ```
 
-Where the module client exists as a subdirectory of the created module.
+**Important**: The test client (`myapp`) should be temporary and excluded from git in the module's repository. In a real-world scenario, client applications would live in their own repositories. However, for local testing, the client needs to be a subdirectory of the module to enable local development and testing.
 
 ## Usage
 
@@ -95,6 +95,37 @@ func (m *Mymod) ContainerEcho(stringArg string) *dagger.Container {
 +	return dag.Container().From("alpine:latest").WithExec([]string{"echo", stringArg, "from mod mymod"})
  }
 ```
+
+### Dagger Configurations
+
+#### Module Configuration (mymod/dagger.json)
+
+```json
+{
+  "name": "mymod",
+  "engineVersion": "v0.15.1",
+  "sdk": "go"
+}
+```
+
+#### Test Client Configuration (mymod/myapp/dagger.json)
+
+```json
+{
+  "name": "myapp",
+  "engineVersion": "v0.15.1",
+  "sdk": "go",
+  "dependencies": [
+    {
+      "name": "mymod",
+      "source": "../."    # Local path to parent module
+    }
+  ],
+  "source": "dagger"
+}
+```
+
+The test client's configuration references the local module via relative path, enabling local development and testing.
 
 ### Setup Script
 
