@@ -1,10 +1,11 @@
 default:
     @just --list
 
-set working-directory := '{{ .Module }}/{{ .ModuleConsumer }}'
+setup:
+    bash -xe setup
 
 test:
-    dagger call container-echo --string-arg hello
+    cd '{{ .Module }}/{{ .ModuleConsumer }}' && dagger call container-echo --string-arg hello
 
 functions:
-    dagger functions
+    cd '{{ .Module }}/{{ .ModuleConsumer }}' && dagger functions
