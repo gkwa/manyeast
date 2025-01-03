@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 rm -rf {{ .Module}}
 mkdir {{ .Module}}
 cd {{ .Module}}
@@ -14,6 +16,6 @@ git commit -am "ignore test app in {{ .Module}} repo"
 cd {{ .ModuleConsumer }}
 dagger init --sdk=go --source=./dagger
 dagger install ..
-cd $(git rev-parse --show-toplevel)/
+cd $SCRIPT_DIR/{{ .Module}}
 git apply {{ outputFolder}}/{{ .ModuleConsumer }}.patch
 git apply {{ outputFolder}}/{{ .Module }}.patch
