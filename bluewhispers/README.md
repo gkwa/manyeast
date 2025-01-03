@@ -154,6 +154,8 @@ git apply /tmp/mymod.patch
 - [just](https://just.systems) - Command runner
 - [dagger](https://docs.dagger.io/api/module-structure) - Container-based CI/CD tool
 - [boilerplate](https://github.com/gruntwork-io/boilerplate) - Template engine
+- https://discord.com/channels/707636530424053791/708371226174685314/1281659163176603669
+- https://discord.com/channels/707636530424053791/708371226174685314/1281644196033462324
 
 ## Great Module Examples
 
