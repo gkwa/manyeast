@@ -20,7 +20,7 @@ mymod/           # Your module
 Single-line command:
 
 ```bash
-cd /tmp && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && bash -x setup && just test
+cd /tmp && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
 ```
 
 Multi-line equivalent for readability:
@@ -32,7 +32,7 @@ boilerplate \
   --template-url github.com/gkwa/manyeast/bluewhispers \
   --var ModuleConsumer=myapp \
   --var Module=mymod
-bash -x setup
+just setup
 just test
 ```
 
@@ -57,11 +57,13 @@ Setup tracing at https://dagger.cloud/traces/setup. To hide: export STOPIT=1
 ```makefile
 default:
     @just --list
-set working-directory := 'mymod/myapp'
+
+setup:
+  bash -xe setup
 test:
-    dagger call container-echo --string-arg hello
+    cd mymod/myapp && dagger call container-echo --string-arg hello
 functions:
-    dagger functions
+    cd mymod/myapp && dagger functions
 ```
 
 ### Module Patches
