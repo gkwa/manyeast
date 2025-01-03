@@ -5,14 +5,14 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 rm -rf {{ .ModuleConsumer }}
 mkdir {{ .ModuleConsumer }}
 cd {{ .ModuleConsumer }}
-git init
+# git init
 dagger init --sdk=go --source=./dagger
-git add -A
-git commit -am "boilerplate dagger app"
+# git add -A
+# git commit -am "boilerplate dagger app"
 mkdir -p {{ .Module }}
 echo /{{ .Module }} >>.gitignore
-git add .gitignore
-git commit -am "ignore test app in {{ .ModuleConsumer }} repo"
+# git add .gitignore
+# git commit -am "ignore test app in {{ .ModuleConsumer }} repo"
 cd {{ .Module }}
 dagger init --sdk=go --source=.
 dagger install ..
