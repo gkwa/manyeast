@@ -9,3 +9,6 @@ test:
 
 functions:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
+
+clean:
+    rm -rf {{ .Module }}

@@ -16,6 +16,6 @@ git commit -am "ignore test app in {{ .Module }} repo"
 cd {{ .ModuleConsumer }}
 dagger init --sdk=go --source=./dagger
 dagger install ..
-cd $SCRIPT_DIR/{{ .Module }}
+cd "$SCRIPT_DIR/{{ .Module }}"
 git apply {{ outputFolder }}/{{ .ModuleConsumer }}.patch
 git apply {{ outputFolder }}/{{ .Module }}.patch
