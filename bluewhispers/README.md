@@ -20,13 +20,35 @@ mymod/           # Your module
 Single-line command:
 
 ```bash
-cd /tmp && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
+# get me clean starting point
+dir=$(mktemp -d /tmp/testXXX) && cd $dir
+boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
+```
+
+After running boilerplate command:
+
+```
+[boilerplate] 2025/01/03 11:12:39 Downloading templates from github.com/gkwa/manyeast/bluewhispers to /var/folders/qk/
+...
+[boilerplate] 2025/01/03 11:12:41 Cleaning up working directory.
+```
+
+Expected directory structure:
+
+```
+.
+├── README.md
+├── justfile
+├── myapp.patch
+├── mymod.patch
+└── setup
+1 directory, 5 files
 ```
 
 Multi-line equivalent for readability:
 
 ```bash
-cd /tmp
+dir=$(mktemp -d /tmp/testXXX) && cd $dir
 boilerplate \
   --output-folder=. \
   --template-url github.com/gkwa/manyeast/bluewhispers \
@@ -57,7 +79,6 @@ Setup tracing at https://dagger.cloud/traces/setup. To hide: export STOPIT=1
 ```makefile
 default:
     @just --list
-
 setup:
   bash -xe setup
 test:
