@@ -24,7 +24,7 @@ mymod/           # Your module
 Single-line command:
 
 ```bash
-dir=$(mktemp -d /tmp/testXXX) && cd $dir && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just setup test
+dir=$(mktemp -d /tmp/testXXX) && cd $dir && boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/bluewhispers --var ModuleConsumer=myapp --var Module=mymod && just t1
 ```
 
 After running boilerplate command:
