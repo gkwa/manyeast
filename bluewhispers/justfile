@@ -1,10 +1,6 @@
 default:
     @just --list
 
-install-blueshispers:
-    #!/usr/bin/env bash
-    command -v bluewhispers &>/dev/null || { go build && mv bluewhispers /usr/local/bin/bluewhispers; }
-
 t1: install-blueshispers
     #!/usr/bin/env bash
     set -e
@@ -38,6 +34,10 @@ test-mod-app:
 
 test-app-mod:
     cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
+
+install-blueshispers:
+    #!/usr/bin/env bash
+    command -v bluewhispers &>/dev/null || { go build && mv bluewhispers /usr/local/bin/bluewhispers; }
 
 prune-cache:
     dagger core engine local-cache prune
