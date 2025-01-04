@@ -2,35 +2,47 @@ default:
     @just --list
 
 install-blueshispers:
-    command -v bluewhispers &>/dev/null || go build && mv bluewhispers /usr/local/bin/bluewhispers
+    command -v bluewhispers &>/dev/null || { go build && mv bluewhispers /usr/local/bin/bluewhispers; }
 
 t1: install-blueshispers
     #!/usr/bin/env bash
     bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     cat setup >setup-mod-app
-    just setup-mod-app
+    bash -xe setup-mod-app
     just test-mod-app
 
 t2: install-blueshispers
     #!/usr/bin/env bash
     bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     cat setup >setup-mod-app
-    just setup-mod-app
+    bash -xe setup-mod-app
     just test-mod-app
 
 t3: install-blueshispers
     #!/usr/bin/env bash
     bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     cat setup >setup-app-mod
-    just setup-app-mod
+    bash -xe setup-app-mod
     just test-app-mod
 
 t4: install-blueshispers
     #!/usr/bin/env bash
     bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     cat setup >setup-mod-app
-    just setup-app-mod
+    bash -xe setup-app-mod
     just test-app-mod
+
+
+test-mod-app:
+    cd {{ .Module }}/{{ .ModuleConsumer }} && dagger call container-echo --string-arg hello
+
+
+test-app-mod:
+    cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
+
+
+
+
 
 prune-cache:
     dagger core engine local-cache prune
