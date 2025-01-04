@@ -44,3 +44,4 @@ prune-cache:
 
 clean:
     rm -rf {{ .Module }}
+    rm -rf {{ .ModuleConsumer }}
