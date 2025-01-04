@@ -1,20 +1,36 @@
 default:
     @just --list
 
-setup-mod-app:
-    bash -xe setup-mod-app
+install-blueshispers:
+    command -v bluewhispers || go build && mv bluewhispers /usr/local/bin/bluewhispers
 
-test-mod-app:
-    cd {{ .Module }}/{{ .ModuleConsumer }} && dagger call container-echo --string-arg hello
+t1: install-blueshispers
+    #!/usr/bin/env bash
+    bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    cat setup >setup-mod-app
+    just setup-mod-app
+    just test-mod-app
 
-setup-app-mod:
-    bash -xe setup-app-mod
+t2: install-blueshispers
+    #!/usr/bin/env bash
+    bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    cat setup >setup-mod-app
+    just setup-mod-app
+    just test-mod-app
 
-test-app-mod:
-    cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
+t3: install-blueshispers
+    #!/usr/bin/env bash
+    bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    cat setup >setup-app-mod
+    just setup-app-mod
+    just test-app-mod
 
-functions:
-    cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
+t4: install-blueshispers
+    #!/usr/bin/env bash
+    bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    cat setup >setup-mod-app
+    just setup-app-mod
+    just test-app-mod
 
 prune-cache:
     dagger core engine local-cache prune
