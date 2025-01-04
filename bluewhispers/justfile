@@ -2,7 +2,7 @@ default:
     @just --list
 
 install-blueshispers:
-    command -v bluewhispers || go build && mv bluewhispers /usr/local/bin/bluewhispers
+    command -v bluewhispers &>/dev/null || go build && mv bluewhispers /usr/local/bin/bluewhispers
 
 t1: install-blueshispers
     #!/usr/bin/env bash
