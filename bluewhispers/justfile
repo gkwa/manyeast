@@ -16,5 +16,8 @@ test-app-mod:
 functions:
     cd {{ .Module }}/{{ .ModuleConsumer }} && dagger functions
 
+prune-cache:
+    dagger core engine local-cache prune
+
 clean:
     rm -rf {{ .Module }}
