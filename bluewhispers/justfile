@@ -37,7 +37,10 @@ test-app-mod:
 
 install-blueshispers:
     #!/usr/bin/env bash
-    command -v bluewhispers &>/dev/null || { go build && mv bluewhispers /usr/local/bin/bluewhispers; }
+    if ! command -v bluewhispers &>/dev/null; then
+        go build
+        mv bluewhispers /usr/local/bin/bluewhispers
+    fi
 
 prune-cache:
     dagger core engine local-cache prune
