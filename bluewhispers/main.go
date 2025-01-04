@@ -33,57 +33,61 @@ func main() {
    cfg.PatchDir = *patchDirFlag
    cfg.OutputDir = *outDirFlag
 
-   const scriptTmpl = `#!/usr/bin/env bash
+   tmpl := template.New("script")
+   tmpl.Delims("<%", "%>")
+   tmpl, err := tmpl.Parse(`#!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-{{ if .ModFirst }}
-rm -rf "${SCRIPT_DIR}/{{ .Module }}"
-mkdir "${SCRIPT_DIR}/{{ .Module }}"
-cd "${SCRIPT_DIR}/{{ .Module }}" || exit 1
-{{ if .UseGit }}git init{{ end }}
+<% if .ModFirst %>
+rm -rf "${SCRIPT_DIR}/<% .Module %>"
+mkdir "${SCRIPT_DIR}/<% .Module %>"
+cd "${SCRIPT_DIR}/<% .Module %>" || exit 1
+<% if .UseGit %>git init<% end %>
 dagger init --sdk=go --source=.
-{{ if .UseGit }}
+<% if .UseGit %>
 git add -A
 git commit -am "boilerplate dagger module"
-{{ end }}
-mkdir -p "${SCRIPT_DIR}/{{ .Module }}/{{ .AppName }}"
-echo /{{ .AppName }} >>.gitignore
-{{ if .UseGit }}
+<% end %>
+mkdir -p "${SCRIPT_DIR}/<% .Module %>/<% .AppName %>"
+echo /<% .AppName %> >>.gitignore
+<% if .UseGit %>
 git add .gitignore
-git commit -am "ignore test app in {{ .Module }} repo"
-{{ end }}
-cd "${SCRIPT_DIR}/{{ .Module }}/{{ .AppName }}" || exit 1
+git commit -am "ignore test app in <% .Module %> repo"
+<% end %>
+cd "${SCRIPT_DIR}/<% .Module %>/<% .AppName %>" || exit 1
 dagger init --sdk=go --source=./dagger
 dagger install ..
 cd "${SCRIPT_DIR}" || exit 1
-patch --forward --batch --directory="${SCRIPT_DIR}/{{ .Module }}" --input="{{ .PatchDir }}/{{ .Module }}.patch"
-patch --forward --batch --directory="${SCRIPT_DIR}/{{ .Module }}/{{ .AppName }}/dagger" --input="{{ .PatchDir }}/{{ .AppName }}.patch"
-{{ else }}
-rm -rf "${SCRIPT_DIR}/{{ .AppName }}"
-mkdir "${SCRIPT_DIR}/{{ .AppName }}"
-cd "${SCRIPT_DIR}/{{ .AppName }}" || exit 1
-{{ if .UseGit }}git init{{ end }}
+patch --forward --batch --directory="${SCRIPT_DIR}/<% .Module %>" --input="<% .PatchDir %>/<% .Module %>.patch"
+patch --forward --batch --directory="${SCRIPT_DIR}/<% .Module %>/<% .AppName %>/dagger" --input="<% .PatchDir %>/<% .AppName %>.patch"
+<% else %>
+rm -rf "${SCRIPT_DIR}/<% .AppName %>"
+mkdir "${SCRIPT_DIR}/<% .AppName %>"
+cd "${SCRIPT_DIR}/<% .AppName %>" || exit 1
+<% if .UseGit %>git init<% end %>
 dagger init --sdk=go --source=./dagger
-{{ if .UseGit }}
+<% if .UseGit %>
 git add -A
 git commit -am "boilerplate dagger app"
-{{ end }}
-mkdir -p "${SCRIPT_DIR}/{{ .AppName }}/{{ .Module }}"
-echo /{{ .Module }} >>.gitignore
-{{ if .UseGit }}
+<% end %>
+mkdir -p "${SCRIPT_DIR}/<% .AppName %>/<% .Module %>"
+echo /<% .Module %> >>.gitignore
+<% if .UseGit %>
 git add .gitignore
-git commit -am "ignore test app in {{ .AppName }} repo"
-{{ end }}
-cd "${SCRIPT_DIR}/{{ .AppName }}/{{ .Module }}" || exit 1
+git commit -am "ignore test app in <% .AppName %> repo"
+<% end %>
+cd "${SCRIPT_DIR}/<% .AppName %>/<% .Module %>" || exit 1
 dagger init --sdk=go --source=.
 dagger install ..
 cd "${SCRIPT_DIR}" || exit 1
-patch --forward --batch --directory="${SCRIPT_DIR}/{{ .AppName }}/dagger" --input="{{ .PatchDir }}/{{ .AppName }}.patch"
-patch --forward --batch --directory="${SCRIPT_DIR}/{{ .AppName }}/{{ .Module }}" --input="{{ .PatchDir }}/{{ .Module }}.patch"
-{{ end }}`
+patch --forward --batch --directory="${SCRIPT_DIR}/<% .AppName %>/dagger" --input="<% .PatchDir %>/<% .AppName %>.patch"
+patch --forward --batch --directory="${SCRIPT_DIR}/<% .AppName %>/<% .Module %>" --input="<% .PatchDir %>/<% .Module %>.patch"
+<% end %>`)
+   if err != nil {
+   	log.Fatal(err)
+   }
 
-   tmpl := template.Must(template.New("script").Parse(scriptTmpl))
    f, err := os.Create(filepath.Join(cfg.OutputDir, "setup"))
    if err != nil {
    	log.Fatal(err)
