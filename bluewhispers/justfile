@@ -7,34 +7,29 @@ install-blueshispers:
 t1: install-blueshispers
     #!/usr/bin/env bash
     set -e
-
     bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
-    cat setup >setup-mod-app
-    bash -xe setup-mod-app
+    bash -xe setup
     just test-mod-app
 
 t2: install-blueshispers
     #!/usr/bin/env bash
     set -e
     bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
-    cat setup >setup-mod-app
-    bash -xe setup-mod-app
+    bash -xe setup
     just test-mod-app
 
 t3: install-blueshispers
     #!/usr/bin/env bash
     set -e
     bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
-    cat setup >setup-app-mod
-    bash -xe setup-app-mod
+    bash -xe setup
     just test-app-mod
 
 t4: install-blueshispers
     #!/usr/bin/env bash
     set -e
     bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
-    cat setup >setup-mod-app
-    bash -xe setup-app-mod
+    bash -xe setup
     just test-app-mod
 
 test-mod-app:
