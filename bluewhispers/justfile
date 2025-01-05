@@ -1,6 +1,7 @@
 default:
     @just --list
 
+# use git, with module/app order
 t1: install-blueshispers
     #!/usr/bin/env bash
     set -e
@@ -8,6 +9,7 @@ t1: install-blueshispers
     bash -xe setup
     just test-mod-app
 
+# no git, with module/app order
 t2: install-blueshispers
     #!/usr/bin/env bash
     set -e
@@ -15,6 +17,7 @@ t2: install-blueshispers
     bash -xe setup
     just test-mod-app
 
+# use git, with app/module order
 t3: install-blueshispers
     #!/usr/bin/env bash
     set -e
@@ -22,6 +25,7 @@ t3: install-blueshispers
     bash -xe setup
     just test-app-mod
 
+# no git, with app/module order
 t4: install-blueshispers
     #!/usr/bin/env bash
     set -e
