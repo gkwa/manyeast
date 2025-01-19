@@ -4,7 +4,7 @@
 
 This exploration demonstrates how to create and test a Dagger module locally.
 
-The key is "locally" - allowing you to develop and test your module before publishing.
+The key is **locally** - allowing you to develop and test your module before publishing.
 
 Testing dagger modules locally requires creating a specific hierarchy:
 

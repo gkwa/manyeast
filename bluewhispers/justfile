@@ -2,34 +2,34 @@ default:
     @just --list
 
 # use git, with module/app order
-t1: install-bluewhispers
+t1:
     #!/usr/bin/env bash
     set -e
-    ./bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    go run main.go -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     bash -xe setup
     just test-mod-app
 
 # no git, with module/app order
-t2: install-bluewhispers
+t2:
     #!/usr/bin/env bash
     set -e
-    ./bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    go run main.go -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     bash -xe setup
     just test-mod-app
 
 # use git, with app/module order
-t3: install-bluewhispers
+t3:
     #!/usr/bin/env bash
     set -e
-    ./bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    go run main.go -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     bash -xe setup
     just test-app-mod
 
 # no git, with app/module order
-t4: install-bluewhispers
+t4:
     #!/usr/bin/env bash
     set -e
-    ./bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    go run main.go -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     bash -xe setup
     just test-app-mod
 
@@ -38,12 +38,6 @@ test-mod-app:
 
 test-app-mod:
     cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
-
-install-bluewhispers:
-    #!/usr/bin/env bash
-    if ! test -x ./bluewhispers &>/dev/null; then
-        go build
-    fi
 
 prune-cache:
     dagger core engine local-cache prune
