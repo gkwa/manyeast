@@ -2,7 +2,7 @@
 
 ## Motivation
 
-This guide demonstrates how to create and test a Dagger module locally.
+This exploration demonstrates how to create and test a Dagger module locally.
 
 The key is "locally" - allowing you to develop and test your module before publishing.
 
@@ -176,11 +176,12 @@ git apply /tmp/mymod.patch
 
 ## References
 
-- [just](https://just.systems) - Command runner
+- [just](https://just.systems/man/en/) - Command runner
 - [dagger](https://docs.dagger.io/api/module-structure) - Container-based CI/CD tool
-- [boilerplate](https://github.com/gruntwork-io/boilerplate) - Template engine
+- [boilerplate](https://github.com/gruntwork-io/boilerplate?tab=readme-ov-file#boilerplate) - Template engine
 - https://discord.com/channels/707636530424053791/708371226174685314/1281659163176603669
 - https://discord.com/channels/707636530424053791/708371226174685314/1281644196033462324
+- https://github.com/dagger/dagger/issues/9311
 
 ## Great Module Examples
 
