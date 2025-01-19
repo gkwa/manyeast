@@ -76,14 +76,13 @@ boilerplate \
   --template-url github.com/gkwa/manyeast/bluewhispers \
   --var ModuleConsumer=myapp \
   --var Module=mymod
-just setup
-just test
+just t1
 ```
 
 ### Expected Output
 
 ```
-just test
+just t1
 ...
 dagger call container-echo --string-arg hello
 ...
@@ -92,21 +91,6 @@ dagger call container-echo --string-arg hello
 hello from mod mymod
 
 Setup tracing at https://dagger.cloud/traces/setup. To hide: export STOPIT=1
-```
-
-## Configuration Files
-
-### justfile
-
-```makefile
-default:
-    @just --list
-setup:
-  bash -xe setup
-test:
-    cd mymod/myapp && dagger call container-echo --string-arg hello
-functions:
-    cd mymod/myapp && dagger functions
 ```
 
 ### Module Patches
