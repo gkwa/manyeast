@@ -6,7 +6,7 @@ This exploration demonstrates how to create and test a Dagger module locally.
 
 The key is "locally" - allowing you to develop and test your module before publishing.
 
-The setup requires creating a specific hierarchy for local testing:
+Testing dagger modules locally requires creating a specific hierarchy:
 
 ```
 mymod/           # Your module
