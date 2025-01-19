@@ -2,6 +2,26 @@
 
 ## Motivation
 
+This project was created to solve a specific challenge: how to properly test Dagger modules **locally** during development. While developing Dagger modules, I discovered that the setup process can be tricky and error-prone, with several approaches leading to cryptic errors.
+
+I tested four different module setup configurations:
+
+1. `t1` (✅ Works): Using git, with module/app directory order
+2. `t2` (❌ Fails): No git, with module/app directory order
+3. `t3` (❌ Fails): Using git, with app/module directory order
+4. `t4` (❌ Fails): No git, with app/module directory order
+
+Through our testing, I found that **only the t1 configuration works reliably**. The other approaches result in hard-to-debug errors that can be especially confusing for developers new to Dagger modules.
+
+Key requirements for successful local module testing:
+
+1. Initialize git repository for the module
+2. Place the test client app as a subdirectory of the module
+3. Follow the specific module/app directory order
+4. Use proper relative path references in dagger.json
+
+This exploration provides a working boilerplate that you can use to avoid common pitfalls when setting up local Dagger module development environments.
+
 This exploration demonstrates how to create and test a Dagger module locally.
 
 The key is **locally** - allowing you to develop and test your module before publishing.
