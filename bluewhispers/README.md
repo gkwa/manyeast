@@ -1,4 +1,4 @@
-# Module Setup Guide
+# Module Setup Exploration
 
 ## Motivation
 
