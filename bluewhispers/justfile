@@ -2,34 +2,34 @@ default:
     @just --list
 
 # use git, with module/app order
-t1: install-blueshispers
+t1: install-bluewhispers
     #!/usr/bin/env bash
     set -e
-    bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    ./bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     bash -xe setup
     just test-mod-app
 
 # no git, with module/app order
-t2: install-blueshispers
+t2: install-bluewhispers
     #!/usr/bin/env bash
     set -e
-    bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
+    ./bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -mod-first -patches=$(pwd)
     bash -xe setup
     just test-mod-app
 
 # use git, with app/module order
-t3: install-blueshispers
+t3: install-bluewhispers
     #!/usr/bin/env bash
     set -e
-    bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    ./bluewhispers -git -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     bash -xe setup
     just test-app-mod
 
 # no git, with app/module order
-t4: install-blueshispers
+t4: install-bluewhispers
     #!/usr/bin/env bash
     set -e
-    bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
+    ./bluewhispers -app={{ .ModuleConsumer }} -module={{ .Module }} -patches=$(pwd)
     bash -xe setup
     just test-app-mod
 
@@ -39,11 +39,10 @@ test-mod-app:
 test-app-mod:
     cd {{ .ModuleConsumer }}/{{ .Module }} && dagger call container-echo --string-arg hello
 
-install-blueshispers:
+install-bluewhispers:
     #!/usr/bin/env bash
-    if ! command -v bluewhispers &>/dev/null; then
+    if ! test -x ./bluewhispers &>/dev/null; then
         go build
-        mv bluewhispers /usr/local/bin/bluewhispers
     fi
 
 prune-cache:
