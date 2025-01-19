@@ -10,7 +10,7 @@ Testing dagger modules locally requires creating a specific hierarchy:
 
 ```
 mymod/           # Your module
-└── myapp/       # Test client (ephemeral)
+└── myapp/       # Your module test client
 ```
 
 **Important**:
