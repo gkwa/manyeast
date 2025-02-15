@@ -3,7 +3,12 @@ hooks:
     - command: git
       args:
         - apply
-        - patch
+        - zoomingzeebra-patch
+      dir: "{{outputFolder}}"
+    - command: rm
+      args:
+        - -f
+        - zoomingzeebra-patch
       dir: "{{outputFolder}}"
 
 skip_files:

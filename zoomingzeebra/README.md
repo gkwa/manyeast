@@ -11,9 +11,7 @@ A: The setup is done in two phases:
 First, create a temporary directory and initialize the project with standard Playwright:
 
 ```bash
-dir=$(mktemp -d /tmp/testXXX) && cd $dir
-pnpm create playwright --lang=Typescript --gha --quiet --browser=chromium --install-deps .
-git init && git add -A && git commit -am boilerplate
+pnpm create playwright --lang=Typescript --gha --quiet --browser=chromium --install-deps . && git init && git add -A && git commit -am boilerplate
 ```
 
 This creates the standard Playwright files and structure:
@@ -34,8 +32,6 @@ This creates the standard Playwright files and structure:
     └── demo-todo-app.spec.ts
 ```
 
-### Phase 2: Custom Configuration
-
 After the standard setup, additional custom files are added and configurations are modified using a template:
 
 ```bash
@@ -46,7 +42,6 @@ This step adds the following custom files:
 
 - `custom-runner.js`: A custom test runner script
 - `justfile`: Configuration for test execution
-- `patch`: Directory containing configuration patches
 
 And modifies:
 
@@ -64,7 +59,6 @@ The final directory structure looks like this:
 │   └── @types
 │       └── node
 ├── package.json
-├── patch                  # Added by template
 ├── playwright.config.ts   # Modified by template
 ├── pnpm-lock.yaml
 ├── tests
