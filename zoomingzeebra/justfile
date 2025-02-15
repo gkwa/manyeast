@@ -1,0 +1,19 @@
+default:
+    @just --list
+
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    basedir=$(dirname "$(echo "node_modules/.bin/playwright" | sed -e 's,\\,/,g')")
+
+    # Set up NODE_PATH to access Playwright modules
+    PLAYWRIGHT_PATHS=$(find $PWD/node_modules/.pnpm -type d \( -path "*/@playwright+test*/node_modules/@playwright/test/node_modules" -o -path "*/@playwright+test*/node_modules/@playwright/node_modules" -o -path "*/@playwright+test*/node_modules" \) 2>/dev/null | tr '\n' ':')
+
+    if [ -z "${NODE_PATH:-}" ]; then
+        export NODE_PATH="${PLAYWRIGHT_PATHS}"
+    else
+        export NODE_PATH="${PLAYWRIGHT_PATHS}:$NODE_PATH"
+    fi
+
+    # Execute our custom runner with test command by default
+    exec node custom-runner.js test "$@"

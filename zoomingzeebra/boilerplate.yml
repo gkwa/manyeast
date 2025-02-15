@@ -1,0 +1,10 @@
+hooks:
+  after:
+    - command: git
+      args:
+        - apply
+        - patch
+      dir: "{{outputFolder}}"
+
+skip_files:
+  - path: README.md
