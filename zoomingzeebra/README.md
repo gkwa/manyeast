@@ -57,7 +57,7 @@ The final directory structure looks like this:
 ```
 .
 ├── custom-runner.js        # Added by template
-├── justfile               # Added by template
+├── justfile                # Added by template
 ├── node_modules
 │   ├── @playwright
 │   │   └── test
