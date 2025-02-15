@@ -1,12 +1,14 @@
 # Playwright Testing Setup Q&A Documentation
 
-This Q&A document has been created from a technical thread discussing the setup and configuration of a Playwright testing environment. It includes information about custom runners, configuration files, and setup procedures.
+This Q&A document covers the setup and configuration of a Playwright testing environment, including both standard Playwright setup and additional custom configurations.
 
 ## Q: How do I set up a basic Playwright testing environment?
 
-A: The basic setup can be accomplished using the following steps:
+A: The setup is done in two phases:
 
-1. Create a temporary directory and initialize the project:
+### Phase 1: Standard Playwright Setup
+
+First, create a temporary directory and initialize the project with standard Playwright:
 
 ```bash
 dir=$(mktemp -d /tmp/testXXX) && cd $dir
@@ -14,29 +16,16 @@ pnpm create playwright --lang=Typescript --gha --quiet --browser=chromium --inst
 git init && git add -A && git commit -am boilerplate
 ```
 
-2. Use the boilerplate command with either a remote or local template:
-
-Remote template:
-
-```bash
-boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/zoomingzeebra
-```
-
-## Q: What files are created in a standard Playwright setup?
-
-A: A standard setup creates the following directory structure:
+This creates the standard Playwright files and structure:
 
 ```
 .
-├── custom-runner.js
-├── justfile
 ├── node_modules
 │   ├── @playwright
 │   │   └── test
 │   └── @types
 │       └── node
 ├── package.json
-├── patch
 ├── playwright.config.ts
 ├── pnpm-lock.yaml
 ├── tests
@@ -45,9 +34,50 @@ A: A standard setup creates the following directory structure:
     └── demo-todo-app.spec.ts
 ```
 
-## Q: How is the custom runner configured?
+### Phase 2: Custom Configuration
 
-A: The custom runner (custom-runner.js) is configured as follows:
+After the standard setup, additional custom files are added and configurations are modified using a template:
+
+```bash
+boilerplate --output-folder=. --template-url github.com/gkwa/manyeast/zoomingzeebra
+```
+
+This step adds the following custom files:
+
+- `custom-runner.js`: A custom test runner script
+- `justfile`: Configuration for test execution
+- `patch`: Directory containing configuration patches
+
+And modifies:
+
+- `playwright.config.ts`: Adds debugging capabilities
+
+The final directory structure looks like this:
+
+```
+.
+├── custom-runner.js        # Added by template
+├── justfile               # Added by template
+├── node_modules
+│   ├── @playwright
+│   │   └── test
+│   └── @types
+│       └── node
+├── package.json
+├── patch                  # Added by template
+├── playwright.config.ts   # Modified by template
+├── pnpm-lock.yaml
+├── tests
+│   └── example.spec.ts
+└── tests-examples
+    └── demo-todo-app.spec.ts
+```
+
+## Q: What are the custom files and their purposes?
+
+### custom-runner.js
+
+This is a custom runner script that extends Playwright's functionality:
 
 ```javascript
 #!/usr/bin/env node
@@ -61,9 +91,9 @@ const { program } = require("playwright/lib/program")
 program.parse(process.argv)
 ```
 
-## Q: How do I set up the test execution environment?
+### justfile
 
-A: The test execution environment is set up using a justfile with the following configuration:
+Configures the test execution environment:
 
 ```makefile
 default:
@@ -83,9 +113,9 @@ test:
     exec node custom-runner.js test "$@"
 ```
 
-## Q: What modifications are made to the Playwright configuration?
+### Modified playwright.config.ts
 
-A: The playwright.config.ts file is modified through a patch that adds debugging capabilities:
+The configuration file is patched to include debugging capabilities:
 
 ```typescript
 import { defineConfig, devices } from "@playwright/test"
@@ -93,15 +123,9 @@ import { defineConfig, devices } from "@playwright/test"
 // process.env.DEBUG = "pw:*"
 ```
 
-This configuration:
-
-- Applies patches after template generation
-- Skips README.md from being overwritten
-- Executes hooks in the specified output folder
-
 ## Q: What should I expect when running the tests?
 
-A: After setting up everything correctly, running `just test` should produce output similar to this:
+A: After completing both setup phases, running `just test` should produce output similar to this:
 
 ```bash
 Running 2 tests using 2 workers
