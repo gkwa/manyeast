@@ -99,4 +99,20 @@ This configuration:
 - Skips README.md from being overwritten
 - Executes hooks in the specified output folder
 
-[Note: The configuration can be customized further based on specific testing requirements and environment needs.]
+## Q: What should I expect when running the tests?
+
+A: After setting up everything correctly, running `just test` should produce output similar to this:
+
+```bash
+Running 2 tests using 2 workers
+  2 passed (2.2s)
+To open last HTML report run:
+  npx playwright show-report
+```
+
+This indicates:
+
+- All tests are running successfully
+- Tests are executed in parallel using multiple workers
+- A HTML report is generated and can be viewed using the show-report command
+- The entire test suite completes in a few seconds
