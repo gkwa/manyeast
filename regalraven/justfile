@@ -1,0 +1,58 @@
+# Global configuration and commands for the Chrome Extension project
+
+# Display available recipes
+default:
+    @just --list
+
+# Initialize the project
+init:
+    pnpm init
+    pnpm pkg set 'type=module'
+    pnpm pkg set 'pnpm.onlyBuiltDependencies[0]=esbuild'
+
+# Setup project dependencies
+setup:
+    # Ensure pnpm is up to date
+    pnpm install
+
+    # Core dependencies
+    pnpm add -D typescript vite @types/node @types/chrome
+    pnpm add -D @vitejs/plugin-react
+    pnpm add react react-dom @types/react @types/react-dom
+
+    # Build and dev tools
+    pnpm add -D esbuild
+
+    # Service worker and content script support
+    pnpm add -D webextension-polyfill @types/webextension-polyfill
+
+# Clean up build artifacts and node modules
+clean:
+    rm -rf dist
+    rm -rf node_modules
+    rm -rf .turbo
+
+# Development build and watch
+dev:
+    npx vite build --watch
+
+# Production build
+build:
+    npx vite build
+
+# Package extension for distribution
+package:
+    npx vite build
+    # Additional packaging steps can be added here
+
+# Ensure only built dependencies for esbuild
+pin-esbuild:
+    pnpm pkg set 'pnpm.onlyBuiltDependencies[0]=esbuild'
+
+# Lint the project
+lint:
+    npx eslint . --ext .ts,.tsx
+
+# Run tests (placeholder)
+test:
+    echo "No tests configured yet"
