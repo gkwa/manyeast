@@ -38,7 +38,8 @@ dev:
 
 # Production build
 build:
-    npx vite build
+    BUILD_TARGET=main npx vite build
+    BUILD_TARGET=content npx vite build
 
 # Package extension for distribution
 package:

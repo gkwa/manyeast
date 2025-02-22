@@ -1,8 +1,13 @@
-import { runtime } from "webextension-polyfill"
+import browser from "webextension-polyfill"
 
-// Background service worker logic
-console.log("Background service worker initialized")
-
-runtime.onInstalled.addListener(() => {
-  console.log("Extension installed")
+// Initialize message listener
+browser.runtime.onMessage.addListener((message, sender) => {
+  if (message.type === "contentScriptLoaded") {
+    console.log("Content script loaded in tab:", sender.tab?.id)
+    return Promise.resolve({ received: true })
+  }
+  return false
 })
+
+// Log when the service worker is initialized
+console.log("Background service worker initialized")
