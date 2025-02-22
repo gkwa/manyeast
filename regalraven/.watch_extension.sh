@@ -10,7 +10,7 @@ if ! command -v fswatch &> /dev/null; then
 fi
 
 # Directory to watch
-WATCH_DIR="{{ outputFolder }}"
+WATCH_DIR="/tmp/testSOF"
 # Set latency/cooldown to 10 seconds
 LATENCY=10
 
