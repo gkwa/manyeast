@@ -41,14 +41,15 @@ reload_extension() {
     current_time=$(date +%s)
     time_diff=$((current_time - LAST_RELOAD))
 
-    if [ $time_diff -ge "$COOLDOWN" ]; then
-        just --working-directory "${WATCH_DIR}" --justfile "${WATCH_DIR}/justfile" build
-        echo "Changes detected, reloading extension..."
-        open http://reload.extensions
-        LAST_RELOAD=$current_time
-    else
+    if [ $time_diff -lt "$COOLDOWN" ]; then
         echo "Changes detected, but in cooldown period ($((COOLDOWN - time_diff))s remaining)..."
+        return
     fi
+
+    just --working-directory "${WATCH_DIR}" --justfile "${WATCH_DIR}/justfile" build
+    echo "Changes detected, reloading extension..."
+    open http://reload.extensions
+    LAST_RELOAD=$current_time
 }
 
 echo "Watching directory: ${WATCH_DIR}"
