@@ -1,0 +1,28 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+# Just use a dummy command that always succeeds since we only want to watch files
+cmd = "true"
+# Trigger reload via custom shell command instead of running a binary
+bin = "open http://reload.extensions"
+# Watch our extension directory
+include_dir = ["/private/tmp/testuVP"]
+# Adjust these extensions based on your needs
+include_ext = ["go", "js", "html", "css", "json"]
+# Time to wait before triggering another reload
+delay = 3000 # in milliseconds
+# Kill process before running new one
+stop_on_error = true
+
+[log]
+# Show log time
+time = true
+
+[color]
+# Customize colors if needed
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
