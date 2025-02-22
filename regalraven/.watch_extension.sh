@@ -1,3 +1,4 @@
+-- watch_extension.sh --
 #!/bin/bash
 
 # Default values
@@ -54,12 +55,20 @@ echo "Watching directory: ${WATCH_DIR}"
 echo "Cooldown period: ${COOLDOWN}s"
 echo "Press Ctrl+C to stop watching"
 
-# Start watching the directory
-fswatch \
-    --insensitive \
-    --bubble-events \
-    --one-per-batch \
-    --exclude=.git \
-    "${WATCH_DIR}" | while read -r _; do
+# First get the list of changes
+CHANGES=(
+    $(fswatch \
+        --insensitive \
+        --bubble-events \
+        --one-per-batch \
+        --exclude=.nearwait.yml --exclude=.nearwait.txtar \
+        --exclude=.watch_extension.sh \
+        --exclude=dist/ \
+        --exclude=.git/ \
+        "${WATCH_DIR}")
+)
+
+# Then process each change
+for change in "${CHANGES[@]}"; do
     reload_extension
 done
