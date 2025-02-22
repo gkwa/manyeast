@@ -27,7 +27,7 @@ echo "Cooldown period: ${COOLDOWN}s"
 echo "Press Ctrl+C to stop watching"
 
 # Start watching the directory
-fswatch -o -e '.git/' "$WATCH_DIR" | while read -r file; do
+fswatch --insensitive --bubble-events --one-per-batch --exclude=.git "$WATCH_DIR" | while read -r file; do
     reload_extension
 done
 
