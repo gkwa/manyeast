@@ -1,4 +1,3 @@
--- watch_extension.sh --
 #!/bin/bash
 
 # Default values
