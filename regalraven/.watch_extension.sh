@@ -1,33 +1,65 @@
 #!/bin/bash
 
-# Directory to watch
+# Default values
 WATCH_DIR="{{ outputFolder }}"
-
-# Cooldown period in seconds
 COOLDOWN=10
 LAST_RELOAD=0
 
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+    --directory | --dir)
+        WATCH_DIR="$2"
+        shift 2
+        ;;
+    --cooldown)
+        COOLDOWN="$2"
+        shift 2
+        ;;
+    --help)
+        echo "Usage: $0 [OPTIONS]"
+        echo "Options:"
+        echo "  --directory, --dir DIR    Directory to watch (default: {{ outputFolder }})"
+        echo "  --cooldown SECONDS        Cooldown period in seconds (default: 10)"
+        echo "  --help                    Display this help message"
+        exit 0
+        ;;
+    *)
+        echo "Unknown option: $1"
+        echo "Use --help for usage information"
+        exit 1
+        ;;
+    esac
+done
+
 # Function to reload extension
 reload_extension() {
-    CURRENT_TIME=$(date +%s)
-    TIME_DIFF=$((CURRENT_TIME - LAST_RELOAD))
-    
-    if [ $TIME_DIFF -ge $COOLDOWN ]; then
-        just --working-directory $WATCH_DIR --justfile $WATCH_DIR/justfile build
+    local current_time
+    local time_diff
+
+    current_time=$(date +%s)
+    time_diff=$((current_time - LAST_RELOAD))
+
+    if [ $time_diff -ge "$COOLDOWN" ]; then
+        just --working-directory "${WATCH_DIR}" --justfile "${WATCH_DIR}/justfile" build
         echo "Changes detected, reloading extension..."
         open http://reload.extensions
-        LAST_RELOAD=$CURRENT_TIME
+        LAST_RELOAD=$current_time
     else
-        echo "Changes detected, but in cooldown period ($((COOLDOWN - TIME_DIFF))s remaining)..."
+        echo "Changes detected, but in cooldown period ($((COOLDOWN - time_diff))s remaining)..."
     fi
 }
 
-echo "Watching directory: $WATCH_DIR"
+echo "Watching directory: ${WATCH_DIR}"
 echo "Cooldown period: ${COOLDOWN}s"
 echo "Press Ctrl+C to stop watching"
 
 # Start watching the directory
-fswatch --insensitive --bubble-events --one-per-batch --exclude=.git "$WATCH_DIR" | while read -r file; do
+fswatch \
+    --insensitive \
+    --bubble-events \
+    --one-per-batch \
+    --exclude=.git \
+    "${WATCH_DIR}" | while read -r _; do
     reload_extension
 done
-
