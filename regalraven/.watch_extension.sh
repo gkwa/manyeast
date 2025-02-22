@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Check if fswatch is installed
-if ! command -v fswatch &> /dev/null; then
-    echo "fswatch is not installed. Installing via Homebrew..."
-    if ! command -v brew &> /dev/null; then
-        echo "Homebrew is not installed. Please install it first."
-        exit 1
-    fi
-    brew install fswatch
-fi
-
 # Directory to watch
 WATCH_DIR="{{ outputFolder }}"
 
