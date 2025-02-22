@@ -11,7 +11,7 @@ if ! command -v fswatch &> /dev/null; then
 fi
 
 # Directory to watch
-WATCH_DIR="/private/tmp/testuVP"
+WATCH_DIR="{{ outputFolder }}"
 
 # Cooldown period in seconds
 COOLDOWN=10
