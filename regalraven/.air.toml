@@ -15,7 +15,19 @@ tmp_dir = "tmp"
   follow_symlink = false
   full_bin = ""
   include_dir = []
-  include_ext = ["gitignore","html","js","json","map","prettierignore","sh","toml","ts","tsx","yaml"]
+    include_ext = [
+        "gitignore",
+        "html",
+        "js",
+        "json", 
+        "map",
+        "prettierignore",
+        "sh",
+        "toml",
+        "ts",
+        "tsx",
+        "yaml"
+    ]
   include_file = []
   kill_delay = "0s"
   log = "build-errors.log"
