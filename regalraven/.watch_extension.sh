@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Check if fswatch is installed
 if ! command -v fswatch &> /dev/null; then
     echo "fswatch is not installed. Installing via Homebrew..."
@@ -11,33 +10,17 @@ if ! command -v fswatch &> /dev/null; then
 fi
 
 # Directory to watch
-WATCH_DIR="{{ outputFolder }}"
-
-# Cooldown period in seconds
-COOLDOWN=10
-LAST_RELOAD=0
-
-# Function to reload extension
-reload_extension() {
-    CURRENT_TIME=$(date +%s)
-    TIME_DIFF=$((CURRENT_TIME - LAST_RELOAD))
-    
-    if [ $TIME_DIFF -ge $COOLDOWN ]; then
-        just --working-directory $WATCH_DIR --justfile $WATCH_DIR/justfile build
-        echo "Changes detected, reloading extension..."
-        open http://reload.extensions
-        LAST_RELOAD=$CURRENT_TIME
-    else
-        echo "Changes detected, but in cooldown period ($((COOLDOWN - TIME_DIFF))s remaining)..."
-    fi
-}
+WATCH_DIR="/tmp/testSOF"
+# Set latency/cooldown to 10 seconds
+LATENCY=10
 
 echo "Watching directory: $WATCH_DIR"
-echo "Cooldown period: ${COOLDOWN}s"
+echo "Latency period: ${LATENCY}s"
 echo "Press Ctrl+C to stop watching"
 
-# Start watching the directory
-fswatch -o "$WATCH_DIR" | while read -r file; do
-    reload_extension
+# Start watching the directory with built-in latency
+fswatch -o -l $LATENCY "$WATCH_DIR" | while read -r file; do
+    just --working-directory $WATCH_DIR --justfile $WATCH_DIR/justfile build
+    echo "Changes detected, reloading extension..."
+    open http://reload.extensions
 done
-
