@@ -1,4 +1,4 @@
-# realraven
+# regalraven
 
 Scaffold for chrome extension using vite build.
 
