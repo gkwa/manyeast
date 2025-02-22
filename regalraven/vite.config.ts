@@ -13,6 +13,7 @@ const target = process.env.BUILD_TARGET || "main"
 const contentScriptConfig = {
   build: {
     outDir: "dist",
+    sourcemap: true,
     lib: {
       entry: resolve(__dirname, "src/content/content-script.ts"),
       name: "contentScript",
@@ -47,6 +48,7 @@ const mainConfig = {
   ],
   build: {
     outDir: "dist",
+    sourcemap: true,
     rollupOptions: {
       input: {
         popup: resolve(__dirname, "src/popup/index.tsx"),
