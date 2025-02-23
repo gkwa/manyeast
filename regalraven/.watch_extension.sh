@@ -40,35 +40,26 @@ reload_extension() {
     current_time=$(date +%s)
     time_diff=$((current_time - LAST_RELOAD))
 
-    if [ $time_diff -lt "$COOLDOWN" ]; then
+    if [ $time_diff -ge "$COOLDOWN" ]; then
+        just --working-directory "${WATCH_DIR}" --justfile "${WATCH_DIR}/justfile" build
+        echo "Changes detected, reloading extension..."
+        open http://reload.extensions
+        LAST_RELOAD=$current_time
+    else
         echo "Changes detected, but in cooldown period ($((COOLDOWN - time_diff))s remaining)..."
-        return
     fi
-
-    just --working-directory "${WATCH_DIR}" --justfile "${WATCH_DIR}/justfile" build
-    echo "Changes detected, reloading extension..."
-    open http://reload.extensions
-    LAST_RELOAD=$current_time
 }
 
 echo "Watching directory: ${WATCH_DIR}"
 echo "Cooldown period: ${COOLDOWN}s"
 echo "Press Ctrl+C to stop watching"
 
-# First get the list of changes
-CHANGES=(
-    $(fswatch \
-        --insensitive \
-        --bubble-events \
-        --one-per-batch \
-        --exclude=.nearwait.yml --exclude=.nearwait.txtar \
-        --exclude=.watch_extension.sh \
-        --exclude=dist/ \
-        --exclude=.git/ \
-        "${WATCH_DIR}")
-)
-
-# Then process each change
-for change in "${CHANGES[@]}"; do
+# Start watching the directory
+fswatch \
+    --insensitive \
+    --bubble-events \
+    --one-per-batch \
+    --exclude=.git \
+    "${WATCH_DIR}" | while read -r _; do
     reload_extension
 done
