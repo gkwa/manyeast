@@ -59,6 +59,7 @@ fswatch \
     --insensitive \
     --bubble-events \
     --one-per-batch \
+    --exclude=.nearwait.yml --exclude=.nearwait.txtar \
     --exclude=.git \
     "${WATCH_DIR}" | while read -r _; do
     reload_extension
