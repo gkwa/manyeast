@@ -1,0 +1,5 @@
+default:
+    @just --list
+
+setup:
+    bash -e setup.sh
