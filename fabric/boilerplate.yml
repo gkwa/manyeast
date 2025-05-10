@@ -1,0 +1,5 @@
+variables:
+  - name: FabricSource
+    description: Source code for the fabric tool
+    type: string
+    default: "// Fabric source code would go here"
