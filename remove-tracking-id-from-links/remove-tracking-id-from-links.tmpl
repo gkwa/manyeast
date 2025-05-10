@@ -2,9 +2,11 @@ You are tasked with removing tracking parameters from a URL to create a minimal 
 
 The url we should clean is within the url xml tag:
 
+```
 <url>
 {{.URL}}
 </url>
+```
 
 Tracking parameters are typically added to the end of a URL after a question mark (?) or ampersand (&). They often include terms like "utm_source", "fbclid", "gclid", or other similar identifiers. These parameters don't affect the content of the page but are used to track where the traffic came from.
 
