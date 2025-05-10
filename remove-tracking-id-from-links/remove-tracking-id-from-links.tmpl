@@ -1,0 +1,24 @@
+You are tasked with removing tracking parameters from a URL to create a minimal URL that will still render the intended page correctly. Tracking parameters are often used for analytics and marketing purposes but are not necessary for the page to load properly.
+
+Tracking parameters are typically added to the end of a URL after a question mark (?) or ampersand (&). They often include terms like "utm_source", "fbclid", "gclid", or other similar identifiers. These parameters don't affect the content of the page but are used to track where the traffic came from.
+
+To clean the URL:
+1. Identify the base URL (everything before the question mark).
+2. Look for the query string (everything after the question mark).
+3. Analyze each parameter in the query string.
+4. Remove parameters that are clearly for tracking purposes.
+5. Keep parameters that seem essential for the page content or functionality.
+
+Be cautious not to remove parameters that might be necessary for the page to function correctly. If you're unsure about a parameter, it's better to keep it.
+
+After cleaning the URL, provide the minimal URL that should still render the intended page.
+Then, explain what changes you made and why. Mention any parameters you removed and any you decided to keep, with your reasoning.
+
+Your final output should be formatted as follows:
+[Insert the cleaned URL here]
+
+Remember, your output should only include the cleaned URL and the explanation within the specified tags.  Please write nothing else other than the url, no comments, no explanation of reasoning, just the URL with no other text.
+
+Here is the URL to clean:
+
+{{.URL}}
