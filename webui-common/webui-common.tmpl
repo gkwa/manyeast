@@ -6,9 +6,13 @@
 
 {{include "../use-vite/use-vite.tmpl" . | trim }}
 
+## make sure to add source maps
+
+For debugging we need to have source maps available.  Vite allows you to set this.
+
 ## package manager
 
-{{include "../pnpm/pnpm.tmpl" .}}
+{{include "../pnpm/pnpm.tmpl" . | trim }}
 
 ## for orchestration, we'll use just instead of make
 
