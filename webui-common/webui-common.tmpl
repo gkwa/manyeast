@@ -1,0 +1,15 @@
+{{include "../common-apps/common-apps.tmpl" . | trim }}
+
+## our appp will use typescript
+
+## for build and test
+
+{{include "../use-vite/use-vite.tmpl" . | trim }}
+
+## package manager
+
+{{include "../pnpm/pnpm.tmpl" .}}
+
+## for orchestration, we'll use just instead of make
+
+{{include "../justfile/justfile.tmpl" . | trim }}

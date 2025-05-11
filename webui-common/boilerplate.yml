@@ -1,0 +1,8 @@
+variables:
+  - name: ExampleVariable
+    description: You can use ExampleVariable to define some variable
+    type: string
+    default: "manyeast"
+
+# skip_files:
+#  - path: README.md
