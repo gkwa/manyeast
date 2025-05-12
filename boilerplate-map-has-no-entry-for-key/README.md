@@ -2,6 +2,11 @@
 map has no entry for key "ProjectName"
 ```
 
+This error was driving me batty since i'm using the ["snippet" function](https://github.com/gruntwork-io/boilerplate?tab=readme-ov-file#template-helpers)
+
+but it turns out I had another file that has a golang temple embedded that was being copied over too and as a result of being copied over, it too must go through the transformation...until I asked boilerplate to skip it which I should have done anyway since I'm already embedding it in my document using the snippet function.
+
+
 
 The solution is this:
 
