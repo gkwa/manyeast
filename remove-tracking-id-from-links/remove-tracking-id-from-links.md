@@ -16,7 +16,11 @@ To clean the URL:
 3. Analyze each parameter in the query string.
 4. Remove parameters that are clearly for tracking purposes.
 5. Keep parameters that seem essential for the page content or functionality.
-6. Make a markdown table that includes all parameters found and a short description of what each one is along with it's value.  Add a column indicating whether this parameter was kept because it was essential versus whether its a tracking url that we can remove.
+6. Make a markdown table that includes all parameters found and a short description of what each one is along with it's value.  Add a column indicating whether this parameter was kept because it was essential versus whether its a tracking url that we can remove.  Show the table with these column headers in this order:
+- Parameter - The name of the URL parameter
+- Description - A brief explanation of what the parameter is used for
+- Value - The actual value assigned to the parameter in the URL
+- Keep/Remove - Whether the parameter
 7. Construct a list of google search links in markdown that helps me find more information about each parameter and how other people use this parameter in the wild.
 
 Be cautious not to remove parameters that might be necessary for the page to function correctly. If you're unsure about a parameter, it's better to keep it.
