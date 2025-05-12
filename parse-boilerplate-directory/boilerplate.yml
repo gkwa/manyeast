@@ -1,17 +1,5 @@
 variables:
 
-
-
-
-
-  - name: Remote
-    description: Testing
-    type: bool
-    default: true
-
-
-
-
   - name: GoModuleNamespace
     description: go module namespace (eg github.com/gkwa)
     type: string

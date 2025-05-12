@@ -7,5 +7,3 @@ variables:
 skip_files:
   - path: README.md
   - path: generate_txtar.sh
-  - path: boilerplate.txtar
-    if: "{{ not .Remote }}"
