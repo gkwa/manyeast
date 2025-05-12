@@ -12,3 +12,4 @@ variables:
 skip_files:
   - path: README.md
   - path: boilerplate-template-examples.txtar
+  - path: ../does-boilerplate-offer-option-as-library/boilerplate.txtar
