@@ -9,6 +9,6 @@ variables:
     type: string
     default: '{{ base outputFolder }}'
 
-
-# skip_files:
-#  - path: README.md
+skip_files:
+  - path: README.md
+  - path: boilerplate-template-examples.txtar

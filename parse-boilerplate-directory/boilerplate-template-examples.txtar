@@ -1,0 +1,65 @@
+-- add-google-search-links/add-links.tmpl --
+You are tasked with creating Google search links in markdown format to help find the answer to a given question. Follow these guidelines:
+
+1. Create 3-5 search queries based on the question.
+2. Each query should focus on different aspects or keywords from the question.
+3. Format each link as a markdown link, with the query text as the link text.
+4. Include search links for tutorials regarding this topic and if not specificially tutorials, include searching for learning references for this topic
+5. Include youtube search links that will find tutorials and learning materials regarding this topic
+6. Separate each link by two newlines instead of what you might expect one.
+
+Use this format for the markdown links:
+[query text](https://www.google.com/search?q=query+text+with+spaces+replaced+by+plus+signs)
+
+Provide only the markdown-formatted search links in your response, with no additional text or explanations. Each link should be on a new line.
+
+The question you need to create search links for is as follows:
+-- add-google-search-links/boilerplate.yml --
+-- auto-complete-textbox-with-keyboard/README.md --
+Description
+
+-- auto-complete-textbox-with-keyboard/auto-complete-textbox-with-keyboard.tmpl --
+You are a web developer expert eager to help a new developer who is not familiar with writing web ui applications.
+
+We will create a new project named `{{ .ProjectName }}`.
+
+We need a fuzzy search textbox that has these characteristics:
+
+when I type some characters into some input field and some candidates appear, I should be able to select from one of the candidates by using 
+- `Ctrl-n` to move down through the list or 
+- `Ctrl-k` to move up through the list
+
+I think for fuzzy search either of these might be good tools to choose from any one of these projects:
+
+### @nozbe/microfuzz
+
+- https://github.com/nozbe/microfuzz?tab=readme-ov-file#--a-tiny-simple-fast-js-fuzzy-search-library
+
+### fuse.js
+
+- https://github.com/krisk/fuse?tab=readme-ov-file#fusejs
+
+You should do a web search of these tools to ensure you know the latest API for these tools if you choose to use any/either of them.
+
+Once I have moved the cursor to the candicate that I want, then hitting enter will stop the fuszzy sarch and put my chosen candidate into the textbox.
+
+The workflow will be like this:
+
+- at one time on the outset our app will recursce a directory for file paths
+- at one time our app will generate a json blob of this list of files
+
+The candidates for the textbox will be the files from the json we created.  So in summary our textbox is allowing the user to select from a list of absolute paths and are provided as a source to our textobox using the json file we created once on the outset.
+
+The user is presented with a page that has a textbox
+
+{{include "../webui-common/webui-common.tmpl" . | trim }}
+-- auto-complete-textbox-with-keyboard/boilerplate.yml --
+variables:
+  - name: ProjectName
+    description: Create new folder with this name
+    type: string
+    default: mytest
+
+
+# skip_files:
+#  - path: README.md
