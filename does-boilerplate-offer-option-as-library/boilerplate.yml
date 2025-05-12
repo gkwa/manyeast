@@ -2,7 +2,7 @@ variables:
   - name: Remote
     description: Testing
     type: bool
-    default: true
+    default: false
 
 skip_files:
   - path: README.md
