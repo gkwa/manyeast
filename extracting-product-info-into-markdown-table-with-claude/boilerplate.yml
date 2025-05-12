@@ -1,0 +1,7 @@
+variables:
+  - name: .TableData
+    description: Table data including image and or text
+    type: string
+
+skip_files:
+ - path: README.md
