@@ -12,3 +12,5 @@ variables:
 skip_files:
   - path: README.md
   - path: boilerplate-template-examples.txtar
+  - path: boilerplate.txtar
+    if: "{{ not .Remote }}"
