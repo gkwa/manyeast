@@ -1,3 +1,9 @@
+variables:
+  - name: Remote
+    description: Testing
+    type: boolean
+    default: true
+
 skip_files:
   - path: README.md
   - path: generate_txtar.sh
