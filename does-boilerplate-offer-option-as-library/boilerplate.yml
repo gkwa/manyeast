@@ -3,44 +3,6 @@ variables:
     description: gruntwork boilerplate source code in txtar format
     type: string
     default: |
-      -- .gon_amd64.hcl --
-      # See https://github.com/gruntwork-io/terraform-aws-ci/blob/main/modules/sign-binary-helpers/
-      # for further instructions on how to sign the binary + submitting for notarization.
-
-      source = ["./bin/boilerplate_darwin_amd64"]
-
-      bundle_id = "io.gruntwork.app.boilerplate"
-
-      apple_id {
-        username = "machine.apple@gruntwork.io"
-      }
-
-      sign {
-        application_identity = "Developer ID Application: Gruntwork, Inc."
-      }
-
-      zip {
-        output_path = "boilerplate_darwin_amd64.zip"
-      }
-      -- .gon_arm64.hcl --
-      # See https://github.com/gruntwork-io/terraform-aws-ci/blob/main/modules/sign-binary-helpers/
-      # for further instructions on how to sign the binary + submitting for notarization.
-
-      source = ["./bin/boilerplate_darwin_arm64"]
-
-      bundle_id = "io.gruntwork.app.boilerplate"
-
-      apple_id {
-        username = "machine.apple@gruntwork.io"
-      }
-
-      sign {
-        application_identity = "Developer ID Application: Gruntwork, Inc."
-      }
-
-      zip {
-        output_path = "boilerplate_darwin_arm64.zip"
-      }
       -- cli/boilerplate_cli.go --
       package cli
 
@@ -56,7 +18,7 @@ variables:
         "github.com/gruntwork-io/boilerplate/variables"
       )
 
-      const customHelpText = `Usage: {{`{{`}}.UsageText}}
+      const customHelpText = `Usage: {{.UsageText}}
 
       A tool for generating files and folders (\"boilerplate\") from a set of templates. Examples:
 
@@ -79,8 +41,8 @@ variables:
 
       Options:
 
-        {{`{{`}}range .VisibleFlags}}{{`{{`}}.}}
-        {{`{{`}}end}}`
+        {{range .VisibleFlags}}{{.}}
+        {{end}}`
 
       func CreateBoilerplateCli() *cli.App {
         cli.HelpPrinter = entrypoint.WrappedHelpPrinter
@@ -815,7 +777,7 @@ variables:
         - name: dep3
           template-url: /template/folder3
           output-folder: /output/folder3
-          skip: "{{`{{`}} and .Foo .Bar }}"
+          skip: "{{ and .Foo .Bar }}"
       `
 
       func TestParseBoilerplateConfigMultipleDependencies(t *testing.T) {
@@ -847,7 +809,7 @@ variables:
               OutputFolder:         "/output/folder3",
               DontInheritVariables: false,
               Variables:            []variables.Variable{},
-              Skip:                 "{{`{{`}} and .Foo .Bar }}",
+              Skip:                 "{{ and .Foo .Bar }}",
             },
           },
           Hooks: variables.Hooks{},
@@ -1053,12 +1015,12 @@ variables:
 
           - command: run-some-script.sh
             args:
-              - "{{`{{`}} .foo }}"
-              - "{{`{{`}} .bar }}"
+              - "{{ .foo }}"
+              - "{{ .bar }}"
 
         after:
           - command: foo
-            skip: "{{`{{`}} .baz }}"
+            skip: "{{ .baz }}"
           - command: bar
       `
 
@@ -1072,10 +1034,10 @@ variables:
           Hooks: variables.Hooks{
             BeforeHooks: []variables.Hook{
               {Command: "echo", Args: []string{"Hello World"}, Env: map[string]string{"foo": "bar", "baz": "blah"}, Skip: "true"},
-              {Command: "run-some-script.sh", Args: []string{"{{`{{`}} .foo }}", "{{`{{`}} .bar }}"}},
+              {Command: "run-some-script.sh", Args: []string{"{{ .foo }}", "{{ .bar }}"}},
             },
             AfterHooks: []variables.Hook{
-              {Command: "foo", Skip: "{{`{{`}} .baz }}"},
+              {Command: "foo", Skip: "{{ .baz }}"},
               {Command: "bar"},
             },
           },
@@ -1155,9 +1117,9 @@ variables:
       const configWithSkipFiles = `skip_files:
         - path: "docs/README_ALWAYS_SKIP.md"
         - path: "docs/README_MAYBE_SKIP.md"
-          if: "{{`{{`}} .MaybeSkip }}"
+          if: "{{ .MaybeSkip }}"
         - not_path: "docs/**/*"
-          if: "{{`{{`}} .DocsOnly }}"
+          if: "{{ .DocsOnly }}"
       `
 
       func TestParseBoilerplateConfigWithSkipFiles(t *testing.T) {
@@ -1172,8 +1134,8 @@ variables:
           Hooks:        variables.Hooks{},
           SkipFiles: []variables.SkipFile{
             {Path: "docs/README_ALWAYS_SKIP.md", If: ""},
-            {Path: "docs/README_MAYBE_SKIP.md", If: "{{`{{`}} .MaybeSkip }}"},
-            {NotPath: "docs/**/*", If: "{{`{{`}} .DocsOnly }}"},
+            {Path: "docs/README_MAYBE_SKIP.md", If: "{{ .MaybeSkip }}"},
+            {NotPath: "docs/**/*", If: "{{ .DocsOnly }}"},
           },
         }
         assert.Equal(t, expected, actual)
@@ -1246,12 +1208,12 @@ variables:
         renderedVariables := map[string]interface{}{}
 
         // Add a variable for all variables contained in the root config file. This will allow Golang template users
-        // to directly access these with an expression like "{{`{{`}} .BoilerplateConfigVars.foo.Default }}"
+        // to directly access these with an expression like "{{ .BoilerplateConfigVars.foo.Default }}"
         rootConfigVars := rootBoilerplateConfig.GetVariablesMap()
         renderedVariables["BoilerplateConfigVars"] = rootConfigVars
 
         // Add a variable for all dependencies contained in the root config file. This will allow Golang template users
-        // to directly access these with an expression like "{{`{{`}} .BoilerplateConfigDeps.foo.OutputFolder }}"
+        // to directly access these with an expression like "{{ .BoilerplateConfigDeps.foo.OutputFolder }}"
         rootConfigDeps := map[string]variables.Dependency{}
         for _, dep := range rootBoilerplateConfig.Dependencies {
           rootConfigDeps[dep.Name] = dep
@@ -2345,6 +2307,325 @@ variables:
         assert.Error(t, runErr, errors.PrintErrorWithStackTrace(runErr))
         assert.Contains(t, runErr.Error(), "Did you misspell the URL")
       }
+      -- integration-tests/examples_test.go --
+      package integration_tests
+
+      import (
+        "fmt"
+        "os"
+        "path"
+        "runtime"
+        "strings"
+        "testing"
+
+        "github.com/gruntwork-io/terratest/modules/git"
+        "github.com/stretchr/testify/assert"
+        "github.com/stretchr/testify/require"
+
+        "github.com/gruntwork-io/boilerplate/cli"
+        "github.com/gruntwork-io/boilerplate/errors"
+        "github.com/gruntwork-io/boilerplate/options"
+        "github.com/gruntwork-io/boilerplate/util"
+      )
+
+      // Our integration tests run through all the examples in the /examples/for-learning-and-testing folder, generate them,
+      // and check that they produce the output in /test-fixtures/examples-expected-output
+      func TestExamples(t *testing.T) {
+        t.Parallel()
+
+        examplesBasePath := "../examples/for-learning-and-testing"
+        examplesExpectedOutputBasePath := "../test-fixtures/examples-expected-output"
+        examplesVarFilesBasePath := "../test-fixtures/examples-var-files"
+
+        outputBasePath, err := os.MkdirTemp("", "boilerplate-test-output")
+        require.NoError(t, err)
+        defer os.RemoveAll(outputBasePath)
+
+        examples, err := os.ReadDir(examplesBasePath)
+        require.NoError(t, err)
+
+        for _, example := range examples {
+          if !example.IsDir() {
+            continue
+          }
+          if strings.Contains(example.Name(), "shell") {
+            // This is captured in TestExamplesShell
+            continue
+          }
+
+          t.Run(path.Base(example.Name()), func(t *testing.T) {
+            templateFolder := path.Join(examplesBasePath, example.Name())
+            outputFolder := path.Join(outputBasePath, example.Name())
+            varFile := path.Join(examplesVarFilesBasePath, example.Name(), "vars.yml")
+            expectedOutputFolder := path.Join(examplesExpectedOutputBasePath, example.Name())
+
+            if !util.PathExists(varFile) || !util.PathExists(expectedOutputFolder) {
+              t.Logf("Skipping example %s because either the var file (%s) or expected output folder (%s) does not exist.", templateFolder, varFile, expectedOutputFolder)
+              return
+            }
+
+            if runtime.GOOS != "windows" { // skip clone test for windows because of invalid file name in git
+              for _, missingKeyAction := range options.AllMissingKeyActions {
+                t.Run(fmt.Sprintf("%s-missing-key-%s", example.Name(), string(missingKeyAction)), func(t *testing.T) {
+                  testExample(t, templateFolder, outputFolder, varFile, expectedOutputFolder, string(missingKeyAction))
+                })
+              }
+            }
+          })
+        }
+      }
+
+      func TestExamplesAsRemoteTemplate(t *testing.T) {
+        t.Parallel()
+
+        branchName := git.GetCurrentBranchName(t)
+        examplesBasePath := "../examples/for-learning-and-testing"
+        examplesExpectedOutputBasePath := "../test-fixtures/examples-expected-output"
+        examplesVarFilesBasePath := "../test-fixtures/examples-var-files"
+
+        outputBasePath, err := os.MkdirTemp("", "boilerplate-test-output")
+        require.NoError(t, err)
+        defer os.RemoveAll(outputBasePath)
+
+        examples, err := os.ReadDir(examplesBasePath)
+        require.NoError(t, err)
+
+        // Insulate the following parallel tests in a group so that cleanup routines run after all tests are done.
+        t.Run("group", func(t *testing.T) {
+          if runtime.GOOS == "windows" { // skip clone test for windows because of invalid file name in git
+            t.Skip()
+            return
+          }
+          for _, example := range examples {
+            // Capture range variable to avoid it changing on each iteration during the tests
+            example := example
+
+            if !example.IsDir() {
+              continue
+            }
+            if strings.Contains(example.Name(), "shell") {
+              // This is captured in TestExamplesShell
+              continue
+            }
+            if strings.Contains(example.Name(), "unix") {
+              // unix specific case
+              continue
+            }
+
+            if example.Name() == "variables" {
+              t.Logf("Skipping example %s because it is implicitly tested via dependencies.", example.Name())
+              continue
+            }
+
+            t.Run(path.Base(example.Name()), func(t *testing.T) {
+              t.Parallel()
+              templateFolder := fmt.Sprintf("git@github.com:gruntwork-io/boilerplate.git//examples/for-learning-and-testing/%s?ref=%s", example.Name(), branchName)
+              outputFolder := path.Join(outputBasePath, example.Name())
+              varFile := path.Join(examplesVarFilesBasePath, example.Name(), "vars.yml")
+              expectedOutputFolder := path.Join(examplesExpectedOutputBasePath, example.Name())
+              testExample(t, templateFolder, outputFolder, varFile, expectedOutputFolder, string(options.ExitWithError))
+            })
+          }
+        })
+
+      }
+
+      func testExample(t *testing.T, templateFolder string, outputFolder string, varFile string, expectedOutputFolder string, missingKeyAction string) {
+        app := cli.CreateBoilerplateCli()
+
+        ref := git.GetCurrentGitRef(t)
+        args := []string{
+          "boilerplate",
+          "--template-url",
+          templateFolder,
+          "--output-folder",
+          outputFolder,
+          "--var-file",
+          varFile,
+          "--var",
+          fmt.Sprintf("RemoteBranch=%s", ref),
+          "--non-interactive",
+          "--missing-key-action",
+          missingKeyAction,
+        }
+
+        // Special handling for the shell-disabled case, which we use to test that we can disable hooks and shell helpers
+        if strings.Contains(templateFolder, "shell-disabled") {
+          args = append(args, "--disable-hooks", "--disable-shell")
+        }
+
+        err := app.Run(args)
+        assert.NoError(t, err, errors.PrintErrorWithStackTrace(err))
+        if expectedOutputFolder != "" {
+          assertDirectoriesEqual(t, expectedOutputFolder, outputFolder)
+        }
+      }
+      -- integration-tests/examples_unix_test.go --
+      //go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
+      // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
+
+      // The following tests should only be run on unix machines
+
+      package integration_tests
+
+      import (
+        "fmt"
+        "github.com/gruntwork-io/terratest/modules/files"
+        "io/ioutil"
+        "os"
+        "path"
+        "testing"
+
+        "github.com/gruntwork-io/boilerplate/options"
+        "github.com/gruntwork-io/terratest/modules/git"
+        "github.com/stretchr/testify/require"
+      )
+
+      func TestExamplesShell(t *testing.T) {
+        t.Parallel()
+
+        branchName := git.GetCurrentBranchName(t)
+        examplesBasePath := "../examples/for-learning-and-testing"
+        examplesExpectedOutputBasePath := "../test-fixtures/examples-expected-output"
+        examplesVarFilesBasePath := "../test-fixtures/examples-var-files"
+
+        outputBasePath, err := ioutil.TempDir("", "boilerplate-test-output")
+        require.NoError(t, err)
+        defer os.RemoveAll(outputBasePath)
+
+        shellExamples := []string{"shell", "shell-disabled"}
+        // Insulate the following parallel tests in a group so that cleanup routines run after all tests are done.
+        t.Run("group", func(t *testing.T) {
+          for _, example := range shellExamples {
+            // Capture range variable to avoid it changing on each iteration during the tests
+            example := example
+
+            outputFolder := path.Join(outputBasePath, example)
+            varFile := path.Join(examplesVarFilesBasePath, example, "vars.yml")
+            expectedOutputFolder := path.Join(examplesExpectedOutputBasePath, example)
+
+            t.Run(example, func(t *testing.T) {
+              t.Parallel()
+              templateFolder := path.Join(examplesBasePath, example)
+              for _, missingKeyAction := range options.AllMissingKeyActions {
+                t.Run(fmt.Sprintf("%s-missing-key-%s", example, string(missingKeyAction)), func(t *testing.T) {
+                  testExample(t, templateFolder, outputFolder, varFile, expectedOutputFolder, string(missingKeyAction))
+                })
+              }
+            })
+
+            t.Run(fmt.Sprintf("%s-remote", example), func(t *testing.T) {
+              t.Parallel()
+              templateFolder := fmt.Sprintf("git@github.com:gruntwork-io/boilerplate.git//examples/for-learning-and-testing/%s?ref=%s", example, branchName)
+              testExample(t, templateFolder, outputFolder, varFile, expectedOutputFolder, string(options.ExitWithError))
+            })
+          }
+        })
+      }
+
+      // Separated test cases with custom file renaming logic
+      func TestSpecialFileNames(t *testing.T) {
+        t.Parallel()
+
+        testCases := []struct {
+          path      string
+          initLogic func(string) error
+        }{
+          {"kebab-case-bug-unix",
+            func(testDir string) error {
+              return os.Rename(path.Join(testDir, "template.txt"), path.Join(testDir, "{{ .Name | kebabcase }}"))
+            },
+          },
+          {"tofu-test-unix",
+            func(testDir string) error {
+              return os.Rename(path.Join(testDir, "template_test.go"), path.Join(testDir, "{{ .ModuleName | snakecase }}_test.go"))
+            },
+          },
+        }
+
+        for _, testCase := range testCases {
+          tt := testCase
+          t.Run(tt.path, func(t *testing.T) {
+
+            filter := func(path string) bool {
+              return true
+            }
+            testDir, err := files.CopyFolderToTemp("../examples/for-learning-and-testing/"+tt.path, tt.path, filter)
+            require.NoError(t, err)
+
+            outputBasePath, err := ioutil.TempDir("", "boilerplate-test-output")
+            require.NoError(t, err)
+
+            // run init logic
+            err = tt.initLogic(testDir)
+            require.NoError(t, err)
+            examplesVarFilesBasePath := "../test-fixtures/examples-var-files"
+
+            example := tt.path
+            outputFolder := path.Join(outputBasePath, example)
+            err = os.MkdirAll(outputFolder, 0777)
+            require.NoError(t, err)
+            varFile := path.Join(examplesVarFilesBasePath, example, "vars.yml")
+            expectedOutputFolder := path.Join("../test-fixtures/examples-expected-output-unix", example)
+
+            for _, missingKeyAction := range options.AllMissingKeyActions {
+              t.Run(fmt.Sprintf("%s-missing-key-%s", example, string(missingKeyAction)), func(t *testing.T) {
+                testExample(t, testDir, outputFolder, varFile, expectedOutputFolder, string(missingKeyAction))
+              })
+            }
+          })
+        }
+
+      }
+      -- integration-tests/examples_windows_test.go --
+      //go:build windows
+      // +build windows
+
+      package integration_tests
+
+      import (
+        "fmt"
+        "io/ioutil"
+        "os"
+        "path"
+        "testing"
+
+        "github.com/gruntwork-io/boilerplate/options"
+        "github.com/stretchr/testify/require"
+      )
+
+      func TestWindowsExamples(t *testing.T) {
+        t.Parallel()
+
+        examplesBasePath := "../examples/for-learning-and-testing"
+        examplesExpectedOutputBasePath := "../test-fixtures/examples-expected-output"
+        examplesVarFilesBasePath := "../test-fixtures/examples-var-files"
+
+        outputBasePath, err := ioutil.TempDir("", "boilerplate-test-output")
+        require.NoError(t, err)
+        defer os.RemoveAll(outputBasePath)
+
+        windowsExamples := []string{"dependencies"}
+        t.Run("group", func(t *testing.T) {
+          for _, example := range windowsExamples {
+            example := example
+
+            outputFolder := path.Join(outputBasePath, example)
+            varFile := path.Join(examplesVarFilesBasePath, example, "vars.yml")
+            expectedOutputFolder := path.Join(examplesExpectedOutputBasePath, example)
+
+            t.Run(example, func(t *testing.T) {
+              t.Parallel()
+              templateFolder := path.Join(examplesBasePath, example)
+              for _, missingKeyAction := range options.AllMissingKeyActions {
+                t.Run(fmt.Sprintf("%s-missing-key-%s", example, string(missingKeyAction)), func(t *testing.T) {
+                  testExample(t, templateFolder, outputFolder, varFile, expectedOutputFolder, string(missingKeyAction))
+                })
+              }
+            })
+          }
+        })
+      }
       -- integration-tests/for_production_example_unix_test.go --
       //go:build aix || darwin || dragonfly || freebsd || (js && wasm) || linux || netbsd || openbsd || solaris
       // +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
@@ -3154,7 +3435,7 @@ variables:
 
       const EMBED_WHOLE_FILE_TEMPLATE = `
       embed file:
-      {{`{{`}}snippet "../test-fixtures/templates-test/full-file-snippet.txt"}}
+      {{snippet "../test-fixtures/templates-test/full-file-snippet.txt"}}
       `
 
       const EMBED_WHOLE_FILE_TEMPLATE_OUTPUT = `
@@ -3168,7 +3449,7 @@ variables:
 
       const EMBED_SNIPPET_TEMPLATE = `
       embed snippet:
-      {{`{{`}}snippet "../test-fixtures/templates-test/full-file-snippet.txt" "foo"}}
+      {{snippet "../test-fixtures/templates-test/full-file-snippet.txt" "foo"}}
       `
 
       const EMBED_SNIPPET_TEMPLATE_OUTPUT = `
@@ -3203,41 +3484,41 @@ variables:
         }{
           {"", map[string]interface{}{}, options.ExitWithError, "", "", false},
           {"plain text template", map[string]interface{}{}, options.ExitWithError, "", "plain text template", false},
-          {"variable lookup: {{`{{`}}.Foo}}", map[string]interface{}{"Foo": "bar"}, options.ExitWithError, "", "variable lookup: bar", false},
-          {"missing variable lookup, ExitWithError: {{`{{`}}.Foo}}", map[string]interface{}{}, options.ExitWithError, "map has no entry for key \"Foo\"", "", false},
-          {"missing variable lookup, Invalid: {{`{{`}}.Foo}}", map[string]interface{}{}, options.Invalid, "", "missing variable lookup, Invalid: <no value>", false},
+          {"variable lookup: {{.Foo}}", map[string]interface{}{"Foo": "bar"}, options.ExitWithError, "", "variable lookup: bar", false},
+          {"missing variable lookup, ExitWithError: {{.Foo}}", map[string]interface{}{}, options.ExitWithError, "map has no entry for key \"Foo\"", "", false},
+          {"missing variable lookup, Invalid: {{.Foo}}", map[string]interface{}{}, options.Invalid, "", "missing variable lookup, Invalid: <no value>", false},
           // Note: options.ZeroValue does not work correctly with Go templating when you pass in a map[string]interface{}. For some reason, it always prints <no value>.
-          {"missing variable lookup, ZeroValue: {{`{{`}}.Foo}}", map[string]interface{}{}, options.ZeroValue, "", "missing variable lookup, ZeroValue: <no value>", false},
+          {"missing variable lookup, ZeroValue: {{.Foo}}", map[string]interface{}{}, options.ZeroValue, "", "missing variable lookup, ZeroValue: <no value>", false},
           {EMBED_WHOLE_FILE_TEMPLATE, map[string]interface{}{}, options.ExitWithError, "", EMBED_WHOLE_FILE_TEMPLATE_OUTPUT, runtime.GOOS == "windows"},
           {EMBED_SNIPPET_TEMPLATE, map[string]interface{}{}, options.ExitWithError, "", EMBED_SNIPPET_TEMPLATE_OUTPUT, false},
-          {"Invalid template syntax: {{`{{`}}.Foo", map[string]interface{}{}, options.ExitWithError, "unclosed action", "", false},
-          {"Uppercase test: {{`{{`}} .Foo | upcase }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Uppercase test: SOME TEXT", false},
-          {"Lowercase test: {{`{{`}} .Foo | downcase }}", map[string]interface{}{"Foo": "SOME TEXT"}, options.ExitWithError, "", "Lowercase test: some text", false},
-          {"Capitalize test: {{`{{`}} .Foo | capitalize }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Capitalize test: Some Text", false},
-          {"Replace test: {{`{{`}} .Foo | replace \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace test: hello bar, how are foo", false},
-          {"Replace all test: {{`{{`}} .Foo | replaceAll \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace all test: hello bar, how are bar", false},
-          {"Trim test: {{`{{`}} .Foo | trim }}", map[string]interface{}{"Foo": "   some text     \t"}, options.ExitWithError, "", "Trim test: some text", false},
-          {"Round test: {{`{{`}} .Foo | round }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Round test: 0", false},
-          {"Ceil test: {{`{{`}} .Foo | ceil }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Ceil test: 1", false},
-          {"Floor test: {{`{{`}} .Foo | floor }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Floor test: 0", false},
-          {"Dasherize test: {{`{{`}} .Foo | dasherize }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Dasherize test: foo-bar-baz", false},
-          {"Snake case test: {{`{{`}} .Foo | snakeCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Snake case test: foo_bar_baz", false},
-          {"Camel case test: {{`{{`}} .Foo | camelCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case test: FooBARBaz", false},
-          {"Camel case lower test: {{`{{`}} .Foo | camelCaseLower }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case lower test: fooBARBaz", false},
-          {"Plus test: {{`{{`}} plus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Plus test: 8", false},
-          {"Minus test: {{`{{`}} minus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Minus test: 2", false},
-          {"Times test: {{`{{`}} times .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Times test: 15", false},
-          {"Divide test: {{`{{`}} divide .Foo .Bar | printf \"%1.5f\" }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Divide test: 1.66667", false},
-          {"Mod test: {{`{{`}} mod .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Mod test: 2", false},
-          {"Slice test: {{`{{`}} slice 0 5 1 }}", map[string]interface{}{}, options.ExitWithError, "", "Slice test: [0 1 2 3 4]", false},
-          {"Keys test: {{`{{`}} keys .Map }}", map[string]interface{}{"Map": map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, options.ExitWithError, "", "Keys test: [key1 key2 key3]", false},
-          {"Shell test: {{`{{`}} shell \"echo\" .Text }}", map[string]interface{}{"Text": "Hello, World"}, options.ExitWithError, "", "Shell test: Hello, World\n", runtime.GOOS == "windows"},
-          {"Shell set env vars test: {{`{{`}} shell \"printenv\" \"FOO\" \"ENV:FOO=bar\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell set env vars test: bar\n", runtime.GOOS == "windows"},
-          {"Shell read env vars test: {{`{{`}} env \"USER\" \"should-not-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", fmt.Sprintf("Shell read env vars test: %s", userFromEnvVar), runtime.GOOS == "windows"},
-          {"Shell read env vars test, fallback: {{`{{`}} env \"not-a-valid-env-var\" \"should-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell read env vars test, fallback: should-get-fallback", false},
-          {"Template folder test: {{`{{`}} templateFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Template folder test: " + defaultTemplateDir, false},
-          {"Output folder test: {{`{{`}} outputFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Output folder test: " + defaultOutputDir, false},
-          {"Filter chain test: {{`{{`}} .Foo | downcase | replaceAll \" \" \"\" }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Filter chain test: foobarbaz!", false},
+          {"Invalid template syntax: {{.Foo", map[string]interface{}{}, options.ExitWithError, "unclosed action", "", false},
+          {"Uppercase test: {{ .Foo | upcase }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Uppercase test: SOME TEXT", false},
+          {"Lowercase test: {{ .Foo | downcase }}", map[string]interface{}{"Foo": "SOME TEXT"}, options.ExitWithError, "", "Lowercase test: some text", false},
+          {"Capitalize test: {{ .Foo | capitalize }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Capitalize test: Some Text", false},
+          {"Replace test: {{ .Foo | replace \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace test: hello bar, how are foo", false},
+          {"Replace all test: {{ .Foo | replaceAll \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace all test: hello bar, how are bar", false},
+          {"Trim test: {{ .Foo | trim }}", map[string]interface{}{"Foo": "   some text     \t"}, options.ExitWithError, "", "Trim test: some text", false},
+          {"Round test: {{ .Foo | round }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Round test: 0", false},
+          {"Ceil test: {{ .Foo | ceil }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Ceil test: 1", false},
+          {"Floor test: {{ .Foo | floor }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Floor test: 0", false},
+          {"Dasherize test: {{ .Foo | dasherize }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Dasherize test: foo-bar-baz", false},
+          {"Snake case test: {{ .Foo | snakeCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Snake case test: foo_bar_baz", false},
+          {"Camel case test: {{ .Foo | camelCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case test: FooBARBaz", false},
+          {"Camel case lower test: {{ .Foo | camelCaseLower }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case lower test: fooBARBaz", false},
+          {"Plus test: {{ plus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Plus test: 8", false},
+          {"Minus test: {{ minus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Minus test: 2", false},
+          {"Times test: {{ times .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Times test: 15", false},
+          {"Divide test: {{ divide .Foo .Bar | printf \"%1.5f\" }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Divide test: 1.66667", false},
+          {"Mod test: {{ mod .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Mod test: 2", false},
+          {"Slice test: {{ slice 0 5 1 }}", map[string]interface{}{}, options.ExitWithError, "", "Slice test: [0 1 2 3 4]", false},
+          {"Keys test: {{ keys .Map }}", map[string]interface{}{"Map": map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, options.ExitWithError, "", "Keys test: [key1 key2 key3]", false},
+          {"Shell test: {{ shell \"echo\" .Text }}", map[string]interface{}{"Text": "Hello, World"}, options.ExitWithError, "", "Shell test: Hello, World\n", runtime.GOOS == "windows"},
+          {"Shell set env vars test: {{ shell \"printenv\" \"FOO\" \"ENV:FOO=bar\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell set env vars test: bar\n", runtime.GOOS == "windows"},
+          {"Shell read env vars test: {{ env \"USER\" \"should-not-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", fmt.Sprintf("Shell read env vars test: %s", userFromEnvVar), runtime.GOOS == "windows"},
+          {"Shell read env vars test, fallback: {{ env \"not-a-valid-env-var\" \"should-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell read env vars test, fallback: should-get-fallback", false},
+          {"Template folder test: {{ templateFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Template folder test: " + defaultTemplateDir, false},
+          {"Output folder test: {{ outputFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Output folder test: " + defaultOutputDir, false},
+          {"Filter chain test: {{ .Foo | downcase | replaceAll \" \" \"\" }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Filter chain test: foobarbaz!", false},
         }
 
         for _, testCase := range testCases {
@@ -3381,7 +3662,7 @@ variables:
           "trimPrefix": trimPrefix,
           "trimSuffix": trimSuffix,
 
-          // In sprig, round supports arbitrary decimal place rounding. E.g {{`{{`}} round 123.5555 3 }} returns 123.556. For
+          // In sprig, round supports arbitrary decimal place rounding. E.g {{ round 123.5555 3 }} returns 123.556. For
           // backwards compatibility, we have:
           // - round : The original boilerplate round function that rounds to nearest int.
           // - roundFloat : The sprig version of round.
@@ -3390,7 +3671,7 @@ variables:
           "round": wrapFloatToIntFunction(round),
 
           // In sprig, ceil and floor is functionally the same as the boilerplate versions, except they return floats as
-          // opposed to ints. E.g {{`{{`}} ceil 1.1 }} returns 2.0. For backwards compatibility, we have:
+          // opposed to ints. E.g {{ ceil 1.1 }} returns 2.0. For backwards compatibility, we have:
           // - ceil : The original boilerplate ceil function that truncates.
           // - ceilFloat : The sprig version of ceil.
           // - ceilInt : Another name for the boilerplate version of ceil that doesn't overlap with sprig.
@@ -3407,7 +3688,7 @@ variables:
           "env": env,
 
           // In sprig, keys is the unordered keys version. To get the sorted version, you use
-          // {{`{{`}} keys $myDict | sortAlpha }}. For backwards compatibility, we have:
+          // {{ keys $myDict | sortAlpha }}. For backwards compatibility, we have:
           // - keys : The original boilerplate keys function that returns the keys in sorted order.
           // - keysUnordered : The sprig version of keys.
           // - keysSorted : Another name for the boilerplate keys function that doesn't overlap with sprig.
@@ -3442,7 +3723,7 @@ variables:
 
       // When writing a template, it's natural to use a relative path, such as:
       //
-      // {{`{{`}}snippet "../../foo/bar"}}
+      // {{snippet "../../foo/bar"}}
       //
       // However, this only works if boilerplate is called from the same folder as the template itself. To work around this
       // issue, this function can be used to wrap boilerplate template helpers to make the path of the template itself
@@ -5429,8 +5710,8 @@ variables:
           {"foo/bar/template-folder/foo.txt", "foo/bar/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo.txt"},
           {"template-folder/foo.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo.txt"},
           {"template-folder/foo/bar/baz.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo/bar/baz.txt"},
-          {"template-folder/{{`{{`}}.Foo}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "foo"}, "output-folder/foo.txt"},
-          {"template-folder/{{`{{`}}.Foo | dasherize}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "Foo Bar Baz"}, "output-folder/foo-bar-baz.txt"},
+          {"template-folder/{{.Foo}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "foo"}, "output-folder/foo.txt"},
+          {"template-folder/{{.Foo | dasherize}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "Foo Bar Baz"}, "output-folder/foo-bar-baz.txt"},
         }
 
         for _, testCase := range testCases {
@@ -5475,7 +5756,7 @@ variables:
             options.BoilerplateOptions{TemplateUrl: "../dep1", TemplateFolder: filepath.FromSlash("/template/dep1"), OutputFolder: filepath.FromSlash("/output/out1"), NonInteractive: false, Vars: map[string]interface{}{"foo": "bar", "baz": "blah"}, OnMissingKey: options.Invalid},
           },
           {
-            variables.Dependency{Name: "dep1", TemplateUrl: "{{`{{`}} .foo }}", OutputFolder: "{{`{{`}} .baz }}"},
+            variables.Dependency{Name: "dep1", TemplateUrl: "{{ .foo }}", OutputFolder: "{{ .baz }}"},
             options.BoilerplateOptions{TemplateFolder: "/template/path/", OutputFolder: "/output/path/", NonInteractive: false, Vars: map[string]interface{}{}, OnMissingKey: options.ExitWithError},
             map[string]interface{}{"foo": "bar", "baz": "blah"},
             options.BoilerplateOptions{TemplateUrl: "bar", TemplateFolder: filepath.FromSlash("/template/path/bar"), OutputFolder: filepath.FromSlash("/output/path/blah"), NonInteractive: false, Vars: map[string]interface{}{"foo": "bar", "baz": "blah"}, OnMissingKey: options.ExitWithError},

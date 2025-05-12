@@ -1,6 +1,6 @@
 variables:
-  - name: ExampleVariable
-    description: You can use ExampleVariable to define some variable
+  - name: ProjectName
+    description: Name of the project you're building
     type: string
     default: "{{ base outputFolder }}"
 
