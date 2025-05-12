@@ -1,7 +1,7 @@
 variables:
   - name: Remote
     description: Testing
-    type: boolean
+    type: bool
     default: true
 
 skip_files:
