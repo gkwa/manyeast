@@ -1,0 +1,126 @@
+# Test 1: Basic template escaping
+exec bash escape_templates.sh t
+exec diff -uw t t-expected
+
+# Test 2: Multiple variables in a line
+exec bash escape_templates.sh t2
+exec diff -uw t2 t2-expected
+
+# Test 3: Running twice (preventing double-escaping)
+exec bash escape_templates.sh t3
+exec bash escape_templates.sh t3
+exec diff -uw t3 t3-expected
+
+# Test 4: Variables without spaces
+exec bash escape_templates.sh t4
+exec diff -uw t4 t4-expected
+
+# Test 5: All already escaped (no changes expected)
+exec bash escape_templates.sh t5
+exec diff -uw t5 t5-expected
+
+# Test 6: Mixed escaped and unescaped templates
+exec bash escape_templates.sh t6
+exec diff -uw t6 t6-expected
+
+# Test 7: Complex combinations of escaped and unescaped templates
+exec bash escape_templates.sh t7
+exec diff -uw t7 t7-expected
+
+-- escape_templates.sh --
+#!/bin/bash
+
+# Create a Perl script file for better syntax control
+cat > /tmp/escape_template.pl << 'EOF'
+#!/usr/bin/perl
+
+# Read the entire file
+$/ = undef;
+$content = <>;
+
+# Process each template expression
+while ($content =~ /(\{\{.*?\}\})/g) {
+    $match = $1;
+
+    # Skip if this match is already an escaped template
+    if ($match =~ /\{\{`\{\{/) {
+        next;
+    }
+
+    # Extract variable name with whitespace preserved
+    $match =~ /\{\{(.*?)\}\}/;
+    $var = $1;
+
+    # Create escaped version and replace just this instance
+    $escaped = "{{`{{ $var }}`}}";
+    $content =~ s/\Q$match\E/$escaped/;
+}
+
+# Print the result
+print $content;
+EOF
+
+# Execute the Perl script on the input file
+perl /tmp/escape_template.pl < "$1" > "$1.tmp"
+mv "$1.tmp" "$1"
+rm /tmp/escape_template.pl
+
+-- t --
+The variable's value is {{ .MyVar }}
+Another variable: {{ .OtherVar }}
+
+-- t-expected --
+The variable's value is {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}}
+
+-- t2 --
+The variable's value is {{ .MyVar }} {{ .MyVar }}
+Another variable: {{ .OtherVar }} {{ .OtherVar }}
+
+-- t2-expected --
+The variable's value is {{`{{ .MyVar }}`}} {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}} {{`{{ .OtherVar }}`}}
+
+-- t3 --
+The variable's value is {{ .MyVar }}
+Another variable: {{ .OtherVar }}
+
+-- t3-expected --
+The variable's value is {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}}
+
+-- t4 --
+The variable's value is {{.MyVar}}
+Another variable: {{.OtherVar}}
+
+-- t4-expected --
+The variable's value is {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}}
+
+-- t5 --
+The variable's value is {{`{{ .MyVar }}`}} {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}} {{`{{ .OtherVar }}`}}
+
+-- t5-expected --
+The variable's value is {{`{{ .MyVar }}`}} {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}} {{`{{ .OtherVar }}`}}
+
+-- t6 --
+The variable's value is {{`{{ .MyVar }}`}} {{.MyVar}}
+Another variable: {{`{{ .OtherVar }}`}} {{.OtherVar}}
+
+-- t6-expected --
+The variable's value is {{`{{ .MyVar }}`}} {{`{{ .MyVar }}`}}
+Another variable: {{`{{ .OtherVar }}`}} {{`{{ .OtherVar }}`}}
+
+-- t7 --
+Complex line with multiple patterns: {{`{{ .EscapedVar1 }}`}} {{ .UnescapedVar }} {{`{{ .EscapedVar2 }}`}} {{ .AnotherUnescaped }}
+Multi-template line: {{ .First }} {{`{{ .Second }}`}} {{ .Third }} {{`{{ .Fourth }}`}} {{ .Fifth }}
+Consecutive templates: {{ .One }}{{ .Two }}{{`{{ .Three }}`}}{{ .Four }}
+Nested code example: func example() { {{ .VarInCode }} if x := {{ .AnotherVar }}; x != nil { return {{`{{ .EscapedResult }}`}} }}
+
+-- t7-expected --
+Complex line with multiple patterns: {{`{{ .EscapedVar1 }}`}} {{`{{ .UnescapedVar }}`}} {{`{{ .EscapedVar2 }}`}} {{`{{ .AnotherUnescaped }}`}}
+Multi-template line: {{`{{ .First }}`}} {{`{{ .Second }}`}} {{`{{ .Third }}`}} {{`{{ .Fourth }}`}} {{`{{ .Fifth }}`}}
+Consecutive templates: {{`{{ .One }}`}}{{`{{ .Two }}`}}{{`{{ .Three }}`}}{{`{{ .Four }}`}}
+Nested code example: func example() { {{`{{ .VarInCode }}`}} if x := {{`{{ .AnotherVar }}`}}; x != nil { return {{`{{ .EscapedResult }}`}} }}
