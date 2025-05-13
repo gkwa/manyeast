@@ -14,6 +14,6 @@ skip_files:
 
 dependencies:
 - name: conditional-dependency-example
-  template-url: git@github.com:gkwa/manyeast.git//does-boilerplate-offer-option-as-library
-  output-folder: ../does-boilerplate-offer-option-as-library
+  template-url: git::https://github.com:gkwa/manyeast.git//does-boilerplate-offer-option-as-library
+  output-folder: does-boilerplate-offer-option-as-library
 #  skip: "{{ and .Foo .Bar }}"
