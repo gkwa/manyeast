@@ -10,7 +10,6 @@ variables:
 
 skip_files:
 - path: README.md
-- path: boilerplate-template-examples.txtar
 
 dependencies:
 - name: conditional-dependency-example
