@@ -8,5 +8,5 @@ variables:
   description: Name of the project you're building
   type: string
 
-# skip_files:
-#  - path: README.md
+skip_files:
+ - path: README.md
