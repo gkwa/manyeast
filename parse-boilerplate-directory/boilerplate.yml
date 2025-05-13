@@ -1,15 +1,12 @@
 variables:
-
   - name: GoModuleNamespace
     description: go module namespace (eg github.com/gkwa)
     type: string
     default: github.com/gkwa
-
   - name: GoModuleName
     description: Name of the project you're building
     type: string
     default: '{{ base outputFolder }}'
-
 skip_files:
   - path: README.md
   - path: boilerplate-template-examples.txtar
