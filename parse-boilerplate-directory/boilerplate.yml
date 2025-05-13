@@ -16,4 +16,4 @@ dependencies:
 - name: conditional-dependency-example
   template-url: ../does-boilerplate-offer-option-as-library
   output-folder: does-boilerplate-offer-option-as-library
-  skip: "{{ and .Foo .Bar }}"
+#  skip: "{{ and .Foo .Bar }}"
