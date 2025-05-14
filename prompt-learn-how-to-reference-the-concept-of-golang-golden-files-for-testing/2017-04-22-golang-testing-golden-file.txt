@@ -1,0 +1,164 @@
+
+
+
+
+
+https://vincent.demeester.fr/posts/2017-04-22-golang-testing-golden-file/
+
+
+
+
+Golang testing — golden file
+Sat, 22 April, 2017 (900 Words)
+developement
+golang12
+testing11
+golden1
+file1
+functionnal2
+java4
+
+Tests are all about maintainability and readability. You want the least visual noise possible and it should not be a hassle to maintain. When testing functions that output a long of string, in case of a command line output testing, readability and maintainance tend to be tricky to achieve.
+
+The problem
+As an example let's say we want to test out the output of a command that displays a list as a table. The output would look like the following:
+
+ID:                     nodeID
+Name:                   defaultNodeName
+Hostname:               defaultNodeHostname
+Joined at:              2009-11-10 23:00:00 +0000 utc
+Status:
+ State:                 Ready
+ Availability:          Active
+ Address:               127.0.0.1
+Manager Status:
+ Address:               127.0.0.1
+ Raft Status:           Reachable
+ Leader:                No
+Platform:
+ Operating System:      linux
+ Architecture:          x86_64
+Resources:
+ CPUs:                  0
+ Memory:                20 MiB
+Plugins:
+  Network:              bridge, overlay
+  Volume:               local
+Engine Version:         1.13.0
+Engine Labels:
+ - engine = label
+Let's see how we would test that output, naively.
+
+func TestNodeInspectPretty(t *testing.T) {
+        expected := ```
+ID:                     nodeID
+Name:                   defaultNodeName
+Hostname:               defaultNodeHostname
+Joined at:              2009-11-10 23:00:00 +0000 utc
+Status:
+ State:                 Ready
+ Availability:          Active
+ Address:               127.0.0.1
+Manager Status:
+ Address:               127.0.0.1
+ Raft Status:           Reachable
+ Leader:                No
+Platform:
+ Operating System:      linux
+ Architecture:          x86_64
+Resources:
+ CPUs:                  0
+ Memory:                20 MiB
+Plugins:
+  Network:              bridge, overlay
+  Volume:               local
+Engine Version:         1.13.0
+Engine Labels:
+ - engine = label
+```
+        buf := new(bytes.Buffer)
+        cmd := newInspectCommand(
+                test.NewFakeCli(&fakeClient{
+                        nodeInspectFunc: func() (swarm.Node, []byte, error) {
+                                return *Node(Manager()), []byte{}, nil
+                        },
+                }, buf))
+        cmd.SetArgs([]string{"nodeID"})
+        cmd.Flags().Set("pretty", "true")
+        assert.NilError(t, cmd.Execute())
+        actual := buf.String()
+        assert.EqualNormalizedString(t, assert.RemoveSpace, actual, string(expected))
+}
+This might look ok as is, but a few problem are present:
+
+The output is quite large and adds some noise to the test
+Lot's of value in the expected string comes from default values of our Node builder.
+
+This means any time we change our builder default values, we would need to update this test, painful.
+
+If the output changes for a good reason (add a field, fix a typo, …), this test has to be updated too.
+Golden files to the rescue
+First, let's get back at what is our test about and what we actually want to test.
+
+We want to ensure, the output of the function does not change by mistake (i.e. change that wasn't supposed to change the output)
+We want to have an update version of the output if that was the purpose of our change. And we want this update to be the least painful possible.
+We don't really care about the final outputs as long as it stays the same for the same inputs (i.e. we don't test for any number of space, or that word are valid English, or …).
+This is where the concept of golden file is useful. In a nutshell, a golden file is a file where we store the output and that will be used by the test as the expected output. This file should be updated any time the output changes for good reason. That's that simple 👼.
+
+Once again, the way go testing works, introducing and using golden files in our tests is pretty straightforward and easy to use.
+
+Let's write a small golden file helper so that our test has no visual noise, in a golden package.
+
+var update = flag.Bool("test.update", false, "update golden file")
+
+// Get returns the golden file content. If the `test.update` is specified, it updates the
+// file with the current output and returns it.
+func Get(t *testing.T, actual []byte, filename string) []byte {
+        golden := filepath.Join("testdata", filename)
+        if *update {
+                if err := ioutil.WriteFile(golden, actual, 0644); err != nil {
+                        t.Fatal(err)
+                }
+        }
+        expected, err := ioutil.ReadFile(golden)
+        if err != nil {
+                t.Fatal(err)
+        }
+        return expected
+}
+We define a global flag, -test.update that will enhance the go test command with it (as soon as we import this golden package).
+We define a golden.Get function that takes the current output and the path of the golden file. It also takes testing.T so any failure happening here (like reading file, …) will make the test fail (one less thing to write in the test calling this function).
+
+If the flag is present when running the test, it will update the file with the actual content.
+
+The initial test becomes.
+
+func TestNodeInspectPretty(t *testing.T) {
+        buf := new(bytes.Buffer)
+        cmd := newInspectCommand(
+                test.NewFakeCli(&fakeClient{
+                        nodeInspectFunc: func() (swarm.Node, []byte, error) {
+                                return *Node(Manager()), []byte{}, nil
+                        },
+                }, buf))
+        cmd.SetArgs([]string{"nodeID"})
+        cmd.Flags().Set("pretty", "true")
+        assert.NilError(t, cmd.Execute())
+        actual := buf.String()
+        expected := golden.Get(t, []byte(actual), "myfile.golden")
+        assert.EqualNormalizedString(t, assert.RemoveSpace, actual, string(expected))
+}
+If we change the output, the workflow becomes the following :
+
+run go test and make sure it's failing,
+Validate that the current output is correct,
+run go test -test.update to update the golden file(s),
+re-run go test to make sure it's now green,
+you are done 👼.
+With this simple trick, our test now contains less noise and is way more maintainable (you just have a command to run to update the expected content).
+
+← Previous post Next post →
+home | about | archive | categories | tags | twitter | github | rss
+
+Content and design by Vincent Demeester (Some rights reserved)
+Powered by Hugo and ox-hugo
