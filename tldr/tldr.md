@@ -7,5 +7,3 @@ Please separate each sentence of your text response with new paragraph.
 {{ include "../no-preamble/no-preamble.md" . | trim }}
 
 Only provide the tldr summary and refrain from adding comments.
-
-{{ include "../add-google-search-links/add-links.md" . | trim }}

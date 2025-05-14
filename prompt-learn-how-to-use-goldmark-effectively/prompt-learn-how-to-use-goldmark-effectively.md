@@ -1,0 +1,25 @@
+I'm interested in learning more about how I can read and write Markdown files. 
+
+More specifically, for example, suppose I wanted to query a specific second level header for some section value. 
+
+Suppose also I wanted to update that section with some other text. 
+
+This would be two different examples. 
+
+These are CRUD operations on a Markdown file.
+
+For these markdown realated CRUD tasks, I would like to use the goldmark package from here: https://github.com/yuin/goldmark?tab=readme-ov-file#goldmark
+
+For example I want to be able to parse the markdown into an Abstract Syntax Tree and then query this graph as well as perform modifications to this graph and then write the graph back to a markdown file.
+
+I've included the goldmark source below to give you a clear understanding of the current API.
+
+<goldmark_source>
+{{ snippet "goldmark-subset.txtar" | trim }}"
+</goldmark_source>
+
+We will need extensive tests to verify that our output is what we expect.
+
+Please create 
+
+{{ include "../golang-app/golang-app.md" . | trim }}

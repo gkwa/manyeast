@@ -3,3 +3,6 @@ variables:
   description: How many google search links should be generated
   type: int
   default: 10
+
+skip_files:
+ - path: README.md

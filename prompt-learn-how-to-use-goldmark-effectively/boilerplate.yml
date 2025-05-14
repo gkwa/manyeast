@@ -1,0 +1,10 @@
+variables:
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: manyeast
+
+skip_files:
+ - path: README.md
+ - path: goldmark-source-to-txtar-prompt.sh
+ - path: goldmark-subset.txtar
