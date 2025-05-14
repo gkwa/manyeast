@@ -6,6 +6,10 @@ I've already gotten started with:
 go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}
 ```
 
+## use artifacts in chat
+
+{{ include "../use-a-claude-artifact/use-a-claude-artifact.md" . | trim }}"
+
 ## provide a version subcommand that will show the version to stdout
 
 We can use `runtime/debug.BuildInfo` to gather the binary version number and output when using the 'version' subcommand.
