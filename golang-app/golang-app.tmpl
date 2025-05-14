@@ -16,6 +16,4 @@ go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}
 
 {{include "../go-app-use-cobra-cli/go-app-use-cobra-cli.tmpl" . | trim}}
 
-## more suggestions
-
 {{include "../common-apps/common-apps.tmpl" .}}
