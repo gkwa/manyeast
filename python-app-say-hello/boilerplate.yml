@@ -16,7 +16,8 @@ variables:
     type: string
     default: '3.12'
 
-dependencies:
-- name: version
-  template-url: git::https://github.com/gkwa/manyeast.git//my-bump-version-python
-  output-folder: '{{ outputFolder }}'
+
+
+skip_files:
+ - path: README.md
+
