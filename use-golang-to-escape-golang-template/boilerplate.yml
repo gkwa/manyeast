@@ -10,5 +10,5 @@ variables:
 
 skip_files:
   - path: README.md
-  - path: partial_a.tmpl
-  - path: partial_b.tmpl
+  - path: partial_a.md
+  - path: partial_b.md

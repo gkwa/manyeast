@@ -14,6 +14,6 @@ go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}
 
 ## use cobra-cli and viper please
 
-{{include "../go-app-use-cobra-cli/go-app-use-cobra-cli.tmpl" . | trim}}
+{{include "../go-app-use-cobra-cli/go-app-use-cobra-cli.md" . | trim}}
 
-{{include "../common-apps/common-apps.tmpl" .}}
+{{include "../common-apps/common-apps.md" .}}

@@ -13,4 +13,4 @@ The user is presented with a page that has a textbox
 
 When the user has typed at least 3 characters, then the autocomplete will list the paths that contain this string.
 
-{{include "../webui-common/webui-common.tmpl" . | trim }}
+{{include "../webui-common/webui-common.md" . | trim }}

@@ -8,8 +8,8 @@ I'm specifically interested in how prompts can be reused by chaining together pr
 
 I've created a project scaffold within project_scaffold xml stanza
 
-{{include "../python-package/python-package.tmpl" .}}
+{{include "../python-package/python-package.md" .}}
 
 <project_scaffold>
-{{include "../project-scaffold/project-scaffold.tmpl" .}}
+{{include "../project-scaffold/project-scaffold.md" .}}
 </project_scaffold>

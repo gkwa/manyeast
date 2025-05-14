@@ -11,4 +11,4 @@ The bash script should use perl to escape the golng template.
 
 Use inplace editing in perl.
 
-{{ include "../txtar/txtar.tmpl" . | trim }}
+{{ include "../txtar/txtar.md" . | trim }}

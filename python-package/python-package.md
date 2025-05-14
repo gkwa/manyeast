@@ -1,8 +1,8 @@
 ## absolute import only please
 
-{{include "../python-imports-absolute/python-imports-absolute.tmpl" . | trim}}
+{{include "../python-imports-absolute/python-imports-absolute.md" . | trim}}
 
-{{include "../common-apps/common-apps.tmpl" . | trim}}
+{{include "../common-apps/common-apps.md" . | trim}}
 
 ## add option to show version
 

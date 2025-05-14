@@ -24,4 +24,4 @@ Next, please create python script to traverse this graph and print the output in
 
 Here are some requirements for our project:
 
-{{include "../python-package/python-package.tmpl" .}}
+{{include "../python-package/python-package.md" .}}

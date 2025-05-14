@@ -1,11 +1,11 @@
 I need a golang app that will escape golang template brackets so this:
 ```
-{{ snippet "partial_a.tmpl" }}
+{{ snippet "partial_a.md" }}
 ```
 
 becomes this:
 ```
-{{ snippet "partial_b.tmpl" }}
+{{ snippet "partial_b.md" }}
 ```
 
 and likewise for all other instances of golang's standard template open and closed delimiters.
@@ -24,4 +24,4 @@ If argument is just a file path then the escaping should be performed on the fil
 
 We should show metadata in logs indicating how many escapes we've performed.
 
-{{ include "../golang-app/golang-app.tmpl" . | trim }}"
+{{ include "../golang-app/golang-app.md" . | trim }}"

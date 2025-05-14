@@ -8,4 +8,4 @@ Our app should offer --dry-run to not actually make the changes but in logging s
 
 If our app can't read a file or directory, it should not fail.  Instead it should log that and contine to the next file.
 
-{{ include "../golang-app/golang-app.tmpl" . | trim }}"
+{{ include "../golang-app/golang-app.md" . | trim }}"

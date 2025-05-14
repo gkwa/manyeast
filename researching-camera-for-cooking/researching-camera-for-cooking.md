@@ -1,4 +1,4 @@
-{{include "../add-google-search-links/add-links.tmpl" . | trim }}
+{{include "../add-google-search-links/add-links.md" . | trim }}
 
 I would like to take video notes on cooking but I find it too tedious to talk into my phone's audio recording app and too tedious to write notes down.
 

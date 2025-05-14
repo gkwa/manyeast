@@ -31,4 +31,4 @@ The candidates for the textbox will be the files from the json we created.  So i
 
 The user is presented with a page that has a textbox
 
-{{include "../webui-common/webui-common.tmpl" . | trim }}
+{{include "../webui-common/webui-common.md" . | trim }}

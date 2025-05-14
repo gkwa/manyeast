@@ -29,7 +29,7 @@ while ($content =~ /(\{\{.*?\}\})/g) {
 print $content;
 ```
 
-{{ include "../golang-app/golang-app.tmpl" . | trim }}
+{{ include "../golang-app/golang-app.md" . | trim }}
 
 We will also use `https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript` to test its
 

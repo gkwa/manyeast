@@ -30,4 +30,4 @@ Lets also add metadata key dictionary that shows statistics about the scan inclu
 - path count found
 - directory count found
 
-{{ include "../golang-app/golang-app.tmpl" . | trim }}
+{{ include "../golang-app/golang-app.md" . | trim }}
