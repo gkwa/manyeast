@@ -2,7 +2,7 @@
 
 I've already gotten started with:
 
-```
+```bash
 go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}
 ```
 

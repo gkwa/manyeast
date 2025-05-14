@@ -10,7 +10,7 @@
 
 {{include "../txtar/txtar.md" . | trim}}
 
-## follow solid principles please
+## follow SOLID programming principles please
 
 {{include "../solid-principles/solid-principles.md" . | trim}}
 
