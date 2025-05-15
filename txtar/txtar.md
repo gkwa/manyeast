@@ -44,4 +44,4 @@ but please don't do that...instead write the whole file out as you expect it sho
 
 Remember: please show only the files that have changed instead of all of the files.
 
-Remember to respond with file changes in txtar format.  Make sure to not write some txtar in a block and then make a comment and then write another txtar block. Instead keep the txtar for your response in a single block without breaking for comments. In summary, its best to show a single block of txtar in if you have code changes in a response.
+Remember to respond with file changes in txtar format. Make sure to not write some txtar in a block and then make a comment and then write another txtar block. Instead keep the txtar for your response in a single block without breaking for comments. In summary, its best to show a single block of txtar in if you have code changes in a response.
