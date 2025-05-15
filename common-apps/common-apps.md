@@ -6,10 +6,6 @@
 
 {{include "../readme-in-org-mode/readme-in-org-mode.md" . | trim}}
 
-## files in txtar format please
-
-{{include "../txtar/txtar.md" . | trim}}
-
 ## follow SOLID programming principles please
 
 {{include "../solid-principles/solid-principles.md" . | trim}}
@@ -21,3 +17,7 @@
 ## log to stderr
 
 {{include "../logging-to-stderr/logging-to-stderr.md" . | trim}}
+
+## files in txtar format please
+
+{{include "../txtar/txtar.md" . | trim}}

@@ -36,13 +36,16 @@ util/html5entities.gen.go
 util/html5entities.go
 util/util_cjk.go
 _test/
+_tools
 _test/spec.json
 util/unicode_case_folding.gen.go
 util/util_unsafe_go120.go
 util/util_unsafe_go121.go
+util/util.go
+parser/parser.go
 EOF
 
-rg --files . | grep -vi --file=/tmp/goldmark-exclude.txt | 
+rg --files . --glob='*.go' | grep -v test | grep -vi --file=/tmp/goldmark-exclude.txt | 
     cpio -pd --insecure $subset_dir
 
 echo "find $subset_dir -type f | xargs du -s | sort -n"

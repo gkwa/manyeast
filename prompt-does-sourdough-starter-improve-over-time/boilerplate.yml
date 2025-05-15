@@ -1,5 +1,12 @@
+
 variables:
 - name: LinkCount
   description: How many google search links should be generated
   type: int
-  default: 10
+  default: 15
+
+
+
+
+skip_files:
+ - path: README.md

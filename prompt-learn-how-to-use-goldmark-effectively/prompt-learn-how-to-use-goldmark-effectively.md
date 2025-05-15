@@ -18,6 +18,8 @@ I've included the goldmark source below to give you a clear understanding of the
 {{ snippet "goldmark-subset.txtar" | trim }}"
 </goldmark_source>
 
+# add tests using golang's golden testing methodology
+
 We will need extensive tests to verify that our output is what we expect using golang testing golden testing methodology.   If you're not familiar with what that is, I've included a description below
 
 <golang_golden_file_testing_reference>
