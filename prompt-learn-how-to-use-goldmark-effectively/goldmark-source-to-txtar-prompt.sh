@@ -42,7 +42,7 @@ util/util_unsafe_go120.go
 util/util_unsafe_go121.go
 EOF
 
-rg --files . | grep -vi --file=/tmp/goldmark-exclude.txt | 
+rg --files . | grep -vi --file=/tmp/goldmark-exclude.txt |
     cpio -pd --insecure $subset_dir
 
 echo "find $subset_dir -type f | xargs du -s | sort -n"

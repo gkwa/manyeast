@@ -1,4 +1,4 @@
-You are tasked with removing tracking parameters from a URL to create a minimal URL that will still render the intended page correctly. 
+You are tasked with removing tracking parameters from a URL to create a minimal URL that will still render the intended page correctly.
 
 Tracking parameters are often used for analytics and marketing purposes but are not necessary for the page to load properly.
 
@@ -10,7 +10,7 @@ The url we should clean is within the url xml tag:
 </url>
 ```
 
-Tracking parameters are typically added to the end of a URL after a question mark (?) or ampersand (&). 
+Tracking parameters are typically added to the end of a URL after a question mark (?) or ampersand (&).
 
 They often include terms like "utm_source", "fbclid", "gclid", or other similar identifiers.
 

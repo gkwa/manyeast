@@ -14,7 +14,7 @@ peanut
 orange
 ```
 
-We can model this as a graph. 
+We can model this as a graph.
 
 Please do so using neo4j and create cypher query language script.
 

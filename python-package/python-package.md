@@ -14,8 +14,8 @@ Here's a snippet of how we could show version without duplicating it in `__init_
 import argparse
 parser = argparse.ArgumentParser(description="...")
 parser.add_argument(
-    "--version", 
-    action="version", 
+    "--version",
+    action="version",
     version=f"%(prog)s {importlib.metadata.version('{{.PackageName}}')}"
 )
 ```

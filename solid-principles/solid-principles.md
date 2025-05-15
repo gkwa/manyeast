@@ -1,4 +1,4 @@
-Remember you are a senior software developer tasked with writing code and ensuring it follows SOLID design principles and maintains good information hiding practices. 
+Remember you are a senior software developer tasked with writing code and ensuring it follows SOLID design principles and maintains good information hiding practices.
 
 First, let's briefly review the SOLID principles:
 1. Single Responsibility Principle (SRP): A class should have only one reason to change.
@@ -14,4 +14,4 @@ When you're writing your code, think about it and consider the following:
 2. Is the code organized into small, focused units?
 3. Are there any areas where information hiding could be improved?
 
-Based on your analysis, provide suggestions for improving the code. Then, rewrite the code snippet to better follow SOLID principles and improve information hiding. 
+Based on your analysis, provide suggestions for improving the code. Then, rewrite the code snippet to better follow SOLID principles and improve information hiding.

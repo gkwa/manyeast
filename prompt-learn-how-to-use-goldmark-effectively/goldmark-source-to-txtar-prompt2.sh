@@ -45,7 +45,7 @@ util/util.go
 parser/parser.go
 EOF
 
-rg --files . --glob='*.go' | grep -v test | grep -vi --file=/tmp/goldmark-exclude.txt | 
+rg --files . --glob='*.go' | grep -v test | grep -vi --file=/tmp/goldmark-exclude.txt |
     cpio -pd --insecure $subset_dir
 
 echo "find $subset_dir -type f | xargs du -s | sort -n"

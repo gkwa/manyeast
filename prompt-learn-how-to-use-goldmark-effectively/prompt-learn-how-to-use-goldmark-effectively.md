@@ -1,10 +1,10 @@
-I'm interested in learning more about how I can read and write Markdown files. 
+I'm interested in learning more about how I can read and write Markdown files.
 
-More specifically, for example, suppose I wanted to query a specific second level header for some section value. 
+More specifically, for example, suppose I wanted to query a specific second level header for some section value.
 
-Suppose also I wanted to update that section with some other text. 
+Suppose also I wanted to update that section with some other text.
 
-This would be two different examples. 
+This would be two different examples.
 
 These are CRUD operations on a Markdown file.
 

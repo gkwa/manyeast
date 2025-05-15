@@ -1,4 +1,4 @@
-Using `cpio` with output directory relative to current directory works as expected but outside our current directory it fails. 
+Using `cpio` with output directory relative to current directory works as expected but outside our current directory it fails.
 
 Why is that?
 
@@ -16,9 +16,9 @@ cpio: ./_tools/gen-emb-structs.go: Cannot extract through symlink /tmp/d/_tools/
 cpio: ./_tools/gen-oss-fuzz-corpus.go: Cannot extract through symlink /tmp/d/_tools/gen-oss-fuzz-corpus.go
 cpio: ./renderer/html/html.go: Cannot extract through symlink /tmp/d/renderer/html/html.go
 0 blocks
-➜  mac goldmark git:(master) grep -v application/json /tmp/lst | cut -d: -f1 | cpio -pd d     
+➜  mac goldmark git:(master) grep -v application/json /tmp/lst | cut -d: -f1 | cpio -pd d
 1923 blocks
-➜  mac goldmark git:(master) 
+➜  mac goldmark git:(master)
 ```
 
 

@@ -85,7 +85,7 @@ func TestToJSON(t *testing.T) {
     if err := ToJSON(&b); err != nil {
         t.Fatalf("ToJSON() returned unexpected error: %v", err)
     }
-    
+
     golden := filepath.Join("testdata", t.Name()+".golden")
     if *update {
         err := os.WriteFile(golden, b.Bytes(), 0644)
@@ -93,12 +93,12 @@ func TestToJSON(t *testing.T) {
             t.Fatalf("Failed to update golden file: %v", err)
         }
     }
-    
+
     expected, err := os.ReadFile(golden)
     if err != nil {
         t.Fatalf("Failed to read golden file: %v", err)
     }
-    
+
     if !bytes.Equal(expected, b.Bytes()) {
         t.Errorf("ToJSON() = %q, want %q", b.Bytes(), expected)
     }

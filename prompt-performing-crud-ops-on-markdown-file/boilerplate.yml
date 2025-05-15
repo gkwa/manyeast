@@ -5,6 +5,6 @@ variables:
     type: int
     default: 10
 
-  
+
 skip_files:
  - path: README.md
