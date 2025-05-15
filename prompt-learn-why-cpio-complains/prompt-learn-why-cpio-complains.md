@@ -21,7 +21,6 @@ cpio: ./renderer/html/html.go: Cannot extract through symlink /tmp/d/renderer/ht
 ➜  mac goldmark git:(master)
 ```
 
-
 ## Here is the cpio man page for reference
 
 ```

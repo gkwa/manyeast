@@ -1,4 +1,3 @@
-
 ![](https://miro.medium.com/v2/resize:fit:700/1*WYO18AWpD_k6InGcLnJLGA.jpeg)
 
 [[go - go test golden files]]
@@ -238,4 +237,3 @@ To explain, all we've done here is move the bulk of the code into a `t.Run`, whi
 As a result, we now have an easy way to add more tests to our function and use `.golden` files for them all.
 
 If you want to see this in action for yourself, take a look at the `cmd/gofmt` package, which uses the `.golden` files pattern [here](https://github.com/golang/go/tree/master/src/cmd/gofmt).
-

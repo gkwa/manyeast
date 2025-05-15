@@ -5,4 +5,4 @@ variables:
     default: manyeast
 
 skip_files:
- - path: README.md
+  - path: README.md

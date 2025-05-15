@@ -18,7 +18,7 @@ We can use `runtime/debug.BuildInfo` to gather the binary version number and out
 
 - don't use deprecated packages, for example `io/ioutil` is deprecated, let's not use that
 
-- when you reply, don't include files `go.mod` or `go.sum` since I can generate that using `go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}` and `go mod tidy`.  By not sending me these files we save resources/time as you don't have to write those out.
+- when you reply, don't include files `go.mod` or `go.sum` since I can generate that using `go mod init {{ .GoModuleNamespace }}/{{ .GoModuleName }}` and `go mod tidy`. By not sending me these files we save resources/time as you don't have to write those out.
 
 ## use cobra-cli and viper please
 

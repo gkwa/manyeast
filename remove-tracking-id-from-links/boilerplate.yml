@@ -1,4 +1,4 @@
 variables:
-- name: URL
-  description: url to clean
-  type: string
+  - name: URL
+    description: url to clean
+    type: string

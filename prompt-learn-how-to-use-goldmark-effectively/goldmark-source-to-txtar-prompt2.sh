@@ -1,4 +1,4 @@
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 subset_dir=$(mktemp -d /tmp/goldmark_XXXX)/goldmark
 

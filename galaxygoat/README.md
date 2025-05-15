@@ -1,6 +1,5 @@
 Getting started with kedro
 
-
 ```bash
 boilerplate --template-url github.com/gkwa/manyeast/galaxygoat --output-folder=.
 just setup

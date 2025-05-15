@@ -20,6 +20,7 @@ int i=0;
 ```
 
 And the directory would have this hierarchy:
+
 ```
 .
 ├── contents.txtar
@@ -31,7 +32,7 @@ And the directory would have this hierarchy:
 
 If we start communicating back and forth using txtar format, then you don't need to send files back unless they are different from what I sent you.
 
-Please make sure that if you have changed any of the files that I sent that you are replying with only those files and when you reply, you're sending me all of your changes including the whole file that was modified.  Show all code that has changed in a single code block using txtar format.
+Please make sure that if you have changed any of the files that I sent that you are replying with only those files and when you reply, you're sending me all of your changes including the whole file that was modified. Show all code that has changed in a single code block using txtar format.
 
 You might be tempted to abbreviate with a comment like this:
 
@@ -43,4 +44,4 @@ but please don't do that...instead write the whole file out as you expect it sho
 
 Remember: please show only the files that have changed instead of all of the files.
 
-Remember to respond with file changes in txtar format make sure to not write some txtar in a block and then make a comment and then write another txtar block.  Instead keep the txtar for your respone in a single block without breaking for comments.   In summary, its best to show a single block of txtar in if you have code changes in a response.
+Remember to respond with file changes in txtar format.  Make sure to not write some txtar in a block and then make a comment and then write another txtar block. Instead keep the txtar for your response in a single block without breaking for comments. In summary, its best to show a single block of txtar in if you have code changes in a response.

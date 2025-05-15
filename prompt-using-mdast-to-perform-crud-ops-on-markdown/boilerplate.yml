@@ -1,8 +1,8 @@
 variables:
-- name: ProjectName
-  description: Name of the project you're building
-  type: string
-  default: manyeast
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: manyeast
 
 skip_files:
- - path: README.md
+  - path: README.md

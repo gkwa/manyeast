@@ -1,10 +1,10 @@
-I am trying to learn how to use fabric to help with templates.  For example this works fine:
-```echo "hello my name is  "[[ name ]]" | ./fabric --dry-run --input-has-vars -v=name:taylor```
+I am trying to learn how to use fabric to help with templates. For example this works fine:
+`echo "hello my name is  "[[ name ]]" | ./fabric --dry-run --input-has-vars -v=name:taylor`
 
 but when I have many variables in my template, it becomes a new task to try to manage these commandlines.
 
-It would be ideal if I cound fetch the variables from some config file...and that's why I thought this would work:
-```echo "hello my name is "[[ name ]]" | ./fabric --dry-run --input-has-vars --config=/tmp/o1.yaml```
+It would be ideal if I could fetch the variables from some config file...and that's why I thought this would work:
+`echo "hello my name is "[[ name ]]" | ./fabric --dry-run --input-has-vars --config=/tmp/o1.yaml`
 
 but it doesn't work
 
@@ -15,4 +15,3 @@ I've included the fabric source in the <fabric_source/> xml element.
 <fabric_source>
 {{.FabricSource}}
 </fabric_source>
-```

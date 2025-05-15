@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 dir=$(mktemp -d /tmp/boilerplate_XXXX) && cd $dir
 
@@ -31,4 +31,3 @@ grep -v --file /tmp/f /tmp/b | cut -d: -f1 | cpio -pd d
 cd d
 txtar-c . >$SCRIPT_DIR/boilerplate.txtar
 du -shc $SCRIPT_DIR/boilerplate.txtar
-

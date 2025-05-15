@@ -8,7 +8,7 @@
 
 ## make sure to add source maps
 
-For debugging we need to have source maps available.  Vite allows you to set this.
+For debugging we need to have source maps available. Vite allows you to set this.
 
 ## package manager
 

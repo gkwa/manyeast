@@ -1,2 +1,2 @@
 [codespell]
-skip = ./prompt-use-gruntwork-boilerplate-as-library-to-parse-yaml/sample-boilerplates.txtar,./prompt-learn-how-to-use-goldmark-effectively/goldmark-subset.txtar,./does-boilerplate-offer-option-as-library/boilerplate.txtar,./parse-boilerplate-directory/boilerplate-template-examples.txtar
+skip = ./nlp-product-classification/product-data.json,./prompt-use-gruntwork-boilerplate-as-library-to-parse-yaml/sample-boilerplates.txtar,./prompt-learn-how-to-use-goldmark-effectively/goldmark-subset.txtar,./does-boilerplate-offer-option-as-library/boilerplate.txtar,./parse-boilerplate-directory/boilerplate-template-examples.txtar

@@ -6,8 +6,6 @@ This error was driving me batty since i'm using the ["snippet" function](https:/
 
 but it turns out I had another file that has a golang temple embedded that was being copied over too and as a result of being copied over, it too must go through the transformation...until I asked boilerplate to skip it which I should have done anyway since I'm already embedding it in my document using the snippet function.
 
-
-
 The solution is this:
 
 ```
@@ -16,18 +14,11 @@ skip_files:
 - path: test.txtar
 ```
 
-
-
-
-
-
 ## this fails
-
 
 ```
 rm -rf /tmp/t; boilerplate --output-folder /tmp/t --template-url github.com/gkwa/manyeast/boilerplate-map-has-no-entry-for-key/unhappy-path
 ```
-
 
 ## this succeeds
 
@@ -48,10 +39,7 @@ diff -uw --recursive /Users/mtm/pdev/taylormonacelli/manyeast/boilerplate-map-ha
 ➜  mac manyeast git:(master) ✗
 ```
 
-
 ## log
-
-
 
 ```
 ➜  mac manyeast git:(master) rm -rf /tmp/t; boilerplate --output-folder /tmp/t --template-url github.com/gkwa/manyeast/boilerplate-map-has-no-entry-for-key/unhappy-path
@@ -76,4 +64,3 @@ ERROR[2025-05-12T15:41:20-07:00] template: test.txtar:1:11: executing "test.txta
 [boilerplate] 2025/05/12 15:41:27 Cleaning up working directory.
 ➜  mac manyeast git:(master)
 ```
-

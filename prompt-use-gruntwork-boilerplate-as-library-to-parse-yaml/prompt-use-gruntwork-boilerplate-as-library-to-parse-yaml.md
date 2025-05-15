@@ -17,5 +17,9 @@ Our goal then is to build a data structure that can hold
 - the template files as strings
 
 ```
+
 {{ include "../golang-app/golang-app.md" . | trim }}
+
+```
+
 ```

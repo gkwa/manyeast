@@ -14,4 +14,4 @@ variables:
   - name: PythonVersion
     description: Python version
     type: string
-    default: '3.12'
+    default: "3.12"

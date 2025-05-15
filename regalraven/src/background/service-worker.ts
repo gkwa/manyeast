@@ -9,8 +9,9 @@ interface ContentScriptMessage {
 browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
   // Type guard to verify the message structure
   const isContentScriptMessage = (msg: unknown): msg is ContentScriptMessage => {
-    return typeof msg === 'object' && msg !== null && 'type' in msg &&
-           msg.type === 'contentScriptLoaded'
+    return (
+      typeof msg === "object" && msg !== null && "type" in msg && msg.type === "contentScriptLoaded"
+    )
   }
 
   if (isContentScriptMessage(message)) {

@@ -1,19 +1,19 @@
 variables:
-- name: GoModuleNamespace
-  description: go module namespace (eg github.com/gkwa)
-  type: string
-  default: github.com/gkwa
-- name: GoModuleName
-  description: Name of the project you're building
-  type: string
-  default: '{{ base outputFolder }}'
+  - name: GoModuleNamespace
+    description: go module namespace (eg github.com/gkwa)
+    type: string
+    default: github.com/gkwa
+  - name: GoModuleName
+    description: Name of the project you're building
+    type: string
+    default: "{{ base outputFolder }}"
 
 skip_files:
-- path: README.md
-- path: boilerplate-template-examples.txtar
+  - path: README.md
+  - path: boilerplate-template-examples.txtar
 
 dependencies:
-- name: conditional-dependency-example
-  template-url: git::https://github.com/gkwa/manyeast.git//does-boilerplate-offer-option-as-library
-  output-folder: /tmp/does-boilerplate-offer-option-as-library
+  - name: conditional-dependency-example
+    template-url: git::https://github.com/gkwa/manyeast.git//does-boilerplate-offer-option-as-library
+    output-folder: /tmp/does-boilerplate-offer-option-as-library
 #  skip: "{{ and .Foo .Bar }}"

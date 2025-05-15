@@ -9,4 +9,3 @@ I have no experience using these and there are many things to consider such as:
 - head mounting strap if the camera is of the type you could strap to your forehead
 
 - how long camera can record before having to be recharged
-

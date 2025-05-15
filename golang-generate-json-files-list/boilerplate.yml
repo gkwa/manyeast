@@ -3,6 +3,5 @@ variables:
     description: Name of the project you're building
     type: string
     default: "{{ base outputFolder }}"
-
 # skip_files:
 #  - path: README.md

@@ -27,6 +27,7 @@ Always add type hints to your python code.
 ## python package scaffold
 
 Please start with this scaffoling for our python package.
+
 - update the description based off context of this discussion
 - update package dendencies and dev package dependencies
 

@@ -1,5 +1,3 @@
-
-
 {{ include "../add-google-search-links/add-links.md" . | trim }}"
 
 I need to perform CRUD operations on a markdown file using any language that has good support for this.

@@ -17,4 +17,3 @@ I've included boilerplate source as reference in boilerplate_src xml element:
 <boilerplate_src>
 {{snippet "/tmp/does-boilerplate-offer-option-as-library/boilerplate.txtar"}}
 </boilerplate_src>
-

@@ -6,7 +6,7 @@ Our app should have `scan` subcommand and we should allow for 1 or more disconti
 
 Our app should require `--outfile` which is path to where json will be stored.
 
-Our app should allow exclude paths from our json that match a substring.  We should allow 0 or more substrings.
+Our app should allow exclude paths from our json that match a substring. We should allow 0 or more substrings.
 
 For example --filter=.git will exclude any path that contains .git in it anywhere.
 
@@ -26,6 +26,7 @@ The resulting structure should have this shape:
 ```
 
 Lets also add metadata key dictionary that shows statistics about the scan including
+
 - average file size
 - path count found
 - directory count found

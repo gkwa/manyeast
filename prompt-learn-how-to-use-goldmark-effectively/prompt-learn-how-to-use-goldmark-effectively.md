@@ -20,7 +20,7 @@ I've included the goldmark source below to give you a clear understanding of the
 
 # add tests using golang's golden testing methodology
 
-We will need extensive tests to verify that our output is what we expect using golang testing golden testing methodology.   If you're not familiar with what that is, I've included a description below
+We will need extensive tests to verify that our output is what we expect using golang testing golden testing methodology. If you're not familiar with what that is, I've included a description below
 
 <golang_golden_file_testing_reference>
 {{ include "../prompt-learn-how-to-reference-the-concept-of-golang-golden-files-for-testing/golden-files-article.md" . | trim }}

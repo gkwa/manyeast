@@ -1,5 +1,3 @@
-
-
 reminders for how to include templates
 
 // include and interpret

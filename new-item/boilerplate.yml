@@ -3,7 +3,5 @@ variables:
     description: Create new folder with this name
     type: string
 
-
 skip_files:
   - path: README.md
-

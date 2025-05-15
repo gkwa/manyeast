@@ -1,9 +1,11 @@
 I need a golang app that will escape golang template brackets so this:
+
 ```
 {{ snippet "partial_a.md" }}
 ```
 
 becomes this:
+
 ```
 {{ snippet "partial_b.md" }}
 ```
@@ -18,7 +20,7 @@ We need extensive tests too.
 
 We need to test to ensure that we're not double escaping and that we're handling both single and double quotes since golang templates allow for this.
 
-We should use escape subcommand and the command should take either a directory or a path to a file.  If the argument is a directory then our app should recursively escape on files in directories and subdirectories.
+We should use escape subcommand and the command should take either a directory or a path to a file. If the argument is a directory then our app should recursively escape on files in directories and subdirectories.
 
 If argument is just a file path then the escaping should be performed on the file itself.
 

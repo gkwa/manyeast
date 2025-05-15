@@ -4,4 +4,4 @@ variables:
     type: string
 
 skip_files:
- - path: README.md
+  - path: README.md
