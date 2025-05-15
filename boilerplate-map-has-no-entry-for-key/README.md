@@ -62,7 +62,7 @@ diff -uw --recursive /Users/mtm/pdev/taylormonacelli/manyeast/boilerplate-map-ha
 [boilerplate] 2025/05/12 15:41:20 Skipping /var/folders/qk/5rcd35wx00jcj3zylnxcfvrr0000gn/T/boilerplate-cache3696773479/wd
 [boilerplate] 2025/05/12 15:41:20 Skipping /var/folders/qk/5rcd35wx00jcj3zylnxcfvrr0000gn/T/boilerplate-cache3696773479/wd/boilerplate.yml
 [boilerplate] 2025/05/12 15:41:20 Cleaning up working directory.
-ERRO[2025-05-12T15:41:20-07:00] template: test.txtar:1:11: executing "test.txtar" at <.ProjectName>: map has no entry for key "ProjectName"  binary=boilerplate version=v0.6.1
+ERROR[2025-05-12T15:41:20-07:00] template: test.txtar:1:11: executing "test.txtar" at <.ProjectName>: map has no entry for key "ProjectName"  binary=boilerplate version=v0.6.1
 ➜  mac manyeast git:(master) rm -rf /tmp/t; boilerplate --output-folder /tmp/t --template-url github.com/gkwa/manyeast/boilerplate-map-has-no-entry-for-key/happy-path 
 [boilerplate] 2025/05/12 15:41:26 Downloading templates from github.com/gkwa/manyeast/boilerplate-map-has-no-entry-for-key/happy-path to /var/folders/qk/5rcd35wx00jcj3zylnxcfvrr0000gn/T/boilerplate-cache3169320486
 [boilerplate] 2025/05/12 15:41:27 Loading boilerplate config from /var/folders/qk/5rcd35wx00jcj3zylnxcfvrr0000gn/T/boilerplate-cache3169320486/wd/boilerplate.yml

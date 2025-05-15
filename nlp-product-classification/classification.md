@@ -14,7 +14,7 @@ The result should have this shape:
 
 The resulting array should only contain either 0s or 1s.  So for example if the first item in our array is {{ .ProductCategory }}, then we'd put 1 in a new array at that index
 
-Before you analize each item, make sure to count the number of products in the array.
+Before you analyze each item, make sure to count the number of products in the array.
 
 Show metadata as markdown table including
 - positive

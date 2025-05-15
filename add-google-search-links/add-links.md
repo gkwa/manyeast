@@ -3,7 +3,7 @@ You are tasked with creating Google search links in markdown format to help find
 1. Create roughly {{ .LinkCount }} search queries based on the question.
 2. Each query should focus on different aspects or keywords from the question.
 3. Format each link as a markdown link, with the query text as the link text.
-4. Include search links for tutorials regarding this topic and if not specificially tutorials, include searching for learning references for this topic.
+4. Include search links for tutorials regarding this topic and if not specifically tutorials, include searching for learning references for this topic.
 5. Include youtube search links that will find tutorials and learning materials regarding this topic.
 6. Separate each link by two newlines instead of what you might expect one.
 

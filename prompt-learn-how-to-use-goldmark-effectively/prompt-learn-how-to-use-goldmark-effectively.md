@@ -8,7 +8,7 @@ This would be two different examples.
 
 These are CRUD operations on a Markdown file.
 
-For these markdown realated CRUD tasks, I would like to use the goldmark package from here: https://github.com/yuin/goldmark?tab=readme-ov-file#goldmark
+For these markdown related CRUD tasks, I would like to use the goldmark package from here: https://github.com/yuin/goldmark?tab=readme-ov-file#goldmark
 
 For example I want to be able to parse the markdown into an Abstract Syntax Tree and then query this graph as well as perform modifications to this graph and then write the graph back to a markdown file.
 

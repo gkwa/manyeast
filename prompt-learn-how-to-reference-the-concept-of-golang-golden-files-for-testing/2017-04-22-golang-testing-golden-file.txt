@@ -10,7 +10,7 @@ https://vincent.demeester.fr/posts/2017-04-22-golang-testing-golden-file/
 
 Golang testing — golden file
 Sat, 22 April, 2017 (900 Words)
-developement
+development
 golang12
 testing11
 golden1
@@ -18,7 +18,7 @@ file1
 functionnal2
 java4
 
-Tests are all about maintainability and readability. You want the least visual noise possible and it should not be a hassle to maintain. When testing functions that output a long of string, in case of a command line output testing, readability and maintainance tend to be tricky to achieve.
+Tests are all about maintainability and readability. You want the least visual noise possible and it should not be a hassle to maintain. When testing functions that output a long of string, in case of a command line output testing, readability and maintenance tend to be tricky to achieve.
 
 The problem
 As an example let's say we want to test out the output of a command that displays a list as a table. The output would look like the following:
