@@ -8,7 +8,7 @@ rm -rf /tmp/boilerplate_subset
 
 cd /tmp/boilerplate
 
-test ! -f /tmp/boilerplate.txt && { 
+test ! -f /tmp/boilerplate.txt && {
     rg --files . -0 | xargs -0 file --mime-type >/tmp/boilerplate.txt
 }
 
@@ -24,8 +24,8 @@ LICENSE
 NOTICE
 EOF
 
-grep -v --file /tmp/boilerplate_filter.txt /tmp/boilerplate.txt | 
-    cut -d: -f1 | 
+grep -v --file /tmp/boilerplate_filter.txt /tmp/boilerplate.txt |
+    cut -d: -f1 |
     grep examples/ |
     cpio --insecure -pd /tmp/boilerplate_subset
 

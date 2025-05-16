@@ -531,13 +531,13 @@ variables:
 -- examples/for-learning-and-testing/kebab-case-bug-unix/template.txt --
 {{ .Name | kebabcase }}
 -- examples/for-learning-and-testing/order/boilerplate.yml --
-variables: 
+variables:
   - name: CompanyName
     description: The name of your company
     order: 0
   - name: CountryCode
     order: 1
-    description: The ISO3166 Alpha 2 code for the country you operate in 
+    description: The ISO3166 Alpha 2 code for the country you operate in
   - name: URL
     order: 2
     description: The URL to your website
@@ -614,7 +614,7 @@ Example of executing an arbitrary shell command using the shell helper:
 
 {{ shell "./example-script.sh" .Text }}
 -- examples/for-learning-and-testing/shell-disabled/README.md --
-This example is executed with shell helpers and hooks disabled, so neither the hooks or shell helpers should execute. 
+This example is executed with shell helpers and hooks disabled, so neither the hooks or shell helpers should execute.
 
 {{ shell "./example-script.sh" "This should not execute and instead be replaced with a placeholder" }}
 -- examples/for-learning-and-testing/shell-disabled/boilerplate.yml --
@@ -1028,17 +1028,17 @@ func Test{{ .ModuleName | camelcase }}(t *testing.T) {
 	assert.Equal(t, "Hello World", actualOutput)
 }
 -- examples/for-learning-and-testing/validations/boilerplate.yml --
-variables: 
+variables:
   - name: CompanyName
     description: The name of your company
-    validations: 
+    validations:
       - required
       - alphanumeric
       - length-5-20
     default: Gruntwork
   - name: CountryCode
-    description: The ISO3166 Alpha 2 code for the country you operate in 
-    validations: 
+    description: The ISO3166 Alpha 2 code for the country you operate in
+    validations:
       - required
       - CountryCode2
     default: US

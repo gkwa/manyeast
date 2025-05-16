@@ -1,0 +1,23 @@
+variables:
+  - name: LinkCount
+    description: How many google search links should be generated
+    type: int
+    default: 10
+
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: "manyeast"
+
+  - name: GoModuleNamespace
+    description: go module namespace (eg github.com/gkwa)
+    type: string
+    default: github.com/gkwa
+
+  - name: GoModuleName
+    description: Name of the project you're building
+    type: string
+    default: gallantgrouse
+
+skip_files:
+  - path: README.md

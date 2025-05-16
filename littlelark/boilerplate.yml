@@ -1,0 +1,10 @@
+variables:
+  - name: RepoURL
+    description: URL for repo (eg https://github.com/gruntwork-io/boilerplate.git)
+    type: string
+  - name: BaseDir
+    description: Base directory
+    type: string
+    default: /tmp/littlelark
+skip_files:
+  - path: README.md
