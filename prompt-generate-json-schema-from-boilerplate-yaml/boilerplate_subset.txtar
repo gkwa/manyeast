@@ -1,0 +1,2495 @@
+-- examples/for-learning-and-testing/dependencies/README.md --
+# {{ .Title }}
+
+{{ .Description }}. It specifies both the
+[docs](/examples/for-learning-and-testing/docs) and [website](/examples/for-learning-and-testing/website) examples as
+dependencies to show how one boilerplate template can pull in another. It also defines all the variables needed for both
+of those dependencies at the top level to show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of this template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies example
+
+  - name: WelcomeText
+    description: Enter the welcome text used by the website dependency
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+dependencies:
+  - name: docs
+    template-url: ../docs
+    output-folder: ./docs
+    variables:
+      - name: Title
+        description: Enter the title of the docs page
+
+  - name: website
+    template-url: ../website
+    output-folder: ./website
+    variables:
+      - name: Title
+        description: Enter the title of the website
+-- examples/for-learning-and-testing/dependencies-dynamic/README.md --
+# {{ .Title }}
+
+{{ .Description }}. It specifies both the
+[docs](/examples/for-learning-and-testing/docs) and [website](/examples/for-learning-and-testing/website) examples as
+dependencies to show how one boilerplate template can pull in another, and that you can use interpolation in the
+`template-url` and `output-folder` parameters of dependencies to dynamically specify where to read the template and
+where to write the output. It also defines all the variables needed for both of those dependencies at the top level to
+show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies-dynamic/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of this template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies example
+
+  - name: WelcomeText
+    description: Enter the welcome text used by the website dependency
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+  - name: WebsiteTemplateFolder
+    description: The path to the website templates folder. This is used to check that interpolations work in the template-url parameter of dependencies.
+
+  - name: WebsiteOutputFolder
+    description: The path to the website output folder. This is used to check that interpolations work in the output-folder parameter of dependencies.
+
+  - name: SkipAllDependencies
+    description: Set to true to skip all dependencies
+    type: bool
+    default: false
+
+  - name: SkipFirstWebsiteDependency
+    description: Set to true to skip the first website dependency
+    type: bool
+    default: false
+
+  - name: SkipSecondWebsiteDependency
+    description: Set to true to skip the second website dependency
+    type: bool
+    default: true
+
+dependencies:
+    - name: docs
+      template-url: ../docs
+      output-folder: ./docs
+      skip: "{{ .SkipAllDependencies }}"
+      variables:
+        - name: Title
+          description: Enter the title of the docs page
+
+    - name: website
+      template-url: "{{ .WebsiteTemplateFolder }}"
+      output-folder: "{{ .WebsiteOutputFolder }}"
+      skip: "{{ or .SkipAllDependencies .SkipFirstWebsiteDependency }}"
+      variables:
+        - name: Title
+          description: Enter the title of the website
+
+    - name: skip-website
+      template-url: "{{ .WebsiteTemplateFolder }}"
+      output-folder: "{{ .WebsiteOutputFolder }}"
+      skip: "{{ or .SkipAllDependencies .SkipSecondWebsiteDependency }}"
+      variables:
+        - name: Title
+          description: Enter the title of the website
+          default: This website dependency should be skipped
+-- examples/for-learning-and-testing/dependencies-for-each/boilerplate.yml --
+dependencies:
+  - name: loop-dependency-example
+    template-url: ../terraform
+    # Render this dependency once for each environment the user specifies
+    for_each:
+      - dev
+      - stage
+      - prod
+    # Render the dependency to an output folder that includes the environment name
+    output-folder: "live/{{ .__each__ }}"
+    variables:
+      - name: ServerName
+        description: The name to use for the EC2 instance (for its Name tag)
+        type: string
+        # Use the environment name in the server name
+        default: "example-{{ .__each__ }}"
+-- examples/for-learning-and-testing/dependencies-for-each-reference/boilerplate.yml --
+variables:
+  - name: environments
+    description: The environments to deploy into (e.g., dev, stage, prod)
+    type: list
+    default:
+      - dev
+      - stage
+      - prod
+
+dependencies:
+  - name: loop-dependency-example
+    template-url: ../terraform
+    # Render this dependency once for each environment the user specifies
+    for_each_reference: environments
+    # Render the dependency to an output folder that includes the environment name
+    output-folder: "live/{{ .__each__ }}"
+    variables:
+      - name: ServerName
+        description: The name to use for the EC2 instance (for its Name tag)
+        type: string
+        # Use the environment name in the server name
+        default: "example-{{ .__each__ }}"
+-- examples/for-learning-and-testing/dependencies-for-each-reference-list-of-strings/boilerplate.yml --
+variables:
+  - name: accounts
+    description: The AWS accounts
+    type: map
+    default:
+      dev:
+        email: dev@example.com
+        id: 1111
+      stage:
+        email: stage@example.com
+        id: 2222
+      prod:
+        email: prod@example.com
+        id: 3333
+  - name: accountNames
+    description: The names of the accounts in the accounts variable
+    type: list
+    default: "{{ keysSorted .accounts }}"
+
+dependencies:
+  - name: loop-dependency-example
+    template-url: ../terraform
+    # Render this dependency once for each environment the user specifies
+    for_each_reference: accountNames
+    # Render the dependency to an output folder that includes the environment name
+    output-folder: "live/{{ .__each__ }}"
+    variables:
+      - name: ServerName
+        description: The name to use for the EC2 instance (for its Name tag)
+        type: string
+        # Use the environment name in the server name
+        default: "example-{{ .__each__ }}"
+-- examples/for-learning-and-testing/dependencies-recursive/README.md --
+# {{ .Title }}
+
+This is a boilerplate template that shows an example of using recursive dependencies. This template depends on the
+[dependencies](/examples/for-learning-and-testing/dependencies) example, which, in turn has its own dependencies. This
+template also defines all the variables needed for all dependencies to show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies-recursive/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of the recursive dependencies template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies recursive example
+
+  - name: WelcomeText
+    description: Enter the welcome text used by the website dependency
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+dependencies:
+    - name: dependencies
+      template-url: ../dependencies
+      output-folder: ./dependencies
+
+    - name: java-project
+      template-url: ../java-project
+      output-folder: ./java-project
+-- examples/for-learning-and-testing/dependencies-remote/README.md --
+# {{ .Title }}
+
+{{ .Description }}. It specifies both the
+[docs](/examples/for-learning-and-testing/docs) and [website](/examples/for-learning-and-testing/website) examples as
+dependencies to show how one boilerplate template can pull in another. It also defines all the variables needed for both
+of those dependencies at the top level to show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies-remote/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of this template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies example
+
+  - name: WelcomeText
+    description: Enter the welcome text used by the website dependency
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+  - name: RemoteBranch
+    description: The branch of boilerplate repo to use when pulling down remote dependencies.
+    default: "main"
+
+dependencies:
+  - name: docs
+    template-url: "git@github.com:gruntwork-io/boilerplate.git//examples/for-learning-and-testing/docs?ref={{ .RemoteBranch }}"
+    output-folder: ./docs
+    variables:
+      - name: Title
+        description: Enter the title of the docs page
+
+  - name: website
+    template-url: "git@github.com:gruntwork-io/boilerplate.git//examples/for-learning-and-testing/website?ref={{ .RemoteBranch }}"
+    output-folder: ./website
+    variables:
+      - name: Title
+        description: Enter the title of the website
+-- examples/for-learning-and-testing/dependencies-varfile/README.md --
+# {{ .Title }}
+
+{{ .Description }}. It specifies both the
+[docs](/examples/for-learning-and-testing/docs) and [website](/examples/for-learning-and-testing/website) examples as
+dependencies to show how one boilerplate template can pull in another. It also defines all the variables needed for both
+of those dependencies at the top level to show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies-varfile/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of this template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies example
+    default: Dependencies example
+
+  - name: WelcomeText
+    description: Enter the welcome text used by the website dependency
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+dependencies:
+  - name: docs
+    template-url: ../docs
+    output-folder: ./docs
+    var_files:
+      - "{{ templateFolder }}/docs_vars.yml"
+
+  - name: website
+    template-url: ../website
+    output-folder: ./website
+    var_files:
+      - "{{ templateFolder }}/website_vars.yml"
+
+skip_files:
+  - path: "*_vars.yml"
+-- examples/for-learning-and-testing/dependencies-varfile/docs_vars.yml --
+Title: "I am vars for docs"
+-- examples/for-learning-and-testing/dependencies-varfile/website_vars.yml --
+Title: "website vars!"
+-- examples/for-learning-and-testing/dependencies-varfile-precedence/README.md --
+# {{ .Title }}
+
+{{ .Description }}. It specifies both the
+[docs](/examples/for-learning-and-testing/docs) and [website](/examples/for-learning-and-testing/website) examples as
+dependencies to show how one boilerplate template can pull in another. It also defines all the variables needed for both
+of those dependencies at the top level to show how variable inheritance works.
+-- examples/for-learning-and-testing/dependencies-varfile-precedence/boilerplate.yml --
+variables:
+  - name: Description
+    description: Enter the description of this template
+
+  - name: Version
+    description: Enter the version number that will be used by the docs dependency
+
+  - name: Title
+    description: Enter the title for the dependencies example
+
+  - name: FileNameReference
+    description: This variable will be used to create the name of a file dynamically
+    default: reference name
+
+  - name: ShowLogo
+    description: Should the webiste show the logo (true or false)?
+    type: bool
+    default: true
+
+dependencies:
+  - name: docs
+    template-url: ../docs
+    output-folder: ./docs
+    var_files:
+      - "{{ templateFolder }}/docs_vars_default_vars.yml"
+    variables:
+      - name: FileName
+        reference: FileNameReference
+
+  - name: website
+    template-url: ../website
+    output-folder: ./website
+    var_files:
+      - "{{ templateFolder }}/website_vars.yml"
+      - "{{ templateFolder }}/website_vars_override_vars.yml"
+    variables:
+      - name: WelcomeText
+        default: "Title from variable default"
+
+skip_files:
+  - path: "*_vars.yml"
+-- examples/for-learning-and-testing/dependencies-varfile-precedence/docs_vars_default_vars.yml --
+Title: "I am default vars for docs"
+-- examples/for-learning-and-testing/dependencies-varfile-precedence/website_vars.yml --
+Title: "website vars!"
+WelcomeText: "Title from varfile"
+-- examples/for-learning-and-testing/dependencies-varfile-precedence/website_vars_override_vars.yml --
+WelcomeText: "Title from varfile override"
+-- examples/for-learning-and-testing/docs/README.md --
+# {{ .Title }}
+
+This shows an example of how to use boilerplate to fill in parts of your documentation.
+
+## Variables
+
+Here is how you can use a variable:
+
+The latest version of my app is {{.Version}}.
+
+You could create a CI job that, for each release, regenerates your docs with the latest value of the `Version` variable
+passed in using the `--var` option.
+
+## Snippets
+
+Here is how to use the `snippet` helper to embed files or parts of files from source code:
+
+```html
+{{snippet "../website/index.html" | trim}}
+```
+
+## Arithmetic
+
+Here is how you can use the arithmetic helpers to create a numbered list:
+
+{{ with $index := "0" -}}
+{{plus $index 1}}. Item
+{{plus $index 2}}. Item
+{{plus $index 3}}. Item
+{{- end }}
+
+And here is another way to do it using the slice helper:
+
+{{ range $i := (slice 1 4 1) -}}
+{{$i}}. Item
+{{ end -}}
+-- examples/for-learning-and-testing/docs/boilerplate.yml --
+variables:
+  - name: Title
+
+  - name: Version
+
+  - name: SubFolderName
+    description: This variable will be used to create the name of a subfolder dynamically
+    default: example folder
+
+  - name: FileName
+    description: This variable will be used to create the name of a file dynamically
+    default: my example file
+-- examples/for-learning-and-testing/docs/interpolated-folder-{{.SubFolderName%7Cdasherize}}/{{.FileName%7csnakeCase}}.py --
+# This file and its parent folder both show an example of using Go template syntax and boilerplate variables in their names
+-- examples/for-learning-and-testing/hooks-working-dir/boilerplate.yml --
+hooks:
+  after:
+    # Replace the contents of test.txt as a check this hook ran in the proper working dir
+    - command: bash
+      args:
+        - "-c"
+        - "echo hook > test.txt"
+      dir: "{{ outputFolder }}/subdir"
+-- examples/for-learning-and-testing/hooks-working-dir/subdir/test.txt --
+# Intentionally empty
+-- examples/for-learning-and-testing/include/boilerplate.yml --
+variables:
+  - name: RandomVal
+    description: Any random value that can be rendered as a unique string
+-- examples/for-learning-and-testing/include/target.txt --
+{{ include "../../../test-fixtures/include-test/template.txt" . }}
+-- examples/for-learning-and-testing/java-project/boilerplate.yml --
+variables:
+  - name: CompanyName
+    description: Enter the name of the company
+    type: string
+
+  - name: ExampleIntConstant
+    description: Enter the value for an integer constant in the Java file
+    type: int
+
+  - name: IncludeEnum
+    description: Should we create an example Enum in the Java file?
+    type: bool
+
+  - name: EnumNames
+    description: Enter the names of the Enums in the Java file
+    type: list
+
+  - name: ExampleMap
+    description: Enter some example values to store in a HashMap
+    type: map
+-- examples/for-learning-and-testing/java-project/com/{{.CompanyName %7C dasherize %7C downcase}}/example/Example.java --
+package com.{{.CompanyName | dasherize | downcase}}.example
+
+import com.google.common.collect.ImmutableMap;
+
+public class Example {
+  public static final int EXAMPLE_INT_CONSTANT = {{.ExampleIntConstant}}
+  public static final Map<> EXAMPLE_MAP = ImmutableMap.of({{range $index, $key := .ExampleMap | keys}}{{if gt $index 0}}, {{end}}"{{$key}}", "{{index $.ExampleMap $key}}"{{end}});
+
+{{- if .IncludeEnum}}
+
+  public enum ExampleEnum {
+    {{range $index, $enumName := .EnumNames -}}
+      {{if gt $index 0}}, {{end}}{{$enumName}}
+    {{- end }}
+  }
+{{- end }}
+}
+-- examples/for-learning-and-testing/json/boilerplate.yml --
+variables:
+  - name: Foo
+    type: string
+-- examples/for-learning-and-testing/json/example2.json --
+{
+  "foo: "{{ .Foo }}"
+}
+-- examples/for-learning-and-testing/jsonnet/boilerplate.yml --
+variables:
+  - name: Name
+    type: string
+
+  - name: IncludeAge
+    type: bool
+
+  - name: AgeMap
+    type: map
+
+  - name: FavoriteFoods
+    type: list
+
+engines:
+  - path: "*.jsonnet"
+    template_engine: "jsonnet"
+-- examples/for-learning-and-testing/jsonnet/people.json --
+{
+    "people": [
+        {
+            "name": "{{ .Name }}",
+            {{- if .IncludeAge }}
+            "age": {{ index .AgeMap .Name }},
+            {{- end }}
+            "favoriteFoods": {{ .FavoriteFoods | toPrettyJson }}
+        }
+    ]
+}
+-- examples/for-learning-and-testing/jsonnet/people_jsonnet.json.jsonnet --
+function(boilerplateVars) {
+  local personAge = {
+    age: boilerplateVars.AgeMap[boilerplateVars.Name],
+  },
+
+  people: [
+    {
+      name: boilerplateVars.Name,
+      favoriteFoods: boilerplateVars.FavoriteFoods,
+    } + (
+      if boilerplateVars.IncludeAge then personAge else {}
+    ),
+  ]
+}
+-- examples/for-learning-and-testing/kebab-case-bug-unix/boilerplate.yml --
+variables:
+  - name: Name
+    type: string
+-- examples/for-learning-and-testing/kebab-case-bug-unix/template.txt --
+{{ .Name | kebabcase }}
+-- examples/for-learning-and-testing/order/boilerplate.yml --
+variables: 
+  - name: CompanyName
+    description: The name of your company
+    order: 0
+  - name: CountryCode
+    order: 1
+    description: The ISO3166 Alpha 2 code for the country you operate in 
+  - name: URL
+    order: 2
+    description: The URL to your website
+
+
+-- examples/for-learning-and-testing/order/template.txt --
+"{{ .CompanyName }}"
+"{{ .CountryCode }}"
+"{{ .URL }}"
+-- examples/for-learning-and-testing/partials/boilerplate.yml --
+partials:
+  - ../../../test-fixtures/partials-test/*.txt
+-- examples/for-learning-and-testing/partials/target.txt --
+{{- define "target" -}}
+This is the target.
+{{- end -}}
+{{- template "first_template" . }}
+{{ template "second_template" . -}}
+-- examples/for-learning-and-testing/regression-template-escape/boilerplate.yml --
+variables:
+  - name: SettingValue
+    type: string
+-- examples/for-learning-and-testing/regression-template-escape/config.yml --
+setting:
+  name: "{{ .SettingValue }}"
+-- examples/for-learning-and-testing/shell/boilerplate.yml --
+variables:
+  - name: Text
+    description: Enter the text to display
+
+hooks:
+  before:
+    - command: echo
+      args:
+        - Running before hooks
+
+    - command: ./example-script-2.sh
+      args:
+        - "{{ outputFolder }}/before-hook-example.txt"
+      env:
+        TEXT: "{{ .Text }} - executed via a before hook"
+
+    - command: ./example-script-2.sh
+      args:
+        - "{{ outputFolder }}/before-hook-should-be-skipped.txt"
+      env:
+        TEXT: "this hook should be skipped"
+      skip: "true"
+
+  after:
+    - command: echo
+      args:
+        - Running after hooks
+
+    - command: ./example-script-2.sh
+      args:
+        - "{{ outputFolder }}/after-hook-example.txt"
+      env:
+        TEXT: "{{ .Text }} - executed via an after hook"
+-- examples/for-learning-and-testing/shell/example-script-2.sh --
+#!/bin/bash
+# An example script that will be executed via the 'shell' command in a boilerplate template. This script simply writes
+# the environment variable TEXT into the path in the first argument.
+
+echo "$TEXT" > "$1"
+-- examples/for-learning-and-testing/shell/example-script.sh --
+#!/bin/bash
+# An example script that will be executed via the 'shell' command in a boilerplate template. This script simply echoes
+# back the arguments you pass to it.
+
+echo "$@"
+-- examples/for-learning-and-testing/shell/hello-world.txt --
+Example of executing an arbitrary shell command using the shell helper:
+
+{{ shell "./example-script.sh" .Text }}
+-- examples/for-learning-and-testing/shell-disabled/README.md --
+This example is executed with shell helpers and hooks disabled, so neither the hooks or shell helpers should execute. 
+
+{{ shell "./example-script.sh" "This should not execute and instead be replaced with a placeholder" }}
+-- examples/for-learning-and-testing/shell-disabled/boilerplate.yml --
+hooks:
+  before:
+    - command: ./example-script.sh
+      args:
+        - "Hooks are disabled for this example, so this should NOT be written!"
+        - "{{ outputFolder }}/before-hook-example.txt"
+
+  after:
+    - command: ./example-script.sh
+      args:
+        - "Hooks are disabled for this example, so this should NOT be written!"
+        - "{{ outputFolder }}/after-hook-example.txt"
+-- examples/for-learning-and-testing/shell-disabled/example-script.sh --
+#!/bin/bash
+# An example script that will be executed via the 'shell' command in a boilerplate template. This script simply writes
+# the text in the first argument into the path in the second argument.
+
+echo "$1" > "$2"
+-- examples/for-learning-and-testing/skip-files-glob/a/b/c/d.yml --
+-- examples/for-learning-and-testing/skip-files-glob/a/b/c/foo.txt --
+-- examples/for-learning-and-testing/skip-files-glob/a/b/e.yml --
+-- examples/for-learning-and-testing/skip-files-glob/boilerplate.yml --
+skip_files:
+  - path: a/**/*.yml
+-- examples/for-learning-and-testing/skip-files-mixed/boilerplate.yml --
+skip_files:
+  - path: code.sh
+-- examples/for-learning-and-testing/skip-files-mixed/code.sh --
+#!/bin/bash
+
+echo "This is some important code"
+-- examples/for-learning-and-testing/skip-files-mixed/docs/README.md --
+# This is some README
+-- examples/for-learning-and-testing/skip-files-multiple/a.yml --
+-- examples/for-learning-and-testing/skip-files-multiple/b.yml --
+-- examples/for-learning-and-testing/skip-files-multiple/boilerplate.yml --
+variables:
+  - name: ExcludeA
+    type: bool
+    default: true
+
+  - name: ExcludeB
+    type: bool
+    default: false
+
+skip_files:
+  - path: a.yml
+    if: "{{ .ExcludeA }}"
+  - path: b.yml
+    if: "{{ .ExcludeB }}"
+-- examples/for-learning-and-testing/skip-files-nested/a/b/c/d.yml --
+-- examples/for-learning-and-testing/skip-files-nested/boilerplate.yml --
+variables:
+  - name: ExcludeD
+    type: bool
+    default: true
+
+skip_files:
+  - path: a/b/c/d.yml
+    if: "{{ .ExcludeD }}"
+-- examples/for-learning-and-testing/skip-not-path/a/foo.yml --
+-- examples/for-learning-and-testing/skip-not-path/boilerplate.yml --
+variables:
+  - name: SkipNotPath
+    default: "docs"
+
+skip_files:
+  - not_path: "{{ .SkipNotPath }}/**"
+-- examples/for-learning-and-testing/skip-not-path/docs/bar.txt --
+-- examples/for-learning-and-testing/skip-not-path/docs/foo.txt --
+-- examples/for-learning-and-testing/skip-not-path-mixed-noskip/a/foo.yml --
+-- examples/for-learning-and-testing/skip-not-path-mixed-noskip/boilerplate.yml --
+skip_files:
+  - path: docs
+    if: "{{ not .DocsOnly }}"
+  - path: docs/**/*
+    if: "{{ not .DocsOnly }}"
+  - not_path: docs/**/*
+    if: "{{ .DocsOnly }}"
+-- examples/for-learning-and-testing/skip-not-path-mixed-noskip/docs/bar.txt --
+-- examples/for-learning-and-testing/skip-not-path-mixed-noskip/docs/foo.txt --
+-- examples/for-learning-and-testing/skip-not-path-mixed-skip/a/foo.yml --
+-- examples/for-learning-and-testing/skip-not-path-mixed-skip/boilerplate.yml --
+skip_files:
+  - path: docs
+    if: "{{ not .DocsOnly }}"
+  - path: docs/**/*
+    if: "{{ not .DocsOnly }}"
+  - not_path: docs/**/*
+    if: "{{ .DocsOnly }}"
+-- examples/for-learning-and-testing/skip-not-path-mixed-skip/docs/bar.txt --
+-- examples/for-learning-and-testing/skip-not-path-mixed-skip/docs/foo.txt --
+-- examples/for-learning-and-testing/skip-not-path-multiple/a/foo.yml --
+-- examples/for-learning-and-testing/skip-not-path-multiple/boilerplate.yml --
+skip_files:
+  - not_path: docs/bar.txt
+  - not_path: docs/foo.txt
+-- examples/for-learning-and-testing/skip-not-path-multiple/docs/bar.txt --
+-- examples/for-learning-and-testing/skip-not-path-multiple/docs/foo.txt --
+-- examples/for-learning-and-testing/template-helpers/boilerplate.yml --
+variables:
+  - name: SomeGlobalVar
+    type: string
+    default: Inazagi
+
+dependencies:
+  - name: docs
+    template-url: ../docs
+    output-folder: ./docs
+
+  - name: website
+    template-url: ../website
+    output-folder: ./website
+
+skip_files:
+  - path: skipped.txt
+    if: '{{ list templateFolder "skipped.txt" | join "/" | pathExists }}'
+-- examples/for-learning-and-testing/template-helpers/sample.txt --
+{{ .BoilerplateConfigDeps.docs.TemplateUrl }}
+{{ .BoilerplateConfigDeps.docs.OutputFolder }}
+{{ .BoilerplateConfigDeps.website.TemplateUrl }}
+{{ .BoilerplateConfigDeps.website.OutputFolder }}
+
+{{ .SomeGlobalVar }}
+{{ .BoilerplateConfigVars.SomeGlobalVar.Default }}
+
+{{ trimPrefix "hello-world" "hello" }}
+
+{{ relPath "/a/b/c" "/a/d" }}
+
+{{ .BoilerplateConfigVars.SomeGlobalVar.Default }}
+
+{{ true | ternary "foo" "bar" }}
+
+{{ $myList := list 1 2 3 4 5 -}}
+{{ listSlice $myList 1 3 }}
+-- examples/for-learning-and-testing/template-helpers/skipped.txt --
+# This file should always be skipped
+-- examples/for-learning-and-testing/terraform/boilerplate.yml --
+variables:
+  - name: ServerName
+    description: The name to use for the EC2 instance (for its Name tag)
+    type: string
+-- examples/for-learning-and-testing/terraform/main.tf --
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-abcd1234"
+  instance_type = "t3.micro"
+
+  tags = {
+    Name = "{{ .ServerName }}"
+  }
+}
+-- examples/for-learning-and-testing/tofu-example/README.md --
+# {{ .ModuleName | title }} example
+
+An example of how to use the [{{ .ModuleName | kebabcase }} module]({{ .ModuleSource }}).
+
+## Quick start
+
+1. Open `variables.tf` and fill in the values you want.
+2. `tofu init`.
+3. `tofu apply`.
+4. When you're done testing: `tofu destroy`.
+-- examples/for-learning-and-testing/tofu-example/boilerplate.yml --
+variables:
+  - name: ModuleName
+    description: The name of the module
+    type: string
+
+  - name: ModuleSource
+    description: The source URL (or file path) to use for the module
+    type: string
+
+  - name: TofuVersion
+    description: The version of OpenTOfu to use
+    type: string
+    default: 1.6.2
+
+hooks:
+  after:
+    # Format the code
+    - command: tofu
+      args:
+        - fmt
+      dir: "{{ outputFolder }}"
+-- examples/for-learning-and-testing/tofu-example/main.tf --
+terraform {
+  required_version = "{{ .TofuVersion }}"
+}
+
+module "{{ .ModuleName | snakecase }}" {
+  source = "{{ .ModuleSource }}"
+
+  example_required_input = "Hello"
+  example_optional_input = "World"
+}
+-- examples/for-learning-and-testing/tofu-example/outputs.tf --
+output "example_output" {
+  description = "example output"
+  value       = module.{{ .ModuleName | snakecase }}.example_output
+}
+-- examples/for-learning-and-testing/tofu-module/README.md --
+# {{ .ModuleName | title }} module
+
+TODO: fill in documentation for the {{ .ModuleName | kebabcase }} module.
+
+## License
+
+{{ if .CopyrightInfo -}}
+{{ .CopyrightInfo }}
+
+{{ end -}}
+
+Please see [LICENSE.txt](LICENSE.txt) for details on how the code in this repo is licensed.
+-- examples/for-learning-and-testing/tofu-module/boilerplate.yml --
+variables:
+  - name: ModuleName
+    description: The name of the module
+    type: string
+
+  - name: CopyrightInfo
+    description: Copyright information to put in the README. Typically "Copyright <year> <company>."
+    type: string
+    default: ""
+
+  - name: TofuVersion
+    description: The version of OpenTofu to use
+    type: string
+    default: 1.6.2
+
+hooks:
+  after:
+    # Format the code
+    - command: tofu
+      args:
+        - fmt
+      dir: "{{ outputFolder }}"
+-- examples/for-learning-and-testing/tofu-module/main.tf --
+terraform {
+  required_version = "{{ .TofuVersion }}"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# TODO: DEFINE YOUR RESOURCES HERE
+# ---------------------------------------------------------------------------------------------------------------------
+-- examples/for-learning-and-testing/tofu-module/outputs.tf --
+# ---------------------------------------------------------------------------------------------------------------------
+# TODO: DEFINE YOUR OUTPUTS HERE
+# ---------------------------------------------------------------------------------------------------------------------
+
+output "example_output" {
+  description = "example output"
+  value       = "${var.example_required_input} ${var.example_optional_input}"
+}
+-- examples/for-learning-and-testing/tofu-module/variables.tf --
+# ---------------------------------------------------------------------------------------------------------------------
+# REQUIRED VARIABLES
+# TODO: define your required variables here
+# ---------------------------------------------------------------------------------------------------------------------
+
+variable "example_required_input" {
+  description = "Example required input variable"
+  type        = string
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# OPTIONAL VARIABLES
+# TODO: define your optional variables here
+# ---------------------------------------------------------------------------------------------------------------------
+
+variable "example_optional_input" {
+  description = "Example optional input variable"
+  type        = string
+  default     = "example-optional"
+}
+-- examples/for-learning-and-testing/tofu-module-full/boilerplate.yml --
+variables:
+  - name: ModuleName
+    description: The name of the module
+    type: string
+
+  - name: CopyrightInfo
+    description: Copyright information to put in the README. Typically "Copyright <year> <company>."
+    type: string
+    default: ""
+
+  - name: TofuVersion
+    description: The version of OpenTofu to use
+    type: string
+    default: 1.6.2
+
+dependencies:
+  - name: module
+    template-url: ../tofu-module
+    output-folder: "modules/{{ .ModuleName | kebabcase }}"
+
+  - name: example
+    template-url: ../tofu-example
+    output-folder: "examples/{{ .ModuleName | kebabcase }}"
+    variables:
+      - name: ModuleSource
+        description: The source URL (or file path) to use for the module
+        type: string
+        default: "../../modules/{{ .ModuleName | kebabcase }}"
+
+  - name: test
+    template-url: ../tofu-test
+    output-folder: "test"
+    variables:
+      - name: ExamplePath
+        description: The source URL (or file path) to use for the module
+        type: string
+        default: "../examples/{{ .ModuleName | kebabcase }}"
+-- examples/for-learning-and-testing/tofu-test/boilerplate.yml --
+variables:
+  - name: ModuleName
+    description: The name of the module
+    type: string
+
+  - name: ExamplePath
+    description: The folder path to to the example usage of the module to test
+    type: string
+
+hooks:
+  after:
+    # Format the Go code
+    - command: goimports
+      args:
+        - "-w"
+        - "."
+      dir: "{{ outputFolder }}"
+-- examples/for-learning-and-testing/tofu-test/vpc_test.go --
+//go:build ignore
+// +build ignore
+
+package test
+
+import (
+	"testing"
+
+	"github.com/gruntwork-io/terratest/modules/terraform"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test{{ .ModuleName | camelcase }}(t *testing.T) {
+	t.Parallel()
+
+	opts := &terraform.Options{
+		TerraformDir:    "{{ .ExamplePath }}",
+		TerraformBinary: "tofu",
+	}
+
+	defer terraform.Destroy(t, opts)
+
+	terraform.InitAndApply(t, opts)
+
+	actualOutput := terraform.OutputRequired(t, opts, "example_output")
+	assert.Equal(t, "Hello World", actualOutput)
+}
+-- examples/for-learning-and-testing/tofu-test-unix/boilerplate.yml --
+variables:
+  - name: ModuleName
+    description: The name of the module
+    type: string
+
+  - name: ExamplePath
+    description: The folder path to to the example usage of the module to test
+    type: string
+
+hooks:
+  after:
+    # Format the Go code
+    - command: goimports
+      args:
+        - "-w"
+        - "."
+      dir: "{{ outputFolder }}"
+-- examples/for-learning-and-testing/tofu-test-unix/template_test.go --
+//go:build ignore
+// +build ignore
+
+package test
+
+import (
+	"testing"
+
+	"github.com/gruntwork-io/terratest/modules/terraform"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test{{ .ModuleName | camelcase }}(t *testing.T) {
+	t.Parallel()
+
+	opts := &terraform.Options{
+		TerraformDir:    "{{ .ExamplePath }}",
+		TerraformBinary: "tofu",
+	}
+
+	defer terraform.Destroy(t, opts)
+
+	terraform.InitAndApply(t, opts)
+
+	actualOutput := terraform.OutputRequired(t, opts, "example_output")
+	assert.Equal(t, "Hello World", actualOutput)
+}
+-- examples/for-learning-and-testing/validations/boilerplate.yml --
+variables: 
+  - name: CompanyName
+    description: The name of your company
+    validations: 
+      - required
+      - alphanumeric
+      - length-5-20
+    default: Gruntwork
+  - name: CountryCode
+    description: The ISO3166 Alpha 2 code for the country you operate in 
+    validations: 
+      - required
+      - CountryCode2
+    default: US
+
+
+-- examples/for-learning-and-testing/validations/template.txt --
+"{{ .CompanyName }}"
+"{{ .CountryCode }}"
+-- examples/for-learning-and-testing/variables/boilerplate.yml --
+variables:
+  - name: BazMap
+    type: map
+    reference: FooMap
+
+-- examples/for-learning-and-testing/variables/example.txt --
+BazMap = {{ range $index, $key := (.BazMap | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.BazMap $key }}{{ end }}
+-- examples/for-learning-and-testing/variables-recursive/README.md --
+# Recursive variables
+
+This shows an example of variables that reference other variables.
+
+Foo = {{ .Foo }}
+Bar = {{ .Bar }}
+Baz = {{ .Baz }}
+
+FooList = {{ range $index, $element := .FooList }}{{ if gt $index 0 }}, {{ end }}{{ $element }}{{ end }}
+BarList = {{ range $index, $element := .BarList }}{{ if gt $index 0 }}, {{ end }}{{ $element }}{{ end }}
+FooMap = {{ range $index, $key := (.FooMap | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.FooMap $key }}{{ end }}
+BarMap = {{ range $index, $key := (.BarMap | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.BarMap $key }}{{ end }}
+
+ListWithTemplates = {{ range $index, $element := .ListWithTemplates }}{{ if gt $index 0 }}, {{ end }}{{ $element }}{{ end }}
+MapWithTemplates = {{ range $index, $key := (.MapWithTemplates | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.MapWithTemplates $key }}{{ end }}
+ListWithNestedMap = {{ range $index, $item := .ListWithNestedMap }}{{ if gt $index 0 }}, {{ end }}(name: {{ $item.name }}, value: {{ $item.value }}){{ end }}
+MapWithNestedList = {{ range $index, $key := (.MapWithNestedList | keys) }}{{ if gt $index 0 }}, {{ end }}(key: {{ $key }}, value: {{ range $index2, $value := (index $.MapWithNestedList $key) }}{{ if gt $index2 0 }}, {{ end }}{{ $value }}{{ end }}){{ end }}
+
+IntValue: {{ .IntValue }}
+IntValueInterpolation: {{ .IntValueInterpolation }}
+FloatValue: {{ .FloatValue }}
+FloatValueInterpolation: {{ .FloatValueInterpolation }}
+BoolValue: {{ .BoolValue }}
+BoolValueInterpolationSimple: {{ .BoolValueInterpolationSimple }}
+BoolValueInterpolationSimpleComplex: {{ .BoolValueInterpolationSimpleComplex }}
+ListValue: {{ range $index, $element := .ListValue }}{{ if gt $index 0 }}, {{ end }}{{ $element }}{{ end }}
+ListValueInterpolation: {{ range $index, $element := .ListValueInterpolation }}{{ if gt $index 0 }}, {{ end }}{{ $element }}{{ end }}
+MapValue: {{ range $index, $key := (.MapValue | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.MapValue $key }}{{ end }}
+MapValueInterpolation: {{ range $index, $key := (.MapValueInterpolation | keys) }}{{ if gt $index 0 }}, {{ end }}{{ $key }}: {{ index $.MapValueInterpolation $key }}{{ end }}
+-- examples/for-learning-and-testing/variables-recursive/boilerplate.yml --
+variables:
+  - name: Foo
+
+  - name: Bar
+    default: "{{ .Foo }}-bar"
+
+  - name: Baz
+    default: "{{ .Bar }}-baz"
+
+  - name: FooList
+    type: list
+    default:
+      - foo
+      - bar
+      - baz
+
+  - name: BarList
+    type: list
+    reference: FooList
+
+  - name: FooMap
+    type: map
+    default:
+      foo: 1
+      bar: 2
+      baz: 3
+
+  - name: BarMap
+    type: map
+    reference: FooMap
+
+  - name: ListWithTemplates
+    type: list
+    default:
+      - "{{ .Foo }}"
+      - "{{ .Bar }}"
+      - "{{ .Baz }}"
+
+  - name: MapWithTemplates
+    type: map
+    default:
+      "{{ .Foo }}": "{{ .Foo }}"
+      "{{ .Bar }}": "{{ .Bar }}"
+      "{{ .Baz }}": "{{ .Baz }}"
+
+  - name: ListWithNestedMap
+    type: list
+    default:
+      - name: foo
+        value: foo
+
+      - name: bar
+        value: bar
+
+  - name: MapWithNestedList
+    type: map
+    default:
+      foo: [1, 2, 3]
+      bar: [4, 5, 6]
+
+  - name: IntValue
+    type: int
+    default: 42
+
+  - name: IntValueInterpolation
+    type: int
+    default: "{{ .IntValue }}"
+
+  - name: FloatValue
+    type: float
+    default: 3.14
+
+  - name: FloatValueInterpolation
+    type: float
+    default: "{{ .FloatValue }}"
+
+  - name: BoolValue
+    type: bool
+    default: true
+
+  - name: BoolValueInterpolationSimple
+    type: bool
+    default: "{{ .BoolValue }}"
+
+  - name: BoolValueInterpolationSimpleComplex
+    type: bool
+    default: "{{ eq .IntValue 42 }}"
+
+  - name: ListValue
+    type: list
+    default:
+      - 1
+      - 2
+      - 3
+
+  - name: ListValueInterpolation
+    type: list
+    default: "{{ .ListValue }}"
+
+  - name: MapValue
+    type: map
+    default:
+      foo: 1
+      bar: 2
+      baz: 3
+
+  - name: MapValueInterpolation
+    type: map
+    default: "{{ .MapValue }}"
+
+dependencies:
+  - name: variables
+    template-url: ../variables
+    output-folder: .
+-- examples/for-learning-and-testing/website/boilerplate.yml --
+variables:
+  - name: Title
+
+  - name: WelcomeText
+    description: Enter the welcome text for the website
+
+  - name: ShowLogo
+    description: Should the website show the logo?
+    type: bool
+    default: true
+-- examples/for-learning-and-testing/website/index.html --
+<html>
+  <head>
+    <title>{{.Title}}</title>
+  </head>
+  <body>
+    <h1>{{.WelcomeText}}</h1>
+    {{if .ShowLogo}}<img src="logo.png">{{end}}
+  </body>
+</html>
+-- examples/for-production/terragrunt-architecture-catalog/README.md --
+# Terragrunt Architecture Catalog Boilerplate Example
+
+This folder contains a production level example on how to use `boilerplate` to organize a Terragrunt Architecture. The
+concepts in this example is used to construct the Gruntwork Architecture Catalog, which is in turn used to generate the
+[Gruntwork Reference Architecture](https://gruntwork.io/reference-architecture/).
+
+
+## Quickstart
+
+You can try running this example with the following steps:
+
+- Make sure you have `boilerplate` version `v0.4.0` and above.
+
+- Update the [sample_reference_architecture_vars.yml](./sample_reference_architecture_vars.yml) as necessary.
+
+- Run `boilerplate` to invoke the `reference-architecture` blueprint with the given vars:
+
+      boilerplate --template-url ./blueprints/reference-architecture --var-file ./sample_reference_architecture_vars.yml --output-folder ./infrastructure-live --non-interactive
+
+You should now have a `infrastructure-live` folder that contains a full `terragrunt` example!
+
+
+## How to navigate this example
+
+The code in this example is organized into two primary folders:
+
+1. `blueprints`: The consumable architecture blueprints for managing infrastructure components. All the Blueprints that
+   you will use and invoke are defined within this folder. Refer to the [Terminology section](#terminology) below for
+   more information on Blueprints.
+
+1. `templates`: The core implementation code of this repo. All the Blueprints wrap and invoke the Templates to generate
+   the infrastructure code for the underlying components into the various accounts. These are generally too low level to
+   use directly, and are most useful when constructing Blueprints of your own (e.g., to create an internal Architecture
+   Catalog for your users). Templates provide a useful building block to share logic across Blueprints. That is, each
+   Template is potentially used by multiple Blueprints. Templates are further divided into the
+   following categories:
+
+   - `layouts`: Reusable pieces of templates that helps keep the template code DRY. These include the boilerplate
+     content that are repeated across all the templates.
+
+   - `_root`: Templates that render the root contents of a specific folder. For example, the `_root/infrastructure-live`
+     template renders the content that should exist in the root folder of an `infrastructure-live` repository for
+     managing live infrastructure config. This includes the root Terragrunt configuration that configures the remote
+     state.
+
+   - `services`: Templates in this directory manage a single piece of infrastructure in a larger architecture. These
+     are the core building blocks of Blueprints.
+
+
+## Terminology
+
+This example breaks down `boilerplate` templates into two categories:
+
+* **Template**: Reusable code to generate infrastructure code to deploy and manage one piece of infrastructure in a
+  single account/deployment. Since Templates only focus on a single piece of infrastructure in a single
+  account/deployment, invoking a single template does not give you a full deployment for that infrastructure component.
+  Instead, you need to combine the template with its dependencies, and invoke it for each account that needs the
+  specific piece of infrastructure. For example, the infrastructure code for an EKS architecture is broken down into four
+  templates: the VPC, the EKS control plane and worker nodes, the core Kubernetes administrative services, and the
+  Kubernetes applications. Under the hood, each template uses a single service module from the [Gruntwork Service
+  Catalog](https://github.com/gruntwork-io/terraform-aws-service-catalog/). To get a full EKS architecture, you need to
+  deploy all 4 templates in each environment where you wish to run EKS. E.g., You might need to deploy all 4 templates
+  in dev, then use all 4 again in stage, and then use all 4 once more in prod. To make it easier to use multiple
+  templates across multiple environments, the Architecture Catalog includes blueprints, as described next.
+
+* **Blueprint**: Reusable code that combines multiple templates together to deploy a complete, self-contained piece of
+  infrastructure across multiple environments. For example, the EKS blueprint will configure everything you need to
+  deploy EKS into a multi-account AWS infrastructure setup. This includes the VPC, the EKS control plane and worker
+  nodes, the core Kubernetes administrative services, and the Kubernetes applications, configured for each account that
+  needs the infrastructure replicated. Note that Blueprints, like Templates, provide you configuration options for
+  customizing the behavior of the underlying architecture. The EKS blueprint in the example above gives you
+  configuration options to skip rendering the VPC template if you already have a custom VPC deployed in your existing
+  architecture.
+
+This organization exists to streamline the conditional logic of whether or not to include various components in your
+architecture. Although `boilerplate` supports replicating nested folders within a template, it does not include the
+ability to condition the replication. This makes it hard to implement architecture level logic, like "choose a
+monitoring framework," where you want to include different modules based on selection.
+
+This is where the **Blueprints** come in handy, where you can use `skip` directives to control which **Templates** are
+invoked.
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/README.md --
+# Blueprints
+
+This folder contains boilerplate blueprints as defined in the [Terminology
+section](/examples/for-production/terragrunt-architecture-catalog/README.md#terminology) of the root README.
+
+Each blueprint provides a standalone template that configures the entire `infrastructure-live` repository with all the
+necessary infrastructure components that are required to deploy it. For example, the `vpc-app` blueprint not only
+includes the templates for setting up the App VPC in the specific account, but it also sets up the envcommon folder with
+the common configurations for any App VPC.
+
+Note that some of the blueprints may call other blueprints to setup what the dependencies. For example, the `postgres`
+blueprint will call the `vpc-app` blueprint to ensure an App VPC exists in the architecture to house the RDS database.
+
+This allows you to compose the blueprints together into a full scale customized architecture, as is done in the
+`reference-architecture` blueprint:
+
+- The `reference-architecture` blueprint sets up the folder structure of an `infrastructure-live` repository.
+- It then uses the `reference-architecture-app-account` blueprint to set up three copies of the infrastructure in a
+  `dev`, `stage`, and `prod` account.
+- The `reference-architecture-app-account` blueprint in turn calls the `vpc-app`, `postgres`, and `redis` blueprints to
+  setup those components within the scope of a single account.
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/postgres/boilerplate.yml --
+# This blueprint creates the terragrunt modules necessary to deploy Postgres RDS Cluster into a single region in a
+# single account.
+
+variables:
+  # Required variables
+  - name: AWSAccountName
+    description: The name of the AWS account.
+
+  - name: AWSRegion
+    description: The name of the AWS region.
+
+  - name: DBSecretsManagerArn
+    description: "Enter the ID (name or ARN) of an AWS Secrets Manager secret containing the database configuration details."
+    # Example JSON value for the Secrets Manager secret:
+    # {
+    #   "engine": "postgres",
+    #   "username": "example-user",
+    #   "password": "example-password",
+    #   "dbname": "myDatabase",
+    #   "port": "3306"
+    # }
+
+  # Optional variables
+  - name: PostgresEngineVersion
+    type: string
+    description: "The version of Postgres to use. For allowed values, see the AWS documentation here: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html#PostgreSQL.Concepts.General.DBVersions"
+    default: "14.1"
+
+  - name: IncludeVPCApp
+    type: bool
+    description: Whether or not to render the vpc template as a dependency.
+    default: true
+
+  # The following are convenience variables for DRY-ing up the dependencies. These are not intended to be
+  # updated/provided by users. We follow the Go convention of camelCase instead of TitleCase.
+  - name: accountOutputFolder
+    description: "The output folder that denotes the account in the infrastructure-live folder structure."
+    default: "{{ outputFolder }}/{{ .AWSAccountName }}/"
+  - name: accountRegionOutputFolder
+    description: "The output folder that denotes the region in the infrastructure-live folder structure."
+    default: "{{ .accountOutputFolder }}/{{ .AWSRegion }}/"
+
+dependencies:
+  - name: rds
+    template-url: "{{ templateFolder }}/../../templates/services/data-stores/rds"
+    output-folder: "{{ .accountRegionOutputFolder }}/data-stores/postgres"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: false
+      - name: RDSEngine
+        type: string
+        default: "postgres"
+      - name: RDSEngineVersion
+        type: string
+        default: "{{ .PostgresEngineVersion }}"
+
+  - name: rds-envcommon
+    template-url: "{{ templateFolder }}/../../templates/services/data-stores/rds"
+    output-folder: "{{ outputFolder }}/_envcommon/data-stores"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: true
+      - name: RDSEngine
+        type: string
+        default: "postgres"
+      - name: RDSEngineVersion
+        type: string
+        default: "{{ .PostgresEngineVersion }}"
+
+  # The following are additional blueprints to include. We use blueprints instead of templates for these dependencies so
+  # that we can include everything necessary for each component.
+  - name: vpc-app
+    template-url: "{{ templateFolder }}/../vpc-app"
+    output-folder: "{{ outputFolder }}"
+    skip: "{{ not .IncludeVPCApp }}"
+
+
+hooks:
+  after:
+    # Format the rendered HCL files
+    - command: terragrunt
+      args:
+        - "hclfmt"
+        - "--terragrunt-working-dir"
+        - "{{ outputFolder }}"
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/redis/boilerplate.yml --
+# This blueprint creates the terragrunt modules necessary to deploy Redis into a single region in a single account.
+
+variables:
+  - name: AWSAccountName
+    description: The name of the AWS account.
+
+  - name: AWSRegion
+    description: The name of the AWS region.
+
+  # Optional variables
+  - name: IncludeVPCApp
+    type: bool
+    description: Whether or not to render the vpc template as a dependency.
+    default: true
+
+  # The following are convenience variables for DRY-ing up the dependencies. These are not intended to be
+  # updated/provided by users. We follow the Go convention of camelCase instead of TitleCase.
+  - name: accountOutputFolder
+    description: "The output folder that denotes the account in the infrastructure-live folder structure."
+    default: "{{ outputFolder }}/{{ .AWSAccountName }}/"
+  - name: accountRegionOutputFolder
+    description: "The output folder that denotes the region in the infrastructure-live folder structure."
+    default: "{{ .accountOutputFolder }}/{{ .AWSRegion }}/"
+
+dependencies:
+  - name: redis
+    template-url: "{{ templateFolder }}/../../templates/services/data-stores/redis"
+    output-folder: "{{ .accountRegionOutputFolder }}/data-stores/redis"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: false
+      # Use special override settings when deploying the cache in the prod account.
+      - name: RedisInstanceType
+        default: "{{ if eq .AWSAccountName \"prod\" }}cache.t3.medium{{ else }}cache.t3.micro{{ end }}"
+      - name: RedisReplicationGroupSize
+        default: "{{ if eq .AWSAccountName \"prod\" }}2{{ else }}1{{ end }}"
+
+  - name: redis-envcommon
+    template-url: "{{ templateFolder }}/../../templates/services/data-stores/redis"
+    output-folder: "{{ outputFolder }}/_envcommon/data-stores"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: true
+
+  # The following are additional blueprints to include. We use blueprints instead of templates for these dependencies so
+  # that we can include everything necessary for each component.
+  - name: vpc-app
+    template-url: "{{ templateFolder }}/../vpc-app"
+    output-folder: "{{ outputFolder }}"
+    skip: "{{ not .IncludeVPCApp }}"
+
+
+hooks:
+  after:
+    # Format the rendered HCL files
+    - command: terragrunt
+      args:
+        - "hclfmt"
+        - "--terragrunt-working-dir"
+        - "{{ outputFolder }}"
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/reference-architecture/boilerplate.yml --
+# This blueprint creates a sample infrastructure-live repo containing three accounts (dev, stage, and prod) that each
+# have a single App VPC with an Elasticache Redis Cluster and an RDS Postgres Database.
+
+variables:
+  - name: ResourceNamePrefix
+    description: A name to prefix to resources in this configuration
+
+  - name: DevAWSAccountID
+    description: The AWS Account ID of the dev account.
+
+  - name: StageAWSAccountID
+    description: The AWS Account ID of the stage account.
+
+  - name: ProdAWSAccountID
+    description: The AWS Account ID of the prod account.
+
+  # Optional variables
+  - name: AWSRegion
+    description: The name of the AWS Region to use for each of the accounts.
+    default: "us-east-2"
+
+  - name: DevAppVPCCIDRBlock
+    description: Enter the CIDR block should we use for the app VPC in the dev account (e.g. 172.31.80.0/20).
+    default: 10.0.0.0/16
+
+  - name: StageAppVPCCIDRBlock
+    description: Enter the CIDR block should we use for the app VPC in the stage account (e.g. 172.31.80.0/20).
+    default: 10.2.0.0/16
+
+  - name: ProdAppVPCCIDRBlock
+    description: Enter the CIDR block should we use for the app VPC in the prod account (e.g. 172.31.80.0/20).
+    default: 10.3.0.0/16
+
+
+dependencies:
+  - name: infrastructure-live-root
+    template-url: "{{ templateFolder }}/../../templates/_root/infrastructure-live"
+    output-folder: "{{ outputFolder }}"
+    variables:
+      - name: AWSAccounts
+        type: map
+        default:
+          dev: "{{ .DevAWSAccountID }}"
+          stage: "{{ .StageAWSAccountID }}"
+          prod: "{{ .ProdAWSAccountID }}"
+
+  - name: envcommon-root
+    template-url: "{{ templateFolder }}/../../templates/_root/_envcommon"
+    output-folder: "{{ outputFolder }}/_envcommon"
+
+  - name: dev-blueprint
+    template-url: "{{ templateFolder }}/../reference-architecture-app-account"
+    output-folder: "{{ outputFolder }}"
+    variables:
+      - name: AWSAccountName
+        default: "dev"
+      - name: AWSAccountID
+        default: "{{ .DevAWSAccountID }}"
+      - name: AppVPCCIDRBlock
+        default: "{{ .DevAppVPCCIDRBlock }}"
+
+  - name: stage-blueprint
+    template-url: "{{ templateFolder }}/../reference-architecture-app-account"
+    output-folder: "{{ outputFolder }}"
+    variables:
+      - name: AWSAccountName
+        default: "stage"
+      - name: AWSAccountID
+        default: "{{ .StageAWSAccountID }}"
+      - name: AppVPCCIDRBlock
+        default: "{{ .StageAppVPCCIDRBlock }}"
+
+  - name: prod-blueprint
+    template-url: "{{ templateFolder }}/../reference-architecture-app-account"
+    output-folder: "{{ outputFolder }}"
+    variables:
+      - name: AWSAccountName
+        default: "prod"
+      - name: AWSAccountID
+        default: "{{ .ProdAWSAccountID }}"
+      - name: AppVPCCIDRBlock
+        default: "{{ .ProdAppVPCCIDRBlock }}"
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/reference-architecture-app-account/boilerplate.yml --
+# This blueprint creates an account tree in the infrastructure-live repo for a single app account that
+# has a single App VPC with an Elasticache Redis Cluster and an RDS Postgres Database.
+
+variables:
+  - name: AWSAccountName
+    description: The name of the AWS Account being deployed to.
+
+  - name: AWSAccountID
+    description: The ID of the AWS Account being deployed to.
+
+  - name: AWSRegion
+    description: The name of the AWS Region being deployed to.
+
+  # The following are convenience variables for DRY-ing up the dependencies. These are not intended to be
+  # updated/provided by users. We follow the Go convention of camelCase instead of TitleCase.
+  - name: accountOutputFolder
+    description: "The output folder that denotes the account in the infrastructure-live folder structure."
+    default: "{{ outputFolder }}/{{ .AWSAccountName }}/"
+  - name: accountRegionOutputFolder
+    description: "The output folder that denotes the region in the infrastructure-live folder structure."
+    default: "{{ .accountOutputFolder }}/{{ .AWSRegion }}/"
+
+dependencies:
+  - name: account-root
+    template-url: "{{ templateFolder }}/../../templates/_root/account"
+    output-folder: "{{ .accountOutputFolder }}"
+
+  - name: region-root
+    template-url: "{{ templateFolder }}/../../templates/_root/region"
+    output-folder: "{{ .accountRegionOutputFolder }}"
+
+  - name: redis-blueprint
+    template-url: "{{ templateFolder }}/../redis"
+    output-folder: "{{ outputFolder }}"
+
+  - name: postgres-blueprint
+    template-url: "{{ templateFolder }}/../postgres"
+    output-folder: "{{ outputFolder }}"
+-- examples/for-production/terragrunt-architecture-catalog/blueprints/vpc-app/boilerplate.yml --
+# This blueprint creates the terragrunt modules necessary to deploy an App VPC into a single region in a single account.
+
+variables:
+  - name: AWSAccountName
+    description: The name of the AWS account.
+
+  - name: AWSRegion
+    description: The name of the AWS region.
+
+  # The following are convenience variables for DRY-ing up the dependencies. These are not intended to be
+  # updated/provided by users. We follow the Go convention of camelCase instead of TitleCase.
+  - name: accountOutputFolder
+    description: "The output folder that denotes the account in the infrastructure-live folder structure."
+    default: "{{ outputFolder }}/{{ .AWSAccountName }}//"
+  - name: accountRegionOutputFolder
+    description: "The output folder that denotes the region in the infrastructure-live folder structure."
+    default: "{{ .accountOutputFolder }}/{{ .AWSRegion }}/"
+
+
+dependencies:
+  - name: vpc-app
+    template-url: "{{ templateFolder }}/../../templates/services/networking/vpc"
+    output-folder: "{{ .accountRegionOutputFolder }}/networking/vpc"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: false
+
+  - name: vpc-app-envcommon
+    template-url: "{{ templateFolder }}/../../templates/services/networking/vpc"
+    output-folder: "{{ outputFolder }}/_envcommon/networking"
+    variables:
+      - name: IsEnvCommon
+        type: bool
+        default: true
+
+hooks:
+  after:
+    # Format the rendered HCL files
+    - command: terragrunt
+      args:
+        - "hclfmt"
+        - "--terragrunt-working-dir"
+        - "{{ outputFolder }}"
+-- examples/for-production/terragrunt-architecture-catalog/sample_reference_architecture_vars.yml --
+ResourceNamePrefix: gruntwork
+DevAWSAccountID: "1111111111111"
+StageAWSAccountID: "2222222222222"
+ProdAWSAccountID: "3333333333333"
+DBSecretsManagerArn: SomeArn
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/_envcommon/README.md --
+# Common configurations for service components
+
+This directory holds common configurations for each component that is shared across the environments. Each file
+will be included and merged into the live configuration for the service component in each environment.
+
+Refer to [the Terragrunt
+documentation](https://terragrunt.gruntwork.io/docs/features/keep-your-terragrunt-architecture-dry/) for more details.
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/_envcommon/boilerplate.yml --
+# This template sets up the root directory of _envcommon. This file is intentionally blank as boilerplate requires a
+# boilerplate.yml file to recognize templates.
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/account/account.hcl --
+# Set account-wide variables
+locals {
+  account_name = "{{ .AWSAccountName }}"
+  account_id   = "{{ .AWSAccountID }}"
+}
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/account/boilerplate.yml --
+# This template sets up the root directory of an account.
+
+variables:
+  # Required variables
+  - name: AWSAccountName
+    description: The name of the AWS Account being deployed to.
+
+  - name: AWSAccountID
+    description: The ID of the AWS Account being deployed to.
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/infrastructure-live/accounts.json --
+{{ .AWSAccounts | toPrettyJson }}
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/infrastructure-live/boilerplate.yml --
+# This template sets up the root directory of an infrastructure-live repository.
+
+variables:
+  # Required variables
+  - name: ResourceNamePrefix
+    description: A name to prefix to resources in this configuration
+
+  - name: AWSAccounts
+    description: A map of AWS account names to the account ID.
+    type: map
+
+  # Optional variables
+  - name: SkipRemoteState
+    description: Whether or not to skip the remote_state block. Primarily used for testing purposes.
+    type: bool
+    default: false
+
+  - name: AccountsJSONFileName
+    description: Name of the json file that will contain the map of account names to IDs.
+    default: "accounts.json"
+
+  - name: AWSDefaultRegion
+    description: The default region to use when not operating on a specific region.
+    default: us-east-1
+
+  - name: TerraformVersion
+    description: Used by the mise tool to automatically select which version of Terraform to use.
+    default: 1.0.11
+
+  - name: TerragruntVersion
+    description: Used by the mise tool to automatically select which version of Terragrunt to use.
+    default: v0.36.1
+
+
+hooks:
+  after:
+    # Format the rendered HCL files
+    - command: terragrunt
+      args:
+        - "hclfmt"
+        - "--terragrunt-working-dir"
+        - "{{ outputFolder }}"
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/infrastructure-live/common.hcl --
+# Common variables for all AWS accounts.
+locals {
+  # ----------------------------------------------------------------------------------------------------------------
+  # ACCOUNT IDS AND CONVENIENCE LOCALS
+  # ----------------------------------------------------------------------------------------------------------------
+
+  # Centrally define all the AWS account IDs. We use JSON so that it can be readily parsed outside of Terraform.
+  account_ids = jsondecode(file("{{ .AccountsJSONFileName }}"))
+
+  # Define a default region to use when operating on resources that are not contained within a specific region.
+  default_region = "{{ .AWSDefaultRegion }}"
+
+  # A prefix used for naming resources.
+  name_prefix = "{{ .ResourceNamePrefix }}"
+}
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/infrastructure-live/terragrunt.hcl --
+# ---------------------------------------------------------------------------------------------------------------------
+# ROOT TERRAGRUNT CONFIGURATION
+# This configuration sets up project live configurations that are common to all terragrunt modules within this
+# repository.
+# ---------------------------------------------------------------------------------------------------------------------
+
+locals {
+  # Automatically load common variables
+  common_vars = read_terragrunt_config(find_in_parent_folders("common.hcl"))
+
+  # Automatically load account-level variables
+  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
+
+  # Automatically load region-level variables
+  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+
+  # Extract the variables we need for easy access
+  name_prefix  = local.common_vars.locals.name_prefix
+  account_name = local.account_vars.locals.account_name
+  account_id   = local.account_vars.locals.account_id
+  aws_region   = local.region_vars.locals.aws_region
+}
+
+# Generate an AWS provider block
+generate "provider" {
+  path      = "provider.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<EOF
+provider "aws" {
+  region = "${local.aws_region}"
+
+  # Only these AWS Account IDs may be operated on by this template
+  allowed_account_ids = ["${local.account_id}"]
+}
+EOF
+}
+
+{{ if not .SkipRemoteState -}}
+# Configure Terragrunt to automatically store tfstate files in an S3 bucket
+remote_state {
+  backend = "s3"
+  config = {
+    encrypt        = true
+    bucket         = "${local.name_prefix}-boilerplate-example-terraform-state-${local.account_name}-${local.aws_region}"
+    key            = "${path_relative_to_include()}/terraform.tfstate"
+    region         = local.aws_region
+    dynamodb_table = "terraform-locks"
+  }
+  generate = {
+    path      = "backend.tf"
+    if_exists = "overwrite_terragrunt"
+  }
+}
+{{- end }}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# GLOBAL PARAMETERS
+# These variables apply to all configurations in this subfolder. These are automatically merged into the child
+# `terragrunt.hcl` config via the include block.
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Configure root level variables that all resources can inherit. This is especially helpful with multi-account configs
+# where terraform_remote_state data sources are placed directly into the modules.
+inputs = merge(
+  local.account_vars.locals,
+  local.region_vars.locals,
+)
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/region/boilerplate.yml --
+# This template sets up the root directory of a region.
+
+variables:
+  # Required variables
+  - name: AWSRegion
+    description: The name of the AWS Region being deployed to.
+-- examples/for-production/terragrunt-architecture-catalog/templates/_root/region/region.hcl --
+# Common variables for this region
+locals {
+  aws_region = "{{ .AWSRegion }}"
+}
+-- examples/for-production/terragrunt-architecture-catalog/templates/layouts/envcommon.hcl --
+{{- define "base_envcommon_layout" -}}
+# ---------------------------------------------------------------------------------------------------------------------
+# COMMON TERRAGRUNT CONFIGURATION
+# This is the common component configuration for {{ .EnvCommonComponent }}. The common variables for each environment to
+# deploy {{ .EnvCommonComponent }} are defined here. This configuration will be merged into the environment configuration
+# via an include block.
+# ---------------------------------------------------------------------------------------------------------------------
+
+# Terragrunt will copy the Terraform configurations specified by the source parameter, along with any files in the
+# working directory, into a temporary folder, and execute your Terraform commands in that folder. If you're iterating
+# locally, you can use --terragrunt-source /path/to/local/checkout/of/module to override the source parameter to a
+# local check out of the module for faster iteration.
+terraform {
+  source = "${local.source_base_url}?ref={{ .RepoRef }}"
+}
+
+{{- if templateIsDefined "dependencies" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Dependencies are modules that need to be deployed before this one.
+# ---------------------------------------------------------------------------------------------------------------------
+{{ template "dependencies" . }}
+{{- end }}
+
+{{- if templateIsDefined "generate" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Generators are used to generate additional Terraform code that is necessary to deploy a module.
+# ---------------------------------------------------------------------------------------------------------------------
+{{ template "generate" . }}
+{{- end }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Locals are named constants that are reusable within the configuration.
+# ---------------------------------------------------------------------------------------------------------------------
+locals {
+  source_base_url = "git::{{ .GruntworkGitBaseURLSSH }}/{{ .RepoName }}.git//{{ .ModulePath }}"
+
+  {{- if .IncludeCommonVars }}
+
+  # Automatically load common variables shared across all accounts
+  common_vars = read_terragrunt_config(find_in_parent_folders("common.hcl"))
+
+  # Extract the name prefix for easy access
+  name_prefix = local.common_vars.locals.name_prefix
+  {{- end }}
+
+  {{- if .IncludeAccountVars }}
+
+  # Automatically load account-level variables
+  account_vars = read_terragrunt_config(find_in_parent_folders("account.hcl"))
+
+  # Extract the account_name and account_id for easy access
+  account_name = local.account_vars.locals.account_name
+  account_id   = local.account_vars.locals.account_id
+  {{- end }}
+
+  {{- if .IncludeRegionVars }}
+
+  # Automatically load region-level variables
+  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+
+  # Extract the region for easy access
+  aws_region = local.region_vars.locals.aws_region
+  {{- end }}
+{{- if templateIsDefined "locals" }}
+{{ template "locals" . }}
+{{- end }}
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# MODULE PARAMETERS
+# These are the variables we have to pass in to use the module specified in the terragrunt configuration above.
+{{- if .IsEnvCommon }}
+# This defines the parameters that are common across all environments.
+{{- end }}
+# ---------------------------------------------------------------------------------------------------------------------
+inputs = {
+  {{- template "inputs" . -}}
+}
+{{- end -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/layouts/terragrunt.hcl --
+{{- define "base_layout" -}}
+# This is the configuration for Terragrunt, a thin wrapper for Terraform: https://terragrunt.gruntwork.io/
+
+# Override the terraform source with the actual version we want to deploy.
+terraform {
+  source = "${include.envcommon.locals.source_base_url}?ref={{ .RepoRef }}"
+}
+
+# Include the root `terragrunt.hcl` configuration, which has settings common across all environments & components.
+include "root" {
+  path = find_in_parent_folders()
+}
+
+# Include the component configuration, which has settings that are common for the component across all environments
+include "envcommon" {
+  path = "${dirname(find_in_parent_folders())}/_envcommon/{{ .EnvCommonComponent }}.hcl"
+  {{- if eq .EnvCommonMergeStrategy "deep" }}
+  # Perform a deep merge so that we can reference dependencies in the override parameters.
+  merge_strategy = "deep"
+  {{- end }}
+  # We want to reference the variables from the included config in this configuration, so we expose it.
+  expose = true
+}
+
+{{- if templateIsDefined "includes" }}
+{{ template "includes" . }}
+{{- end }}
+
+{{- if templateIsDefined "dependencies" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Dependencies are modules that need to be deployed before this one.
+# ---------------------------------------------------------------------------------------------------------------------
+{{ template "dependencies" . }}
+{{- end }}
+
+{{- if templateIsDefined "generate" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Generators are used to generate additional Terraform code that is necessary to deploy a module.
+# ---------------------------------------------------------------------------------------------------------------------
+{{ template "generate" . }}
+{{- end }}
+
+{{- if templateIsDefined "locals" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Locals are named constants that are reusable within the configuration.
+# ---------------------------------------------------------------------------------------------------------------------
+locals {
+{{- template "locals" . }}
+}
+{{- end }}
+
+{{- if templateIsDefined "inputs" }}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Module parameters to pass in. Note that these parameters are environment specific.
+# ---------------------------------------------------------------------------------------------------------------------
+inputs = {
+  {{- template "inputs" . }}
+}
+{{- end }}
+{{- end -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/rds/boilerplate.yml --
+# This template creates the terragrunt.hcl configurations for deploying an RDS Database Cluster
+
+variables:
+  # Required variables
+  - name: DBSecretsManagerArn
+    description: "Enter the ID (name or ARN) of an AWS Secrets Manager secret containing the database configuration details."
+    # Example JSON value for the Secrets Manager secret:
+    # {
+    #   "engine": "aurora-mysql",
+    #   "username": "example-user",
+    #   "password": "example-password",
+    #   "dbname": "myDatabase",
+    #   "port": "3306"
+    # }
+
+  - name: RDSEngine
+    type: string
+    description: "The database engine to use (e.g., postgres, mysql, etc)."
+
+  - name: RDSEngineVersion
+    type: string
+    description: "The version of the associated database engine to use."
+
+  # Optional variables
+  - name: IsEnvCommon
+    type: bool
+    description: When true, render only the configuration file for envcommon.
+    default: false
+
+  - name: EnvCommonComponent
+    type: string
+    description: The service component that the envcommon configuration is for.
+    default: data-stores/rds
+
+  - name: EnvCommonMergeStrategy
+    type: string
+    description: The merge strategy for the envcommon config.
+    default: shallow
+
+  - name: IncludeCommonVars
+    type: bool
+    description: Whether or not to include the variables from common.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeAccountVars
+    type: bool
+    description: Whether or not to include the variables from account.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeRegionVars
+    type: bool
+    description: Whether or not to include the variables from region.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: UsingCISCompliance
+    type: bool
+    description: If true, enable the use of the terraform-cis-aws-service-catalog repo.
+    default: false
+
+  - name: GruntworkGitBaseURLSSH
+    description: Enter the base SSH URL of the module's Git repo.
+    default: git@github.com:gruntwork-io
+
+  - name: RepoName
+    description: Enter the name of the repository where the Terraform module is located.
+    default: terraform-aws-service-catalog
+
+  - name: RepoRef
+    description: Enter the Git ref to use for the module.
+    default: v0.76.0
+
+  - name: ModulePath
+    description: Enter the path of the Terraform module in the repository.
+    default: modules/data-stores/rds
+
+  - name: Module
+    description: "Enter the path and version of the module to use within the desired repository. e.g. modules/data-stores/redis?ref=v0.0.1."
+    default: "{{ .ModulePath }}?ref={{ .RepoRef }}"
+
+  - name: RDSDatabaseName
+    description: "Enter the name to use for the RDS DB instance."
+    default: "rds-${local.name_prefix}-${local.account_name}"
+
+  - name: BaseRDSInstanceType
+    description: "Enter the RDS DB instance type (e.g db.r3.large)."
+    default: "db.t3.micro"
+
+  - name: RDSInstanceType
+    description: "Same as BaseRDSInstanceType, but used to override the value for the specific environment."
+    default: "db.t3.micro"
+
+  - name: BaseRDSAllocatedStorage
+    type: int
+    description: "Enter The amount of storage space the DB should use, in GB."
+    default: 20
+
+  - name: RDSAllocatedStorage
+    type: int
+    description: "Same as BaseRDSAllocatedStorage, but used to override the value for the specific environment."
+    default: 20
+
+  # Dependency paths
+  - name: AppVPCPath
+    description: The path to the vpc-app module.
+    default: "${get_terragrunt_dir()}/../../networking/vpc"
+
+  # Mock data for included dependencies
+  - name: MockVPCID
+    description: The VPC ID to use for mock outputs in the App VPC dependency block.
+    default: "vpc-abcd1234"
+
+  - name: MockVPCSubnets
+    type: list
+    description: The subnet IDs to use for mock outputs in the App VPC dependency block.
+    default:
+      - subnet-abcd1234
+      - subnet-bcd1234a
+
+  - name: MockVPCSubnetCIDRBlocks
+    type: list
+    description: The CIDR blocks to use for mock outputs in the App VPC dependency block.
+    default:
+      - "10.0.0.0/24"
+      - "10.0.1.0/24"
+
+  - name: AllowedMockCommands
+    type: list
+    description: The Terraform commands that the mocks are allowed to be used with.
+    default:
+      - validate
+
+partials:
+  - ../../../layouts/terragrunt.hcl
+  - ../../../layouts/envcommon.hcl
+
+# When rendering _envcommon, only render rds.hcl, while rendering everything else otherwise.
+skip_files:
+  - path: rds.hcl
+    if: "{{ not .IsEnvCommon }}"
+  - not_path: rds.hcl
+    if: "{{ .IsEnvCommon }}"
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/rds/rds.hcl --
+{{- define "dependencies" }}
+dependency "vpc" {
+  config_path = "{{ .AppVPCPath }}"
+
+  mock_outputs = {
+    vpc_id                 = "{{ .MockVPCID }}"
+    private_persistence_subnet_ids = [ {{ range $subnet := .MockVPCSubnets }}"{{ $subnet }}", {{ end }} ]
+    private_app_subnet_cidr_blocks = [ {{ range $cidr := .MockVPCSubnetCIDRBlocks }}"{{ $cidr }}", {{ end }} ]
+  }
+  mock_outputs_allowed_terraform_commands = [{{ range $cmd := .AllowedMockCommands }}"{{ $cmd }}", {{ end }}]
+}
+{{- end }}
+
+{{- define "inputs" }}
+  name = "{{ .RDSDatabaseName }}"
+  engine = "{{ .RDSEngine }}"
+  engine_version = "{{ .RDSEngineVersion }}"
+  instance_type = "{{ .BaseRDSInstanceType }}"
+  allocated_storage = "{{ .BaseRDSAllocatedStorage }}"
+
+  # Configure the logs that should be shipped to CloudWatch
+  enabled_cloudwatch_logs_exports = ["error", "slowquery"]
+
+  # Enable deletion protection
+  # Deletion protection is a precaution to avoid accidental data loss by protecting the instance from being deleted.
+  enable_deletion_protection = true
+
+  # Specifies whether to deploy a standby instance to another availability zone. RDS will automatically failover
+  # to the standby in the event of a problem with the primary.
+  multi_az = false
+
+  # We deploy RDS inside the private persistence tier.
+  vpc_id = dependency.vpc.outputs.vpc_id
+  subnet_ids = dependency.vpc.outputs.private_persistence_subnet_ids
+
+  # Here we allow any connection from the private app subnet tier of the VPC. You can further restrict network access by
+  # security groups for better defense in depth.
+  allow_connections_from_cidr_blocks     = dependency.vpc.outputs.private_app_subnet_cidr_blocks
+
+  # The RDS service module will create a KMS CMK. With these settings, we allow the key access to be managed via IAM.
+  # To understand how this works, see: https://docs.aws.amazon.com/kms/latest/developerguide/key-policies.html
+  cmk_administrator_iam_arns = [
+    "arn:aws:iam::${local.account_id}:root",
+  ]
+  cmk_user_iam_arns = [
+    {
+      name       = ["arn:aws:iam::${local.account_id}:root"],
+      conditions = [],
+    },
+  ]
+
+  # Only apply changes during the scheduled maintenance window, as certain DB changes cause degraded performance or
+  # downtime. For more info, see:
+  # http://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Overview.DBInstance.Modifying.html
+  # Set this to true to immediately roll out the changes.
+  apply_immediately = false
+{{ end }}
+
+{{- template "base_envcommon_layout" . -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/rds/terragrunt.hcl --
+{{- define "inputs" }}
+  {{- if ne .RDSInstanceType .BaseRDSInstanceType }}
+  instance_type = "{{ .RDSInstanceType }}"
+  {{- end }}
+  {{- if ne .RDSAllocatedStorage .BaseRDSAllocatedStorage }}
+  allocated_storage = "{{ .RDSAllocatedStorage }}"
+  {{- end }}
+
+  # The DB config secret contains the following data:
+  # - DB engine (e.g. postgres, mysql, etc)
+  # - Default database name
+  # - Port
+  # - Username and password
+  # Alternatively, these can be specified as individual inputs.
+  db_config_secrets_manager_id = "{{ .DBSecretsManagerArn }}"
+{{ end }}
+
+{{- template "base_layout" . -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/redis/boilerplate.yml --
+# This template creates the terragrunt.hcl configurations for deploying an Elasticache Redis Cluster
+
+variables:
+  - name: IsEnvCommon
+    type: bool
+    description: When true, render only the configuration file for envcommon.
+    default: false
+
+  - name: EnvCommonComponent
+    type: string
+    description: The service component that the envcommon configuration is for.
+    default: data-stores/redis
+
+  - name: EnvCommonMergeStrategy
+    type: string
+    description: The merge strategy for the envcommon config.
+    default: shallow
+
+  - name: IncludeCommonVars
+    type: bool
+    description: Whether or not to include the variables from common.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeAccountVars
+    type: bool
+    description: Whether or not to include the variables from account.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeRegionVars
+    type: bool
+    description: Whether or not to include the variables from region.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: UsingCISCompliance
+    type: bool
+    description: If true, enable the use of the terraform-cis-aws-service-catalog repo.
+    default: false
+
+  - name: GruntworkGitBaseURLSSH
+    description: Enter the base SSH URL of the module's Git repo.
+    default: git@github.com:gruntwork-io
+
+  - name: RepoName
+    description: Enter the name of the repository where the Terraform module is located.
+    default: terraform-aws-service-catalog
+
+  - name: RepoRef
+    description: Enter the Git ref to use for the module.
+    default: v0.76.0
+
+  - name: ModulePath
+    description: Enter the path of the Terraform module in the repository.
+    default: modules/data-stores/redis
+
+  - name: Module
+    description: "Enter the path and version of the module to use within the desired repository. e.g. modules/data-stores/redis?ref=v0.0.1."
+    default: "{{ .ModulePath }}?ref={{ .RepoRef }}"
+
+  - name: RedisClusterName
+    description: "Enter the name of the redis ElastiCache cluster."
+    default: "redis-${local.name_prefix}-${local.account_name}"
+
+  - name: BaseRedisInstanceType
+    description: "Enter the name of the redis ElastiCache cluster instance type (e.g cache.t3.micro)."
+    default: "cache.t3.micro"
+
+  - name: RedisInstanceType
+    description: "Same as BaseRedisInstanceType, but only used to override it for the specific environment."
+    default: "cache.t3.micro"
+
+  - name: RedisReplicationGroupSize
+    type: int
+    description: "Enter the number of Redis replication clusters."
+    default: 1
+
+  - name: RedisVersion
+    description: "Enter the version of Redis to deploy. Refer to https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/supported-engine-versions.html for list of supported versions."
+    # Relevant thread on why we are not defaulting to version 6: https://github.com/gruntwork-io/terraform-aws-cache/issues/52
+    default: "5.0.6"
+
+  - name: RedisParameterGroupName
+    description: "Enter the name of the parameter group to associate with this cache cluster. This can be used to configure custom settings for the cluster."
+    default: "default.redis5.0"
+
+  # Dependency paths
+  - name: AppVPCPath
+    description: The path to the vpc-app module.
+    default: "${get_terragrunt_dir()}/../../networking/vpc"
+
+  # Mock data for included dependencies
+  - name: MockVPCID
+    description: The VPC ID to use for mock outputs in the App VPC dependency block.
+    default: "vpc-abcd1234"
+
+  - name: MockVPCSubnets
+    type: list
+    description: The subnet IDs to use for mock outputs in the App VPC dependency block.
+    default:
+      - subnet-abcd1234
+      - subnet-bcd1234a
+
+  - name: MockVPCSubnetCIDRBlocks
+    type: list
+    description: The CIDR blocks to use for mock outputs in the App VPC dependency block.
+    default:
+      - "10.0.0.0/24"
+      - "10.0.1.0/24"
+
+  - name: AllowedMockCommands
+    type: list
+    description: The Terraform commands that the mocks are allowed to be used with.
+    default:
+      - validate
+
+partials:
+  - ../../../layouts/terragrunt.hcl
+  - ../../../layouts/envcommon.hcl
+
+# When rendering _envcommon, only render redis.hcl, while rendering everything else otherwise.
+skip_files:
+  - path: redis.hcl
+    if: "{{ not .IsEnvCommon }}"
+  - not_path: redis.hcl
+    if: "{{ .IsEnvCommon }}"
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/redis/redis.hcl --
+{{- define "dependencies" }}
+dependency "vpc" {
+  config_path = "{{ .AppVPCPath }}"
+
+  mock_outputs = {
+    vpc_id                 = "{{ .MockVPCID }}"
+    private_persistence_subnet_ids = [ {{ range $subnet := .MockVPCSubnets }}"{{ $subnet }}", {{ end }} ]
+    private_app_subnet_cidr_blocks = [ {{ range $cidr := .MockVPCSubnetCIDRBlocks }}"{{ $cidr }}", {{ end }} ]
+  }
+  mock_outputs_allowed_terraform_commands = [{{ range $cmd := .AllowedMockCommands }}"{{ $cmd }}", {{ end }}]
+}
+{{- end }}
+
+{{- define "inputs" }}
+  name = "{{ .RedisClusterName }}"
+  instance_type = "{{ .BaseRedisInstanceType }}"
+  vpc_id = dependency.vpc.outputs.vpc_id
+  subnet_ids = dependency.vpc.outputs.private_persistence_subnet_ids
+  redis_version = "{{ .RedisVersion }}"
+
+  replication_group_size = {{ .RedisReplicationGroupSize }}
+  enable_multi_az = false
+  enable_automatic_failover = false
+  parameter_group_name = "{{ .RedisParameterGroupName }}"
+  enable_cloudwatch_alarms = true
+
+  # Here we allow any connection from the private app subnet tier of the VPC. You can further restrict network access by
+  # security groups for better defense in depth.
+  allow_connections_from_cidr_blocks     = dependency.vpc.outputs.private_app_subnet_cidr_blocks
+
+  # Only apply changes during the scheduled maintenance window, as certain DB changes cause degraded performance or
+  # downtime. For more info, see: https://docs.aws.amazon.com/AmazonElastiCache/latest/mem-ug/Clusters.Modify.html
+  # We default to false, but in non-prod environments we set it to true to immediately roll out the changes.
+  apply_immediately = false
+{{ end }}
+
+{{- template "base_envcommon_layout" . -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/data-stores/redis/terragrunt.hcl --
+{{- define "inputs" }}
+  {{- if ne .RedisInstanceType .BaseRedisInstanceType }}
+  instance_type = "{{ .RedisInstanceType }}"
+  {{- end }}
+{{ end }}
+
+{{- template "base_layout" . -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/networking/vpc/boilerplate.yml --
+# This template creates the terragrunt.hcl configurations for deploying an App VPC
+
+variables:
+  - name: IsEnvCommon
+    type: bool
+    description: When true, render only the configuration file for envcommon.
+    default: false
+
+  - name: EnvCommonComponent
+    type: string
+    description: The service component that the envcommon configuration is for.
+    default: networking/vpc-app
+
+  - name: EnvCommonMergeStrategy
+    type: string
+    description: The merge strategy for the envcommon config.
+    default: shallow
+
+  - name: IncludeCommonVars
+    type: bool
+    description: Whether or not to include the variables from common.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeAccountVars
+    type: bool
+    description: Whether or not to include the variables from account.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: IncludeRegionVars
+    type: bool
+    description: Whether or not to include the variables from region.hcl in this Terragrunt configuration.
+    default: true
+
+  - name: GruntworkGitBaseURLSSH
+    description: Enter the base SSH URL of the module's Git repo.
+    default: git@github.com:gruntwork-io
+
+  - name: RepoName
+    description: Enter the name of the repository where the Terraform module is located.
+    default: "terraform-aws-service-catalog"
+
+  - name: RepoRef
+    description: Enter the Git ref to use for the module.
+    default: v0.76.0
+
+  - name: ModulePath
+    description: Enter the path of the Terraform module in the repository.
+    default: modules/networking/vpc
+
+  - name: Module
+    description: "Enter the path and version of the module to use within the desired repository. e.g. modules/data-stores/elasticsearch?ref=v0.0.1"
+    default: "{{ .ModulePath }}?ref={{ .RepoRef }}"
+
+  - name: AppVPCName
+    description: Enter the name of the App VPC.
+    default: app
+
+  - name: AppVPCNumNATGateways
+    description: Enter the number of NAT Gateways that should we deploy in this VPC (e.g. typically 1 for mgmt).
+    type: int
+    default: 3
+
+  - name: AppVPCNumAvailabilityZones
+    description: Enter the number of availability zones to use. Set to 0 to use all the availability zones in the region.
+    type: int
+    default: 0
+
+  - name: AppVPCCIDRBlock
+    description: Enter the CIDR block should we use for this VPC (e.g. 172.31.80.0/20).
+    default: 10.0.0.0/16
+
+partials:
+  - ../../../layouts/terragrunt.hcl
+  - ../../../layouts/envcommon.hcl
+
+# When rendering _envcommon, only render vpc-app.hcl, while rendering everything else otherwise.
+skip_files:
+  - path: vpc-app.hcl
+    if: "{{ not .IsEnvCommon }}"
+  - not_path: vpc-app.hcl
+    if: "{{ .IsEnvCommon }}"
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/networking/vpc/terragrunt.hcl --
+{{- define "locals" }}
+  {{- if gt (len .AppVPCCIDRBlock) 0 }}
+  cidr_block = "{{ .AppVPCCIDRBlock }}"
+  {{- end }}
+{{- end }}
+
+{{- define "inputs" }}
+  {{- if gt (len .AppVPCCIDRBlock) 0 }}
+  cidr_block = local.cidr_block
+  {{- end }}
+{{- end }}
+
+{{- template "base_layout" . -}}
+-- examples/for-production/terragrunt-architecture-catalog/templates/services/networking/vpc/vpc-app.hcl --
+{{- define "inputs" }}
+  vpc_name              = "{{ .AppVPCName }}"
+  num_nat_gateways      = {{ .AppVPCNumNATGateways }}
+{{- if gt .AppVPCNumAvailabilityZones 0 }}
+  num_availability_zones = {{ .AppVPCNumAvailabilityZones }}
+{{- end }}
+
+  # To simplify the example, this project deploys VPCs without flow logs.
+  create_flow_logs = false
+{{ end }}
+
+{{- template "base_envcommon_layout" . -}}
+-- test-fixtures/examples-expected-output/tofu-module-full/examples/vpc/README.md --
+# Vpc example
+
+An example of how to use the [vpc module](../../modules/vpc).
+
+## Quick start
+
+1. Open `variables.tf` and fill in the values you want.
+2. `tofu init`.
+3. `tofu apply`.
+4. When you're done testing: `tofu destroy`.
+-- test-fixtures/examples-expected-output/tofu-module-full/examples/vpc/main.tf --
+terraform {
+  required_version = "1.6.2"
+}
+
+module "vpc" {
+  source = "../../modules/vpc"
+
+  example_required_input = "Hello"
+  example_optional_input = "World"
+}
+-- test-fixtures/examples-expected-output/tofu-module-full/examples/vpc/outputs.tf --
+output "example_output" {
+  description = "example output"
+  value       = module.vpc.example_output
+}
