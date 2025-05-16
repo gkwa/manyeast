@@ -6,5 +6,9 @@ variables:
     description: Base directory
     type: string
     default: /tmp/littlelark
+  - name: OutputFolder
+    description: Output folder
+    type: string
+    default: '{{ outputFolder }}'
 skip_files:
   - path: README.md
