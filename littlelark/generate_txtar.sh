@@ -17,8 +17,11 @@ rm -rf {{ $subsetDir }}
 
 cd {{ $clonedDir }}
 
-test ! -f {{ $manifest }} &&
+if [[ -s {{ $manifest }} ]]; then
+    echo skipping {{ $manifest }} creation since it already exists
+else
     rg --files . -0 | xargs -0 file --mime-type >{{ $manifest }}
+fi
 
 test ! -f {{ $mimeTypesFile }} &&
     cat {{ $manifest }} | cut -d: -f2 | perl -p -e 's#^ *##' | sort -u > {{ $mimeTypesFile }}
