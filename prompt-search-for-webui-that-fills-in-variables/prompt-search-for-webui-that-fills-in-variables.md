@@ -1,12 +1,12 @@
 {{ include "../add-google-search-links/add-links.md" . | trim }}"
 
-## Request for YAML-Driven Web Form Generator
+## Request for data driven Web Form Generator
 
-I'm seeking a tool that generates web forms based on variables extracted from YAML files. This tool would provide the following functionality:
+I'm seeking a tool that generates web forms based on variables extracted from YAML or JSON. This tool would provide the following functionality:
 
 ### Core Requirements
 
-- Parse YAML files to extract variables and their properties
+- Parse YAML/JSON files to extract variables and their properties
 - Present users with a template alongside required variables
 - Allow users to input values for each variable
 - Render the completed template with populated variables
