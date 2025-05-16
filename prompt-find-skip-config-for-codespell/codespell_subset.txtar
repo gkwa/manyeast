@@ -1,0 +1,3990 @@
+-- MANIFEST.in --
+exclude *.yml *.yaml
+exclude .coveragerc
+exclude .git-blame-ignore-revs
+exclude example example/* snap snap/*
+exclude Makefile
+exclude codespell.1.include
+exclude pyproject-codespell.precommit-toml
+-- Makefile --
+DICTIONARIES := codespell_lib/data/dictionary*.txt codespell_lib/tests/data/*.wordlist
+
+PHONY := all check check-dictionaries sort-dictionaries trim-dictionaries check-dist pytest pypi ruff clean
+
+all: check-dictionaries codespell.1
+
+check: check-dictionaries check-dist pytest ruff
+
+codespell.1: codespell.1.include Makefile
+	PYTHONPATH=. help2man codespell --include codespell.1.include --no-info --output codespell.1
+	sed -i '/\.SS \"Usage/,+2d' codespell.1
+
+check-dictionaries:
+	@for dictionary in ${DICTIONARIES}; do \
+		if grep -E -n "^\s*$$|\s$$|^\s" $$dictionary; then \
+			echo "Dictionary $$dictionary contains leading/trailing whitespace and/or blank lines.  Trim with 'make trim-dictionaries'"; \
+			exit 1; \
+		fi; \
+	done
+	@if command -v pytest > /dev/null; then \
+		pytest codespell_lib/tests/test_dictionary.py; \
+	else \
+		echo "Test dependencies not present, install using 'pip install -e \".[dev]\"'"; \
+		exit 1; \
+	fi
+
+sort-dictionaries:
+	pre-commit run --all-files file-contents-sorter
+
+trim-dictionaries:
+	@for dictionary in ${DICTIONARIES}; do \
+		sed -E -i.bak -e 's/^[[:space:]]+//; s/[[:space:]]+$$//; /^$$/d' $$dictionary && rm $$dictionary.bak; \
+	done
+
+check-dist:
+	$(eval TMP := $(shell mktemp -d))
+	python -m build -o $(TMP)
+	twine check --strict $(TMP)/*
+	rm -rf $(TMP)
+
+ruff:
+	pre-commit run --all-files ruff
+
+pytest:
+	@if command -v pytest > /dev/null; then \
+		pytest codespell_lib; \
+	else \
+		echo "Test dependencies not present, install using 'pip install -e \".[dev]\"'"; \
+		exit 1; \
+	fi
+
+clean:
+	rm -rf codespell.1
+
+mypy:
+	mypy .
+-- README.rst --
+codespell
+=========
+
+Fix common misspellings in text files. It's designed primarily for checking
+misspelled words in source code (backslash escapes are skipped), but it can be used with other files as well.
+It does not check for word membership in a complete dictionary, but instead
+looks for a set of common misspellings. Therefore it should catch errors like
+"adn", but it will not catch "adnasdfasdf". This also means it shouldn't
+generate false-positives when you use a niche term it doesn't know about.
+
+Useful links
+------------
+
+* `GitHub project <https://github.com/codespell-project/codespell>`_
+
+* `Repository <https://github.com/codespell-project/codespell>`_
+
+* `Releases <https://github.com/codespell-project/codespell/releases>`_
+
+Requirements
+------------
+
+Python 3.8 or above.
+
+Installation
+------------
+
+You can use ``pip`` to install codespell with e.g.:
+
+.. code-block:: sh
+
+    pip install codespell
+
+Usage
+-----
+
+Below are some simple usage examples to demonstrate how the tool works.
+For exhaustive usage information, please check the output of ``codespell -h``.
+
+Run codespell in all files of the current directory:
+
+.. code-block:: sh
+
+    codespell
+
+Run codespell in specific files or directories (specified via their names or glob patterns):
+
+.. code-block:: sh
+
+    codespell some_file some_dir/ *.ext
+
+Some noteworthy flags:
+
+.. code-block:: sh
+
+    codespell -w, --write-changes
+
+The ``-w`` flag will actually implement the changes recommended by codespell. Running without the ``-w`` flag is the same as doing a dry run. It is recommended to run this with the ``-i`` or ``--interactive`` flag.
+
+.. code-block:: sh
+
+    codespell -I FILE, --ignore-words=FILE
+
+The ``-I`` flag can be used for a list of certain words to allow that are in the codespell dictionaries. The format of the file is one word per line. Invoke using: ``codespell -I path/to/file.txt`` to execute codespell referencing said list of allowed words. See `Ignoring Words`_ for more details.
+
+.. code-block:: sh
+
+    codespell -L word1,word2,word3,word4
+
+The ``-L`` flag can be used to allow certain words that are comma-separated placed immediately after it.  See `Ignoring Words`_ for more details.
+
+.. code-block:: sh
+
+    codespell -x FILE, --exclude-file=FILE
+
+Ignore whole lines that match those in ``FILE``.  The lines in ``FILE`` should match the to-be-excluded lines exactly.
+
+.. code-block:: sh
+
+    codespell -S, --skip=
+
+Comma-separated list of files to skip. It accepts globs as well.  Examples:
+
+* to skip .eps & .txt files, invoke ``codespell --skip="*.eps,*.txt"``
+
+* to skip directories, invoke ``codespell --skip="./src/3rd-Party,./src/Test"``
+
+
+Useful commands:
+
+.. code-block:: sh
+
+    codespell -d -q 3 --skip="*.po,*.ts,./src/3rdParty,./src/Test"
+
+List all typos found except translation files and some directories.
+Display them without terminal colors and with a quiet level of 3.
+
+.. code-block:: sh
+
+    codespell -i 3 -w
+
+Run interactive mode level 3 and write changes to file.
+
+We ship a collection of dictionaries that are an improved version of the one available
+`on Wikipedia <https://en.wikipedia.org/wiki/Wikipedia:Lists_of_common_misspellings/For_machines>`_
+after applying them in projects like Linux Kernel, EFL, oFono among others.
+You can provide your own version of the dictionary, but patches for
+new/different entries are very welcome.
+
+Want to know if a word you're proposing exists in codespell already? It is possible to test a word against the current set dictionaries that exist in ``codespell_lib/data/dictionary*.txt`` via:
+
+.. code-block:: sh
+
+    echo "word" | codespell -
+    echo "1stword,2ndword" | codespell -
+
+You can select the optional dictionaries with the ``--builtin`` option.
+
+Ignoring words
+--------------
+
+When ignoring false positives, note that spelling errors are *case-insensitive* but words to ignore are *case-sensitive*. For example, the dictionary entry ``wrod`` will also match the typo ``Wrod``, but to ignore it you must pass ``wrod`` (to match the case of the dictionary entry).
+
+The words to ignore can be passed in two ways:
+
+1. ``-I``: A file with a word per line to ignore:
+
+   .. code-block:: sh
+
+       codespell -I FILE, --ignore-words=FILE
+
+2. ``-L``: A comma separated list of words to ignore on the command line:
+
+   .. code-block:: sh
+
+       codespell -L word1,word2,word3,word4
+
+Inline ignore
+-------------
+
+Some situation might require ignoring a specific word in a specific location. This can be achieved by adding a comment in the source code.
+You can either ignore a single word or a list of words. The comment should be in the format of ``codespell:ignore <words>``.
+Words should be separated by a comma.
+
+1. ignore specific word:
+
+   .. code-block:: python
+
+       def wrod() # codespell:ignore wrod
+           pass
+
+2. ignore multiple words:
+
+   .. code-block:: python
+
+       def wrod(wrods) # codespell:ignore
+           pass
+
+Using a config file
+-------------------
+
+Command line options can also be specified in a config file.
+
+When running ``codespell``, it will check in the current directory for an
+`INI file <https://en.wikipedia.org/wiki/INI_file>`_
+named ``setup.cfg`` or ``.codespellrc`` (or a file specified via ``--config``),
+containing an entry named ``[codespell]``. Each command line argument can
+be specified in this file (without the preceding dashes), for example:
+
+.. code-block:: ini
+
+    [codespell]
+    skip = *.po,*.ts,./src/3rdParty,./src/Test
+    count =
+    quiet-level = 3
+
+Python's
+`configparser <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_
+module defines the exact format of INI config files. For example,
+comments are possible using ``;`` or ``#`` as the first character.
+
+Codespell will also check in the current directory for a ``pyproject.toml``
+file (or a file specified via ``--toml``), and the ``[tool.codespell]``
+entry will be used. For versions of Python prior to 3.11, this requires
+the tomli_ package. For example, here is the TOML equivalent of the
+previous config file:
+
+.. code-block:: toml
+
+    [tool.codespell]
+    skip = '*.po,*.ts,./src/3rdParty,./src/Test'
+    count = true
+    quiet-level = 3
+
+The above INI and TOML files are equivalent to running:
+
+.. code-block:: sh
+
+    codespell --skip "*.po,*.ts,./src/3rdParty,./src/Test" --count --quiet-level 3
+
+If several config files are present, they are read in the following order:
+
+#. ``pyproject.toml`` (only if the ``tomli`` library is available for Python < 3.11)
+#. ``setup.cfg``
+#. ``.codespellrc``
+#. any additional file supplied via ``--config``
+
+If a codespell configuration is supplied in several of these files,
+the configuration from the most recently read file overwrites previously
+specified configurations. Any options specified in the command line will
+*override* options from the config files.
+
+Values in a config file entry cannot start with a ``-`` character, so if
+you need to do this, structure your entries like this:
+
+.. code-block:: ini
+
+    [codespell]
+    dictionary = mydict,-
+    ignore-words-list = bar,-foo
+
+instead of these invalid entries:
+
+.. code-block:: ini
+
+    [codespell]
+    dictionary = -,mydict
+    ignore-words-list = -foo,bar
+
+.. _tomli: https://pypi.org/project/tomli/
+
+pre-commit hook
+---------------
+
+codespell also works with `pre-commit <https://pre-commit.com/>`_, using
+
+.. code-block:: yaml
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+    - id: codespell
+
+If one configures codespell using the `pyproject.toml` file instead use:
+
+.. code-block:: yaml
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+    - id: codespell
+      additional_dependencies:
+        - tomli
+
+Dictionary format
+-----------------
+
+The format of the dictionaries was influenced by the one they originally came from,
+i.e. from Wikipedia. The difference is how multiple options are treated and
+that the last argument is an optional reason why a certain entry could not be
+applied directly, but should instead be manually inspected. E.g.:
+
+1. Simple entry: one wrong word / one suggestion::
+
+        calulated->calculated
+
+2. Entry with more than one suggested fix::
+
+       fiel->feel, field, file, phial,
+
+   Note the last comma! You need to use it, otherwise the last suggestion
+   will be discarded (see below for why). When there is more than one
+   suggestion, an automatic fix is not possible and the best we can do is
+   to give the user the file and line where the error occurred as well as
+   the suggestions.
+
+3. Entry with one word, but with automatic fix disabled::
+
+       clas->class, disabled because of name clash in c++
+
+   Note that there isn't a comma at the end of the line. The last argument is
+   treated as the reason why a suggestion cannot be automatically applied.
+
+   There can also be multiple suggestions but any automatic fix will again be
+   disabled::
+
+       clas->class, clash, disabled because of name clash in c++
+
+Development setup
+-----------------
+
+As suggested in the `Python Packaging User Guide`_, ensure ``pip``, ``setuptools``, and ``wheel`` are up to date before installing from source. Specifically you will need recent versions of ``setuptools`` and ``setuptools_scm``:
+
+.. code-block:: sh
+
+    pip install --upgrade pip setuptools setuptools_scm wheel
+
+You can install required dependencies for development by running the following within a checkout of the codespell source:
+
+.. code-block:: sh
+
+       pip install -e ".[dev]"
+
+To run tests against the codebase run:
+
+.. code-block:: sh
+
+       make check
+
+.. _Python Packaging User Guide: https://packaging.python.org/en/latest/tutorials/installing-packages/#requirements-for-installing-packages
+
+Sending pull requests
+---------------------
+
+If you have a suggested typo that you'd like to see merged please follow these steps:
+
+1. Make sure you read the instructions mentioned in the ``Dictionary format`` section above to submit correctly formatted entries.
+
+2. Choose the correct dictionary file to add your typo to. See `codespell --help` for explanations of the different dictionaries.
+
+3. Sort the dictionaries. This is done by invoking (in the top level directory of ``codespell/``):
+
+   .. code-block:: sh
+
+       make check-dictionaries
+
+   If the make script finds that you need to sort a dictionary, please then run:
+
+   .. code-block:: sh
+
+       make sort-dictionaries
+
+4. Only after this process is complete do we recommend you submit the PR.
+
+**Important Notes:**
+
+* If the dictionaries are submitted without being pre-sorted the PR will fail via our various CI tools.
+* Not all PRs will be merged. This is pending on the discretion of the devs, maintainers, and the community.
+
+Updating
+--------
+
+To stay current with codespell developments it is possible to build codespell from GitHub via:
+
+.. code-block:: sh
+
+    pip install --upgrade git+https://github.com/codespell-project/codespell.git
+
+**Important Notes:**
+
+* Sometimes installing via ``pip`` will complain about permissions. If this is the case then run with:
+
+  .. code-block:: sh
+
+      pip install --user --upgrade git+https://github.com/codespell-project/codespell.git
+
+* It has been reported that after installing from ``pip``, codespell can't be located. Please check the $PATH variable to see if ``~/.local/bin`` is present. If it isn't then add it to your path.
+* If you decide to install via ``pip`` then be sure to remove any previously installed versions of codespell (via your platform's preferred app manager).
+
+Updating the dictionaries
+-------------------------
+
+In the scenario where the user prefers not to follow the development version of codespell yet still opts to benefit from the frequently updated dictionary files, we recommend running a simple set of commands to achieve this:
+
+.. code-block:: sh
+
+    wget https://raw.githubusercontent.com/codespell-project/codespell/main/codespell_lib/data/dictionary.txt
+    codespell -D dictionary.txt
+
+The above simply downloads the latest ``dictionary.txt`` file and then by utilizing the ``-D`` flag allows the user to specify the freshly downloaded ``dictionary.txt`` as the custom dictionary instead of the default one.
+
+You can also do the same thing for the other dictionaries listed here:
+    https://github.com/codespell-project/codespell/tree/main/codespell_lib/data
+
+License
+-------
+
+The Python script ``codespell`` with its library ``codespell_lib`` is available
+with the following terms:
+(*tl;dr*: `GPL v2`_)
+
+   Copyright (C) 2010-2011  Lucas De Marchi <lucas.de.marchi@gmail.com>
+
+   Copyright (C) 2011  ProFUSION embedded systems
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, see
+   <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
+
+.. _GPL v2: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+``dictionary.txt`` and the other ``dictionary_*.txt`` files are derivative works of English Wikipedia and are released under the `Creative Commons Attribution-Share-Alike License 3.0 <https://creativecommons.org/licenses/by-sa/3.0/>`_.
+-- codecov.yml --
+comment: off
+coverage:
+  status:
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 1%
+-- codespell.1.include --
+[NAME]
+codespell \- detect spelling mistakes in source code
+
+[SYNOPSIS]
+\fBcodespell\fR [OPTIONS] [file1 file2 ... fileN]
+
+[DESCRIPTION]
+.PP
+codespell is designed to find and fix common misspellings in text files.
+It is designed primarily for checking misspelled words in source code,
+but it can be used with other files as well.
+
+[AUTHOR]
+Lucas De Marchi <lucas.de.marchi@gmail.com>
+
+[SEE ALSO]
+https://github.com/codespell-project/codespell
+-- codespell_lib/__init__.py --
+from ._codespell import _script_main, main
+from ._version import __version__  # type: ignore[import-not-found]
+
+__all__ = ["__version__", "_script_main", "main"]
+-- codespell_lib/__main__.py --
+import sys
+
+from ._codespell import _script_main
+
+if __name__ == "__main__":
+    sys.exit(_script_main())
+-- codespell_lib/_codespell.py --
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see
+# https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.
+"""
+Copyright (C) 2010-2011  Lucas De Marchi <lucas.de.marchi@gmail.com>
+Copyright (C) 2011  ProFUSION embedded systems
+"""
+
+import argparse
+import configparser
+import ctypes
+import fnmatch
+import itertools
+import os
+import re
+import sys
+import textwrap
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Match,
+    Optional,
+    Pattern,
+    Sequence,
+    Set,
+    TextIO,
+    Tuple,
+)
+
+if sys.platform == "win32":
+    from ctypes import wintypes
+
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+    STD_OUTPUT_HANDLE = wintypes.HANDLE(-11)
+
+from ._spellchecker import Misspelling, build_dict
+from ._text_util import fix_case
+
+# autogenerated by setuptools_scm
+from ._version import (  # type: ignore[import-not-found]
+    __version__ as VERSION,  # noqa: N812
+)
+
+word_regex_def = r"[\w\-'’]+"  # noqa: RUF001
+# While we want to treat characters like ( or " as okay for a starting break,
+# these may occur unescaped in URIs, and so we are more restrictive on the
+# endpoint.  Emails are more restrictive, so the endpoint remains flexible.
+uri_regex_def = (
+    r"(\b(?:https?|[ts]?ftp|file|git|smb)://[^\s]+(?=$|\s)|\b[\w.%+-]+@[\w.-]+\b)"
+)
+inline_ignore_regex = re.compile(r"[^\w\s]\s*codespell:ignore\b(\s+(?P<words>[\w,]*))?")
+USAGE = """
+\t%prog [OPTIONS] [file1 file2 ... fileN]
+"""
+
+supported_languages_en = ("en", "en_GB", "en_US", "en_CA", "en_AU")
+supported_languages = supported_languages_en
+
+# Users might want to link this file into /usr/local/bin, so we resolve the
+# symbolic link path to the real path if necessary.
+_data_root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data")
+_builtin_dictionaries = (
+    # name, desc, name, err in aspell, correction in aspell, \
+    # err dictionary array, rep dictionary array
+    # The arrays must contain the names of aspell dictionaries
+    # The aspell tests here aren't the ideal state, but the None's are
+    # realistic for obscure words
+    ("clear", "for unambiguous errors", "", False, None, supported_languages_en, None),
+    (
+        "rare",
+        "for rare (but valid) words that are likely to be errors",
+        "_rare",
+        None,
+        None,
+        None,
+        None,
+    ),
+    (
+        "informal",
+        "for making informal words more formal",
+        "_informal",
+        True,
+        True,
+        supported_languages_en,
+        supported_languages_en,
+    ),
+    (
+        "usage",
+        "for replacing phrasing with recommended terms",
+        "_usage",
+        None,
+        None,
+        None,
+        None,
+    ),
+    (
+        "code",
+        "for words from code and/or mathematics that are likely to be typos in other contexts (such as uint)",  # noqa: E501
+        "_code",
+        None,
+        None,
+        None,
+        None,
+    ),
+    (
+        "names",
+        "for valid proper names that might be typos",
+        "_names",
+        None,
+        None,
+        None,
+        None,
+    ),
+    (
+        "en-GB_to_en-US",
+        "for corrections from en-GB to en-US",
+        "_en-GB_to_en-US",
+        True,
+        True,
+        ("en_GB",),
+        ("en_US",),
+    ),
+)
+_builtin_default = "clear,rare"
+
+# docs say os.EX_USAGE et al. are only available on Unix systems, so to be safe
+# we protect and just use the values they are on macOS and Linux
+EX_OK = 0
+EX_USAGE = 64
+EX_DATAERR = 65
+EX_CONFIG = 78
+
+# OPTIONS:
+#
+# ARGUMENTS:
+#    dict_filename       The file containing the dictionary of misspellings.
+#                        If set to '-', it will be read from stdin
+#    file1 .. fileN      Files to check spelling
+
+
+class QuietLevels:
+    NONE = 0
+    ENCODING = 1
+    BINARY_FILE = 2
+    DISABLED_FIXES = 4
+    NON_AUTOMATIC_FIXES = 8
+    FIXES = 16
+    CONFIG_FILES = 32
+
+
+class GlobMatch:
+    def __init__(self, pattern: List[str]) -> None:
+        self.pattern_list: List[str] = pattern
+
+    def match(self, filename: str) -> bool:
+        return any(fnmatch.fnmatch(filename, p) for p in self.pattern_list)
+
+
+class TermColors:
+    def __init__(self) -> None:
+        self.FILE = "\033[33m"
+        self.WWORD = "\033[31m"
+        self.FWORD = "\033[32m"
+        self.DISABLE = "\033[0m"
+
+    def disable(self) -> None:
+        self.FILE = ""
+        self.WWORD = ""
+        self.FWORD = ""
+        self.DISABLE = ""
+
+
+class Summary:
+    def __init__(self) -> None:
+        self.summary: Dict[str, int] = {}
+
+    def update(self, wrongword: str) -> None:
+        if wrongword in self.summary:
+            self.summary[wrongword] += 1
+        else:
+            self.summary[wrongword] = 1
+
+    def __str__(self) -> str:
+        keys = list(self.summary.keys())
+        keys.sort()
+
+        return "\n".join(
+            [f"{key}{self.summary.get(key):{15 - len(key)}}" for key in keys]
+        )
+
+
+class FileOpener:
+    def __init__(
+        self,
+        use_chardet: bool,
+        quiet_level: int,
+        ignore_multiline_regex: Optional[Pattern[str]],
+    ) -> None:
+        self.use_chardet = use_chardet
+        if use_chardet:
+            self.init_chardet()
+        self.quiet_level = quiet_level
+        self.ignore_multiline_regex = ignore_multiline_regex
+
+    def init_chardet(self) -> None:
+        try:
+            from chardet.universaldetector import UniversalDetector
+        except ImportError as e:
+            msg = (
+                "There's no chardet installed to import from. "
+                "Please, install it and check your PYTHONPATH "
+                "environment variable"
+            )
+            raise ImportError(msg) from e
+
+        self.encdetector = UniversalDetector()
+
+    def open(self, filename: str) -> Tuple[List[str], str]:
+        if self.use_chardet:
+            return self.open_with_chardet(filename)
+        return self.open_with_internal(filename)
+
+    def open_with_chardet(self, filename: str) -> Tuple[List[str], str]:
+        self.encdetector.reset()
+        with open(filename, "rb") as fb:
+            for line in fb:
+                self.encdetector.feed(line)
+                if self.encdetector.done:
+                    break
+        self.encdetector.close()
+        encoding = self.encdetector.result["encoding"]
+
+        try:
+            f = open(filename, encoding=encoding, newline="")
+        except UnicodeDecodeError:
+            print(f"ERROR: Could not detect encoding: {filename}", file=sys.stderr)
+            raise
+        except LookupError:
+            print(
+                f"ERROR: Don't know how to handle encoding {encoding}: {filename}",
+                file=sys.stderr,
+            )
+            raise
+        else:
+            lines = self.get_lines(f)
+            f.close()
+
+        return lines, f.encoding
+
+    def open_with_internal(self, filename: str) -> Tuple[List[str], str]:
+        encoding = None
+        first_try = True
+        for encoding in ("utf-8", "iso-8859-1"):
+            if first_try:
+                first_try = False
+            elif not self.quiet_level & QuietLevels.ENCODING:
+                print(f'WARNING: Trying next encoding "{encoding}"', file=sys.stderr)
+            with open(filename, encoding=encoding, newline="") as f:
+                try:
+                    lines = self.get_lines(f)
+                except UnicodeDecodeError:
+                    if not self.quiet_level & QuietLevels.ENCODING:
+                        print(
+                            f'WARNING: Cannot decode file using encoding "{encoding}": '
+                            f"{filename}",
+                            file=sys.stderr,
+                        )
+                else:
+                    break
+        else:
+            # reading with encoding "iso-8859-1" cannot fail with UnicodeDecodeError
+            msg = "Unknown encoding"
+            raise RuntimeError(msg)  # pragma: no cover
+
+        return lines, encoding
+
+    def get_lines(self, f: TextIO) -> List[str]:
+        if self.ignore_multiline_regex:
+            text = f.read()
+            pos = 0
+            text2 = ""
+            for m in re.finditer(self.ignore_multiline_regex, text):
+                text2 += text[pos : m.start()]
+                # Replace with blank lines so line numbers are unchanged.
+                text2 += "\n" * m.group().count("\n")
+                pos = m.end()
+            text2 += text[pos:]
+            lines = text2.split("\n")
+        else:
+            lines = f.readlines()
+        return lines
+
+
+# -.-:-.-:-.-:-.:-.-:-.-:-.-:-.-:-.:-.-:-.-:-.-:-.-:-.:-.-:-
+
+
+# If someday this breaks, we can just switch to using RawTextHelpFormatter,
+# but it has the disadvantage of not wrapping our long lines.
+
+
+class NewlineHelpFormatter(argparse.HelpFormatter):
+    """Help formatter that preserves newlines and deals with lists."""
+
+    def _split_lines(self, text: str, width: int) -> List[str]:
+        parts = text.split("\n")
+        out = []
+        for part in parts:
+            # Eventually we could allow others...
+            indent_start = "- "
+            offset = len(indent_start) if part.startswith(indent_start) else 0
+            part = part[offset:]
+            part = self._whitespace_matcher.sub(" ", part).strip()
+            parts = textwrap.wrap(part, width - offset)
+            parts = [" " * offset + p for p in parts]
+            if offset:
+                parts[0] = indent_start + parts[0][offset:]
+            out.extend(parts)
+        return out
+
+
+def _toml_to_parseconfig(toml_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Convert a dict read from a TOML file to the parseconfig.read_dict() format."""
+    return {
+        k: "" if v is True else ",".join(v) if isinstance(v, list) else v
+        for k, v in toml_dict.items()
+        if v is not False
+    }
+
+
+def _supports_ansi_colors() -> bool:
+    if sys.platform == "win32":
+        # Windows Terminal enables ANSI escape codes by default. In other cases
+        # it is disabled.
+        # See https://ss64.com/nt/syntax-ansi.html for more information.
+        kernel32 = ctypes.WinDLL("kernel32")
+
+        # fmt: off
+        kernel32.GetConsoleMode.argtypes = (
+            wintypes.HANDLE,   # _In_  hConsoleHandle
+            wintypes.LPDWORD,  # _Out_ lpMode
+        )
+        # fmt: on
+        kernel32.GetConsoleMode.restype = wintypes.BOOL
+
+        mode = wintypes.DWORD()
+        handle = kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+        if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            # TODO: print a warning with the error message on stderr?
+            return False
+
+        return (mode.value & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0
+    elif sys.platform == "wasi":
+        # WASI disables ANSI escape codes for security reasons.
+        # See https://github.com/WebAssembly/WASI/issues/162.
+        return False
+    elif sys.stdout.isatty():
+        return True
+
+    return False
+
+
+def parse_options(
+    args: Sequence[str],
+) -> Tuple[argparse.Namespace, argparse.ArgumentParser, List[str]]:
+    parser = argparse.ArgumentParser(formatter_class=NewlineHelpFormatter)
+
+    parser.set_defaults(colors=_supports_ansi_colors())
+    parser.add_argument("--version", action="version", version=VERSION)
+
+    parser.add_argument(
+        "-d",
+        "--disable-colors",
+        action="store_false",
+        dest="colors",
+        help="disable colors, even when printing to terminal",
+    )
+    parser.add_argument(
+        "-c",
+        "--enable-colors",
+        action="store_true",
+        dest="colors",
+        help="enable colors, even when not printing to terminal",
+    )
+
+    parser.add_argument(
+        "-w",
+        "--write-changes",
+        action="store_true",
+        default=False,
+        help="write changes in place if possible",
+    )
+
+    parser.add_argument(
+        "-D",
+        "--dictionary",
+        action="append",
+        help="comma-separated list of custom dictionary files that "
+        "contain spelling corrections. If this flag is not specified "
+        'or equals "-" then the default dictionary is used.',
+    )
+    builtin_opts = "\n- ".join(
+        [""] + [f"{d[0]!r} {d[1]}" for d in _builtin_dictionaries]
+    )
+    parser.add_argument(
+        "--builtin",
+        dest="builtin",
+        default=_builtin_default,
+        metavar="BUILTIN-LIST",
+        help="comma-separated list of builtin dictionaries "
+        'to include (when "-D -" or no "-D" is passed). '
+        "Current options are:" + builtin_opts + "\n"
+        "The default is %(default)r.",
+    )
+    parser.add_argument(
+        "--ignore-regex",
+        action="store",
+        type=str,
+        help="regular expression that is used to find "
+        "patterns to ignore by treating as whitespace. "
+        "When writing regular expressions, consider "
+        "ensuring there are boundary non-word chars, "
+        'e.g., "\\bmatch\\b". Defaults to '
+        "empty/disabled.",
+    )
+    parser.add_argument(
+        "--ignore-multiline-regex",
+        action="store",
+        type=str,
+        help="regular expression that is used to ignore "
+        "text that may span multi-line regions. "
+        "The regex is run with re.DOTALL. For example to "
+        "allow skipping of regions of Python code using "
+        "begin/end comments one could use: "
+        "--ignore-multiline-regex "
+        "'# codespell:ignore-begin *\\n.*# codespell:ignore-end *\\n'. "
+        "Defaults to empty/disabled.",
+    )
+    parser.add_argument(
+        "-I",
+        "--ignore-words",
+        action="append",
+        metavar="FILES",
+        help="comma-separated list of files that contain "
+        "words to be ignored by codespell. Files must contain "
+        "1 word per line. Words are case sensitive based on "
+        "how they are written in the dictionary file.",
+    )
+    parser.add_argument(
+        "-L",
+        "--ignore-words-list",
+        action="append",
+        metavar="WORDS",
+        help="comma-separated list of words to be ignored "
+        "by codespell. Words are case sensitive based on "
+        "how they are written in the dictionary file.",
+    )
+    parser.add_argument(
+        "--uri-ignore-words-list",
+        action="append",
+        metavar="WORDS",
+        help="comma-separated list of words to be ignored "
+        "by codespell in URIs and emails only. Words are "
+        "case sensitive based on how they are written in "
+        'the dictionary file. If set to "*", all '
+        "misspelling in URIs and emails will be ignored.",
+    )
+    parser.add_argument(
+        "-r",
+        "--regex",
+        action="store",
+        type=str,
+        help="regular expression that is used to find words. "
+        "By default any alphanumeric character, the "
+        "underscore, the hyphen, and the apostrophe are "
+        "used to build words. This option cannot be "
+        "specified together with --write-changes.",
+    )
+    parser.add_argument(
+        "--uri-regex",
+        action="store",
+        type=str,
+        help="regular expression that is used to find URIs "
+        "and emails. A default expression is provided.",
+    )
+    parser.add_argument(
+        "-s",
+        "--summary",
+        action="store_true",
+        default=False,
+        help="print summary of fixes",
+    )
+
+    parser.add_argument(
+        "--count",
+        action="store_true",
+        default=False,
+        help="print the number of errors as the last line of stderr",
+    )
+
+    parser.add_argument(
+        "-S",
+        "--skip",
+        action="append",
+        help="comma-separated list of files to skip. It "
+        "accepts globs as well. E.g.: if you want "
+        "codespell to skip .eps and .txt files, "
+        'you\'d give "*.eps,*.txt" to this option.',
+    )
+
+    parser.add_argument(
+        "-x",
+        "--exclude-file",
+        action="append",
+        type=str,
+        metavar="FILES",
+        help="ignore whole lines that match those in "
+        "the comma-separated list of files EXCLUDE. "
+        "The lines in these files should match the "
+        "to-be-excluded lines exactly",
+    )
+
+    parser.add_argument(
+        "-i",
+        "--interactive",
+        action="store",
+        type=int,
+        default=0,
+        choices=range(0, 4),
+        help="set interactive mode when writing changes:\n"
+        "- 0: no interactivity.\n"
+        "- 1: ask for confirmation.\n"
+        "- 2: ask user to choose one fix when more than one is available.\n"
+        "- 3: both 1 and 2",
+        metavar="MODE",
+    )
+
+    parser.add_argument(
+        "-q",
+        "--quiet-level",
+        action="store",
+        type=int,
+        default=34,
+        choices=range(0, 64),
+        help="bitmask that allows suppressing messages:\n"
+        "- 0: print all messages.\n"
+        "- 1: disable warnings about wrong encoding.\n"
+        "- 2: disable warnings about binary files.\n"
+        "- 4: omit warnings about automatic fixes that were disabled in the dictionary.\n"  # noqa: E501
+        "- 8: don't print anything for non-automatic fixes.\n"
+        "- 16: don't print the list of fixed files.\n"
+        "- 32: don't print configuration files.\n"
+        "As usual with bitmasks, these levels can be "
+        "combined; e.g. use 3 for levels 1+2, 7 for "
+        "1+2+4, 23 for 1+2+4+16, etc. "
+        "The default mask is %(default)s.",
+        metavar="LEVEL",
+    )
+
+    parser.add_argument(
+        "-e",
+        "--hard-encoding-detection",
+        action="store_true",
+        default=False,
+        help="use chardet to detect the encoding of each "
+        "file. This can slow down codespell, but is more "
+        "reliable in detecting encodings other than "
+        "utf-8, iso8859-1, and ascii.",
+    )
+
+    parser.add_argument(
+        "-f",
+        "--check-filenames",
+        action="store_true",
+        default=False,
+        help="check file names as well",
+    )
+
+    parser.add_argument(
+        "-H",
+        "--check-hidden",
+        action="store_true",
+        default=False,
+        help='check hidden files and directories (those starting with ".") as well.',
+    )
+    parser.add_argument(
+        "-A",
+        "--after-context",
+        type=int,
+        metavar="LINES",
+        help="print LINES of trailing context",
+    )
+    parser.add_argument(
+        "-B",
+        "--before-context",
+        type=int,
+        metavar="LINES",
+        help="print LINES of leading context",
+    )
+    parser.add_argument(
+        "-C",
+        "--context",
+        type=int,
+        metavar="LINES",
+        help="print LINES of surrounding context",
+    )
+    parser.add_argument(
+        "--stdin-single-line",
+        action="store_true",
+        help="output just a single line for each misspelling in stdin mode",
+    )
+    parser.add_argument("--config", type=str, help="path to config file.")
+    parser.add_argument("--toml", type=str, help="path to a pyproject.toml file.")
+    parser.add_argument("files", nargs="*", help="files or directories to check")
+
+    # Parse command line options.
+    options = parser.parse_args(list(args))
+
+    # Load config files and look for ``codespell`` options.
+    cfg_files = ["setup.cfg", ".codespellrc"]
+    if options.config:
+        cfg_files.append(options.config)
+    config = configparser.ConfigParser(interpolation=None)
+
+    # Read toml before other config files.
+    toml_files = []
+    tomllib_raise_error = False
+    if os.path.isfile("pyproject.toml"):
+        toml_files.append("pyproject.toml")
+    if options.toml:
+        toml_files.append(options.toml)
+        tomllib_raise_error = True
+    if toml_files:
+        if sys.version_info >= (3, 11):
+            import tomllib
+        else:
+            try:
+                import tomli as tomllib  # type: ignore[no-redef]
+            except ImportError as e:
+                if tomllib_raise_error:
+                    msg = (
+                        f"tomllib or tomli are required to read pyproject.toml "
+                        f"but could not be imported, got: {e}"
+                    )
+                    raise ImportError(msg) from None
+                tomllib = None  # type: ignore[assignment]
+        if tomllib is not None:
+            for toml_file in toml_files:
+                with open(toml_file, "rb") as f:
+                    data = tomllib.load(f).get("tool", {})
+                if "codespell" in data:
+                    data["codespell"] = _toml_to_parseconfig(data["codespell"])
+                config.read_dict(data)
+
+    # Collect which config files are going to be used
+    used_cfg_files = []
+    for cfg_file in cfg_files:
+        _cfg = configparser.ConfigParser()
+        _cfg.read(cfg_file)
+        if _cfg.has_section("codespell"):
+            used_cfg_files.append(cfg_file)
+
+    # Use config files
+    config.read(used_cfg_files)
+    if config.has_section("codespell"):
+        # Build a "fake" argv list using option name and value.
+        cfg_args = []
+        for key in config["codespell"]:
+            # Add option as arg.
+            cfg_args.append(f"--{key}")
+            # If value is blank, skip.
+            val = config["codespell"][key]
+            if val:
+                cfg_args.append(val)
+
+        # Parse config file options.
+        options = parser.parse_args(cfg_args)
+
+        # Re-parse command line options to override config.
+        options = parser.parse_args(list(args), namespace=options)
+
+    if not options.files:
+        options.files.append(".")
+
+    return options, parser, used_cfg_files
+
+
+def process_ignore_words(
+    words: Iterable[str], ignore_words: Set[str], ignore_words_cased: Set[str]
+) -> None:
+    for word in words:
+        word = word.strip()
+        if word == word.lower():
+            ignore_words.add(word)
+        else:
+            ignore_words_cased.add(word)
+
+
+def parse_ignore_words_option(
+    ignore_words_option: List[str],
+) -> Tuple[Set[str], Set[str]]:
+    ignore_words: Set[str] = set()
+    ignore_words_cased: Set[str] = set()
+    if ignore_words_option:
+        for comma_separated_words in ignore_words_option:
+            process_ignore_words(
+                (word.strip() for word in comma_separated_words.split(",")),
+                ignore_words,
+                ignore_words_cased,
+            )
+    return (ignore_words, ignore_words_cased)
+
+
+def build_exclude_hashes(filename: str, exclude_lines: Set[str]) -> None:
+    with open(filename, encoding="utf-8") as f:
+        exclude_lines.update(line.rstrip() for line in f)
+
+
+def build_ignore_words(
+    filename: str, ignore_words: Set[str], ignore_words_cased: Set[str]
+) -> None:
+    with open(filename, encoding="utf-8") as f:
+        process_ignore_words(
+            (line.strip() for line in f), ignore_words, ignore_words_cased
+        )
+
+
+def is_hidden(filename: str, check_hidden: bool) -> bool:
+    bfilename = os.path.basename(filename)
+
+    return bfilename not in ("", ".", "..") and (
+        not check_hidden and bfilename[0] == "."
+    )
+
+
+def is_text_file(filename: str) -> bool:
+    with open(filename, mode="rb") as f:
+        s = f.read(1024)
+    return b"\x00" not in s
+
+
+def ask_for_word_fix(
+    line: str,
+    match: Match[str],
+    misspelling: Misspelling,
+    interactivity: int,
+    colors: TermColors,
+) -> Tuple[bool, str]:
+    wrongword = match.group()
+    if interactivity <= 0:
+        return misspelling.fix, fix_case(wrongword, misspelling.data)
+
+    line_ui = (
+        f"{line[: match.start()]}"
+        f"{colors.WWORD}{wrongword}{colors.DISABLE}"
+        f"{line[match.end() :]}"
+    )
+
+    if misspelling.fix and interactivity & 1:
+        r = ""
+        fixword = fix_case(wrongword, misspelling.data)
+        while not r:
+            print(f"{line_ui}\t{wrongword} ==> {fixword} (Y/n) ", end="", flush=True)
+            r = sys.stdin.readline().strip().upper()
+            if not r:
+                r = "Y"
+            if r not in ("Y", "N"):
+                print("Say 'y' or 'n'")
+                r = ""
+
+        if r == "N":
+            misspelling.fix = False
+
+    elif (interactivity & 2) and not misspelling.reason:
+        # if it is not disabled, i.e. it just has more than one possible fix,
+        # we ask the user which word to use
+
+        r = ""
+        opt = [w.strip() for w in misspelling.data.split(",")]
+        while not r:
+            print(f"{line_ui} Choose an option (blank for none): ", end="")
+            for i, o in enumerate(opt):
+                fixword = fix_case(wrongword, o)
+                print(f" {i}) {fixword}", end="")
+            print(": ", end="", flush=True)
+
+            n = sys.stdin.readline().strip()
+            if not n:
+                break
+
+            try:
+                i = int(n)
+                r = opt[i]
+            except (ValueError, IndexError):
+                print("Not a valid option\n")
+
+        if r:
+            misspelling.fix = True
+            misspelling.data = r
+
+    return misspelling.fix, fix_case(wrongword, misspelling.data)
+
+
+def print_context(
+    lines: List[str],
+    index: int,
+    context: Tuple[int, int],
+) -> None:
+    # context = (context_before, context_after)
+    for i in range(index - context[0], index + context[1] + 1):
+        if 0 <= i < len(lines):
+            print(f"{'>' if i == index else ':'} {lines[i].rstrip()}")
+
+
+def _ignore_word_sub(
+    text: str,
+    ignore_word_regex: Optional[Pattern[str]],
+) -> str:
+    if ignore_word_regex:
+        text = ignore_word_regex.sub(" ", text)
+    return text
+
+
+def extract_words(
+    text: str,
+    word_regex: Pattern[str],
+    ignore_word_regex: Optional[Pattern[str]],
+) -> List[str]:
+    return word_regex.findall(_ignore_word_sub(text, ignore_word_regex))
+
+
+def extract_words_iter(
+    text: str,
+    word_regex: Pattern[str],
+    ignore_word_regex: Optional[Pattern[str]],
+) -> List[Match[str]]:
+    return list(word_regex.finditer(_ignore_word_sub(text, ignore_word_regex)))
+
+
+def apply_uri_ignore_words(
+    check_matches: List[Match[str]],
+    line: str,
+    word_regex: Pattern[str],
+    ignore_word_regex: Optional[Pattern[str]],
+    uri_regex: Pattern[str],
+    uri_ignore_words: Set[str],
+) -> List[Match[str]]:
+    if not uri_ignore_words:
+        return check_matches
+    for uri in uri_regex.findall(line):
+        for uri_word in extract_words(uri, word_regex, ignore_word_regex):
+            if uri_word in uri_ignore_words:
+                # determine/remove only the first among matches
+                for i, match in enumerate(check_matches):
+                    if match.group() == uri_word:
+                        check_matches = check_matches[:i] + check_matches[i + 1 :]
+                        break
+    return check_matches
+
+
+def parse_file(
+    filename: str,
+    colors: TermColors,
+    summary: Optional[Summary],
+    misspellings: Dict[str, Misspelling],
+    ignore_words_cased: Set[str],
+    exclude_lines: Set[str],
+    file_opener: FileOpener,
+    word_regex: Pattern[str],
+    ignore_word_regex: Optional[Pattern[str]],
+    uri_regex: Pattern[str],
+    uri_ignore_words: Set[str],
+    context: Optional[Tuple[int, int]],
+    options: argparse.Namespace,
+) -> int:
+    bad_count = 0
+    lines = None
+    changed = False
+
+    if filename == "-":
+        f = sys.stdin
+        encoding = "utf-8"
+        lines = f.readlines()
+    else:
+        if options.check_filenames:
+            for word in extract_words(filename, word_regex, ignore_word_regex):
+                if word in ignore_words_cased:
+                    continue
+                lword = word.lower()
+                if lword not in misspellings:
+                    continue
+                fix = misspellings[lword].fix
+                fixword = fix_case(word, misspellings[lword].data)
+
+                if summary and fix:
+                    summary.update(lword)
+
+                cfilename = f"{colors.FILE}{filename}{colors.DISABLE}"
+                cwrongword = f"{colors.WWORD}{word}{colors.DISABLE}"
+                crightword = f"{colors.FWORD}{fixword}{colors.DISABLE}"
+
+                reason = misspellings[lword].reason
+                if reason:
+                    if options.quiet_level & QuietLevels.DISABLED_FIXES:
+                        continue
+                    creason = f"  | {colors.FILE}{reason}{colors.DISABLE}"
+                else:
+                    if options.quiet_level & QuietLevels.NON_AUTOMATIC_FIXES:
+                        continue
+                    creason = ""
+
+                bad_count += 1
+
+                print(f"{cfilename}: {cwrongword} ==> {crightword}{creason}")
+
+        # ignore irregular files
+        if not os.path.isfile(filename):
+            return bad_count
+
+        try:
+            text = is_text_file(filename)
+        except PermissionError as e:
+            print(f"WARNING: {e.strerror}: {filename}", file=sys.stderr)
+            return bad_count
+        except OSError:
+            return bad_count
+
+        if not text:
+            if not options.quiet_level & QuietLevels.BINARY_FILE:
+                print(f"WARNING: Binary file: {filename}", file=sys.stderr)
+            return bad_count
+        try:
+            lines, encoding = file_opener.open(filename)
+        except OSError:
+            return bad_count
+
+    for i, line in enumerate(lines):
+        if line.rstrip() in exclude_lines:
+            continue
+
+        extra_words_to_ignore = set()
+        match = inline_ignore_regex.search(line)
+        if match:
+            extra_words_to_ignore = set(
+                filter(None, (match.group("words") or "").split(","))
+            )
+            if not extra_words_to_ignore:
+                continue
+
+        fixed_words = set()
+        asked_for = set()
+
+        # If all URI spelling errors will be ignored, erase any URI before
+        # extracting words. Otherwise, apply ignores after extracting words.
+        # This ensures that if a URI ignore word occurs both inside a URI and
+        # outside, it will still be a spelling error.
+        if "*" in uri_ignore_words:
+            line = uri_regex.sub(" ", line)
+        check_matches = extract_words_iter(line, word_regex, ignore_word_regex)
+        if "*" not in uri_ignore_words:
+            check_matches = apply_uri_ignore_words(
+                check_matches,
+                line,
+                word_regex,
+                ignore_word_regex,
+                uri_regex,
+                uri_ignore_words,
+            )
+        for match in check_matches:
+            word = match.group()
+            if word in ignore_words_cased:
+                continue
+            lword = word.lower()
+            if lword in misspellings and lword not in extra_words_to_ignore:
+                # Sometimes we find a 'misspelling' which is actually a valid word
+                # preceded by a string escape sequence.  Ignore such cases as
+                # they're usually false alarms; see issue #17 among others.
+                char_before_idx = match.start() - 1
+                if (
+                    char_before_idx >= 0
+                    and line[char_before_idx] == "\\"
+                    # bell, backspace, formfeed, newline, carriage-return, tab, vtab.
+                    and word.startswith(("a", "b", "f", "n", "r", "t", "v"))
+                    and lword[1:] not in misspellings
+                ):
+                    continue
+
+                context_shown = False
+                fix = misspellings[lword].fix
+                fixword = fix_case(word, misspellings[lword].data)
+
+                if options.interactive and lword not in asked_for:
+                    if context is not None:
+                        context_shown = True
+                        print_context(lines, i, context)
+                    fix, fixword = ask_for_word_fix(
+                        lines[i],
+                        match,
+                        misspellings[lword],
+                        options.interactive,
+                        colors=colors,
+                    )
+                    asked_for.add(lword)
+
+                if summary and fix:
+                    summary.update(lword)
+
+                if word in fixed_words:  # can skip because of re.sub below
+                    continue
+
+                if options.write_changes and fix:
+                    changed = True
+                    lines[i] = re.sub(rf"\b{word}\b", fixword, lines[i])
+                    fixed_words.add(word)
+                    continue
+
+                # otherwise warning was explicitly set by interactive mode
+                if (
+                    options.interactive & 2
+                    and not fix
+                    and not misspellings[lword].reason
+                ):
+                    continue
+
+                cfilename = f"{colors.FILE}{filename}{colors.DISABLE}"
+                cline = f"{colors.FILE}{i + 1}{colors.DISABLE}"
+                cwrongword = f"{colors.WWORD}{word}{colors.DISABLE}"
+                crightword = f"{colors.FWORD}{fixword}{colors.DISABLE}"
+
+                reason = misspellings[lword].reason
+                if reason:
+                    if options.quiet_level & QuietLevels.DISABLED_FIXES:
+                        continue
+                    creason = f"  | {colors.FILE}{reason}{colors.DISABLE}"
+                else:
+                    if options.quiet_level & QuietLevels.NON_AUTOMATIC_FIXES:
+                        continue
+                    creason = ""
+
+                # If we get to this point (uncorrected error) we should change
+                # our bad_count and thus return value
+                bad_count += 1
+
+                if (not context_shown) and (context is not None):
+                    print_context(lines, i, context)
+                if filename != "-":
+                    print(
+                        f"{cfilename}:{cline}: {cwrongword} ==> {crightword}{creason}"
+                    )
+                elif options.stdin_single_line:
+                    print(f"{cline}: {cwrongword} ==> {crightword}{creason}")
+                else:
+                    print(
+                        f"{cline}: {line.strip()}\n\t{cwrongword} "
+                        f"==> {crightword}{creason}"
+                    )
+
+    if changed:
+        if filename == "-":
+            print("---")
+            for line in lines:
+                print(line, end="")
+        else:
+            if not options.quiet_level & QuietLevels.FIXES:
+                print(
+                    f"{colors.FWORD}FIXED:{colors.DISABLE} {filename}",
+                    file=sys.stderr,
+                )
+            with open(filename, "w", encoding=encoding, newline="") as f:
+                f.writelines(lines)
+    return bad_count
+
+
+def flatten_clean_comma_separated_arguments(
+    arguments: Iterable[str],
+) -> List[str]:
+    """
+    >>> flatten_clean_comma_separated_arguments(["a, b ,\n c, d,", "e"])
+    ['a', 'b', 'c', 'd', 'e']
+    >>> flatten_clean_comma_separated_arguments([])
+    []
+    """
+    return [
+        item.strip() for argument in arguments for item in argument.split(",") if item
+    ]
+
+
+def _script_main() -> int:
+    """Wrap to main() for setuptools."""
+    try:
+        return main(*sys.argv[1:])
+    except KeyboardInterrupt:
+        # User has typed CTRL+C
+        sys.stdout.write("\n")
+        return 130
+
+
+def _usage_error(parser: argparse.ArgumentParser, message: str) -> int:
+    parser.print_usage()
+    print(message, file=sys.stderr)
+    return EX_USAGE
+
+
+def main(*args: str) -> int:
+    """Contains flow control"""
+    try:
+        options, parser, used_cfg_files = parse_options(args)
+    except configparser.Error as e:
+        print(
+            f"ERROR: ill-formed config file: {e.message}",
+            file=sys.stderr,
+        )
+        return EX_CONFIG
+
+    # Report used config files
+    if not options.quiet_level & QuietLevels.CONFIG_FILES:
+        if len(used_cfg_files) > 0:
+            print("Used config files:")
+        for ifile, cfg_file in enumerate(used_cfg_files, start=1):
+            print(f"    {ifile}: {cfg_file}")
+
+    if options.interactive > 0:
+        options.write_changes = True
+
+    if options.regex and options.write_changes:
+        return _usage_error(
+            parser,
+            "ERROR: --write-changes cannot be used together with --regex",
+        )
+    word_regex = options.regex or word_regex_def
+    try:
+        word_regex = re.compile(word_regex)
+    except re.error as e:
+        return _usage_error(
+            parser,
+            f'ERROR: invalid --regex "{word_regex}" ({e})',
+        )
+
+    if options.ignore_regex:
+        try:
+            ignore_word_regex = re.compile(options.ignore_regex)
+        except re.error as e:
+            return _usage_error(
+                parser,
+                f'ERROR: invalid --ignore-regex "{options.ignore_regex}" ({e})',
+            )
+    else:
+        ignore_word_regex = None
+
+    if options.ignore_multiline_regex:
+        try:
+            ignore_multiline_regex = re.compile(
+                options.ignore_multiline_regex, re.DOTALL
+            )
+        except re.error as e:
+            return _usage_error(
+                parser,
+                f"ERROR: invalid --ignore-multiline-regex "
+                f'"{options.ignore_multiline_regex}" ({e})',
+            )
+    else:
+        ignore_multiline_regex = None
+
+    ignore_words, ignore_words_cased = parse_ignore_words_option(
+        options.ignore_words_list
+    )
+    if options.ignore_words:
+        ignore_words_files = flatten_clean_comma_separated_arguments(
+            options.ignore_words
+        )
+        for ignore_words_file in ignore_words_files:
+            if not os.path.isfile(ignore_words_file):
+                return _usage_error(
+                    parser,
+                    f"ERROR: cannot find ignore-words file: {ignore_words_file}",
+                )
+            build_ignore_words(ignore_words_file, ignore_words, ignore_words_cased)
+
+    uri_regex = options.uri_regex or uri_regex_def
+    try:
+        uri_regex = re.compile(uri_regex)
+    except re.error as e:
+        return _usage_error(
+            parser,
+            f'ERROR: invalid --uri-regex "{uri_regex}" ({e})',
+        )
+
+    uri_ignore_words = set(
+        itertools.chain(*parse_ignore_words_option(options.uri_ignore_words_list))
+    )
+
+    dictionaries = flatten_clean_comma_separated_arguments(options.dictionary or ["-"])
+
+    use_dictionaries = []
+    for dictionary in dictionaries:
+        if dictionary == "-":
+            # figure out which builtin dictionaries to use
+            use = sorted(set(options.builtin.split(",")))
+            for u in use:
+                for builtin in _builtin_dictionaries:
+                    if builtin[0] == u:
+                        use_dictionaries.append(
+                            os.path.join(_data_root, f"dictionary{builtin[2]}.txt")
+                        )
+                        break
+                else:
+                    return _usage_error(
+                        parser,
+                        f"ERROR: Unknown builtin dictionary: {u}",
+                    )
+        else:
+            if not os.path.isfile(dictionary):
+                return _usage_error(
+                    parser,
+                    f"ERROR: cannot find dictionary file: {dictionary}",
+                )
+            use_dictionaries.append(dictionary)
+    misspellings: Dict[str, Misspelling] = {}
+    for dictionary in use_dictionaries:
+        build_dict(dictionary, misspellings, ignore_words)
+    colors = TermColors()
+    if not options.colors:
+        colors.disable()
+
+    summary = Summary() if options.summary else None
+
+    context = None
+    if options.context is not None:
+        if (options.before_context is not None) or (options.after_context is not None):
+            return _usage_error(
+                parser,
+                "ERROR: --context/-C cannot be used together with "
+                "--context-before/-B or --context-after/-A",
+            )
+        context_both = max(0, options.context)
+        context = (context_both, context_both)
+    elif (options.before_context is not None) or (options.after_context is not None):
+        context_before = 0
+        context_after = 0
+        if options.before_context is not None:
+            context_before = max(0, options.before_context)
+        if options.after_context is not None:
+            context_after = max(0, options.after_context)
+        context = (context_before, context_after)
+
+    exclude_lines: Set[str] = set()
+    if options.exclude_file:
+        exclude_files = flatten_clean_comma_separated_arguments(options.exclude_file)
+        for exclude_file in exclude_files:
+            build_exclude_hashes(exclude_file, exclude_lines)
+
+    file_opener = FileOpener(
+        options.hard_encoding_detection,
+        options.quiet_level,
+        ignore_multiline_regex,
+    )
+
+    glob_match = GlobMatch(
+        flatten_clean_comma_separated_arguments(options.skip) if options.skip else []
+    )
+    try:
+        glob_match.match("/random/path")  # does not need a real path
+    except re.error:
+        return _usage_error(
+            parser,
+            "ERROR: --skip/-S has been fed an invalid glob, "
+            "try escaping special characters",
+        )
+
+    bad_count = 0
+    for filename in sorted(options.files):
+        # ignore hidden files
+        if is_hidden(filename, options.check_hidden):
+            continue
+
+        if os.path.isdir(filename):
+            for root, dirs, files in os.walk(filename):
+                if glob_match.match(root):  # skip (absolute) directories
+                    dirs.clear()
+                    continue
+                if is_hidden(root, options.check_hidden):  # dir itself hidden
+                    continue
+                for file_ in sorted(files):
+                    # ignore hidden files in directories
+                    if is_hidden(file_, options.check_hidden):
+                        continue
+                    if glob_match.match(file_):  # skip files
+                        continue
+                    fname = os.path.join(root, file_)
+                    if glob_match.match(fname):  # skip paths
+                        continue
+                    bad_count += parse_file(
+                        fname,
+                        colors,
+                        summary,
+                        misspellings,
+                        ignore_words_cased,
+                        exclude_lines,
+                        file_opener,
+                        word_regex,
+                        ignore_word_regex,
+                        uri_regex,
+                        uri_ignore_words,
+                        context,
+                        options,
+                    )
+
+                # skip (relative) directories
+                dirs[:] = [
+                    dir_
+                    for dir_ in dirs
+                    if not glob_match.match(dir_)
+                    and not is_hidden(dir_, options.check_hidden)
+                ]
+
+        elif not glob_match.match(filename):  # skip files
+            bad_count += parse_file(
+                filename,
+                colors,
+                summary,
+                misspellings,
+                ignore_words_cased,
+                exclude_lines,
+                file_opener,
+                word_regex,
+                ignore_word_regex,
+                uri_regex,
+                uri_ignore_words,
+                context,
+                options,
+            )
+
+    if summary:
+        print("\n-------8<-------\nSUMMARY:")
+        print(summary)
+    if options.count:
+        print(bad_count, file=sys.stderr)
+    return EX_DATAERR if bad_count else EX_OK
+-- codespell_lib/_spellchecker.py --
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see
+# https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.
+"""
+Copyright (C) 2010-2011  Lucas De Marchi <lucas.de.marchi@gmail.com>
+Copyright (C) 2011  ProFUSION embedded systems
+"""
+
+from typing import (
+    Dict,
+    Set,
+)
+
+# Pass all misspellings through this translation table to generate
+# alternative misspellings and fixes.
+alt_chars = (("'", "’"),)  # noqa: RUF001
+
+
+class Misspelling:
+    def __init__(self, data: str, fix: bool, reason: str) -> None:
+        self.data = data
+        self.fix = fix
+        self.reason = reason
+
+
+def add_misspelling(
+    key: str,
+    data: str,
+    misspellings: Dict[str, Misspelling],
+) -> None:
+    data = data.strip()
+
+    if "," in data:
+        fix = False
+        data, reason = data.rsplit(",", 1)
+        reason = reason.lstrip()
+    else:
+        fix = True
+        reason = ""
+
+    misspellings[key] = Misspelling(data, fix, reason)
+
+
+def build_dict(
+    filename: str,
+    misspellings: Dict[str, Misspelling],
+    ignore_words: Set[str],
+) -> None:
+    with open(filename, encoding="utf-8") as f:
+        translate_tables = [(x, str.maketrans(x, y)) for x, y in alt_chars]
+        for line in f:
+            [key, data] = line.split("->")
+            # TODO: For now, convert both to lower.
+            #       Someday we can maybe add support for fixing caps.
+            key = key.lower()
+            data = data.lower()
+            if key not in ignore_words:
+                add_misspelling(key, data, misspellings)
+            # generate alternative misspellings/fixes
+            for x, table in translate_tables:
+                if x in key:
+                    alt_key = key.translate(table)
+                    alt_data = data.translate(table)
+                    if alt_key not in ignore_words:
+                        add_misspelling(alt_key, alt_data, misspellings)
+-- codespell_lib/_text_util.py --
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see
+# https://www.gnu.org/licenses/old-licenses/gpl-2.0.html.
+"""
+Copyright (C) 2010-2011  Lucas De Marchi <lucas.de.marchi@gmail.com>
+Copyright (C) 2011  ProFUSION embedded systems
+"""
+
+
+def fix_case(word: str, fixword: str) -> str:
+    if word == word.capitalize():
+        return ", ".join(w.strip().capitalize() for w in fixword.split(","))
+    if word == word.upper():
+        return fixword.upper()
+    # they are both lower case
+    # or we don't have any idea
+    return fixword
+-- codespell_lib/data/__init__.py --
+-- codespell_lib/py.typed --
+-- codespell_lib/tests/__init__.py --
+-- codespell_lib/tests/test_basic.py --
+import contextlib
+import inspect
+import os
+import os.path as op
+import re
+import subprocess
+import sys
+from io import StringIO
+from pathlib import Path
+from shutil import copyfile
+from typing import Any, Generator, Optional, Tuple, Union
+from unittest import mock
+
+import pytest
+
+import codespell_lib as cs_
+from codespell_lib._codespell import (
+    EX_CONFIG,
+    EX_DATAERR,
+    EX_OK,
+    EX_USAGE,
+    uri_regex_def,
+)
+
+
+def test_constants() -> None:
+    """Test our EX constants."""
+    assert EX_OK == 0
+    assert EX_USAGE == 64
+    assert EX_DATAERR == 65
+    assert EX_CONFIG == 78
+
+
+class MainWrapper:
+    """Compatibility wrapper for when we used to return the count."""
+
+    @staticmethod
+    def main(
+        *args: Any,
+        count: bool = True,
+        std: bool = False,
+    ) -> Union[int, Tuple[int, str, str]]:
+        args = tuple(str(arg) for arg in args)
+        if count:
+            args = ("--count", *args)
+        code = cs_.main(*args)
+        frame = inspect.currentframe()
+        assert frame is not None
+        frame = frame.f_back
+        assert frame is not None
+        capsys = frame.f_locals["capsys"]
+        stdout, stderr = capsys.readouterr()
+        assert code in (EX_OK, EX_USAGE, EX_DATAERR, EX_CONFIG)
+        if code == EX_DATAERR:  # have some misspellings
+            code = int(stderr.split("\n")[-2])
+        elif code == EX_OK and count:
+            code = int(stderr.split("\n")[-2])
+            assert code == 0
+        if std:
+            return (code, stdout, stderr)
+        return code
+
+
+cs = MainWrapper()
+
+
+def run_codespell(
+    args: Tuple[Any, ...] = (),
+    cwd: Optional[Path] = None,
+) -> int:
+    """Run codespell."""
+    args = tuple(str(arg) for arg in args)
+    proc = subprocess.run(  # noqa: S603
+        ["codespell", "--count", *args],  # noqa: S607
+        cwd=cwd,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    return int(proc.stderr.split("\n")[-2])
+
+
+def test_command(tmp_path: Path) -> None:
+    """Test running the codespell executable."""
+    # With no arguments does "."
+    assert run_codespell(cwd=tmp_path) == 0
+    (tmp_path / "bad.txt").write_text("abandonned\nAbandonned\nABANDONNED\nAbAnDoNnEd")
+    assert run_codespell(cwd=tmp_path) == 4
+
+
+def test_basic(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test some basic functionality."""
+    assert cs.main("_does_not_exist_") == 0
+    fname = tmp_path / "tmp"
+    fname.touch()
+    result = cs.main("-D", "foo", fname, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE, "missing dictionary"
+    assert "cannot find dictionary" in stderr
+    assert cs.main(fname) == 0, "empty file"
+    with fname.open("a") as f:
+        f.write("this is a test file\n")
+    assert cs.main(fname) == 0, "good"
+    with fname.open("a") as f:
+        f.write("abandonned\n")
+    assert cs.main(fname) == 1, "bad"
+    with fname.open("a") as f:
+        f.write("abandonned\n")
+    assert cs.main(fname) == 2, "worse"
+    with fname.open("a") as f:
+        f.write("tim\ngonna\n")
+    assert cs.main(fname) == 2, "with a name"
+    assert cs.main("--builtin", "clear,rare,names,informal", fname) == 4
+    with fname.open("w") as f:  # overwrite the file
+        f.write("var = 'nwe must check codespell likes escapes nin strings'\n")
+    assert cs.main(fname) == 1, "checking our string escape test word is bad"
+    # the first one is missed because the apostrophe means its not currently
+    # treated as a word on its own
+    with fname.open("w") as f:  # overwrite the file
+        f.write("var = '\\nwe must check codespell likes escapes \\nin strings'\n")
+    assert cs.main(fname) == 0, "with string escape"
+    result = cs.main(fname, "--builtin", "foo", std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE  # bad type
+    assert "Unknown builtin dictionary" in stderr
+    result = cs.main(fname, "-D", tmp_path / "foo", std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE  # bad dict
+    assert "cannot find dictionary" in stderr
+    fname.unlink()
+
+    with (tmp_path / "bad.txt").open("w", newline="") as f:
+        f.write(
+            "abandonned\nAbandonned\nABANDONNED\nAbAnDoNnEd\nabandonned\rAbandonned\r\nABANDONNED \n AbAnDoNnEd"  # noqa: E501
+        )
+    assert cs.main(tmp_path) == 8
+    result = cs.main("-w", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == 0
+    assert "FIXED:" in stderr
+    with (tmp_path / "bad.txt").open(newline="") as f:
+        new_content = f.read()
+    assert cs.main(tmp_path) == 0
+    assert (
+        new_content
+        == "abandoned\nAbandoned\nABANDONED\nabandoned\nabandoned\rAbandoned\r\nABANDONED \n abandoned"  # noqa: E501
+    )
+
+    (tmp_path / "bad.txt").write_text("abandonned abandonned\n")
+    assert cs.main(tmp_path) == 2
+    result = cs.main("-q", "16", "-w", tmp_path, count=False, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 0
+    assert not stdout
+    assert not stderr
+    assert cs.main(tmp_path) == 0
+
+    # empty directory
+    (tmp_path / "empty").mkdir()
+    assert cs.main(tmp_path) == 0
+
+
+def test_default_word_parsing(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    fname = tmp_path / "backtick"
+    with fname.open("a") as f:
+        f.write("`abandonned`\n")
+    assert cs.main(fname) == 1, "bad"
+
+    fname = tmp_path / "apostrophe"
+    fname.write_text("woudn't\n", encoding="utf-8")  # U+0027
+    assert cs.main(fname) == 1, "misspelling containing typewriter apostrophe U+0027"
+    fname.write_text("woudn’t\n", encoding="utf-8")  # U+2019  # noqa: RUF001
+    assert cs.main(fname) == 1, "misspelling containing typographic apostrophe U+2019"
+
+
+def test_bad_glob(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # disregard invalid globs, properly handle escaped globs
+    g = tmp_path / "glob"
+    g.mkdir()
+    fname = g / "[b-a].txt"
+    fname.write_text("abandonned\n")
+    assert cs.main(g) == 1
+    # bad glob is invalid
+    result = cs.main("--skip", "[b-a].txt", g, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    if sys.hexversion < 0x030A05F0:  # Python < 3.10.5 raises re.error
+        assert code == EX_USAGE, "invalid glob"
+        assert "invalid glob" in stderr
+    else:  # Python >= 3.10.5 does not match
+        assert code == 1
+    # properly escaped glob is valid, and matches glob-like file name
+    assert cs.main("--skip", "[[]b-a[]].txt", g) == 0
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Only supported on Linux")
+def test_permission_error(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test permission error handling."""
+    fname = tmp_path / "unreadable.txt"
+    fname.write_text("abandonned\n")
+    result = cs.main(fname, std=True)
+    assert isinstance(result, tuple)
+    _, _, stderr = result
+    assert "WARNING:" not in stderr
+    fname.chmod(0o000)
+    result = cs.main(fname, std=True)
+    assert isinstance(result, tuple)
+    _, _, stderr = result
+    assert "WARNING:" in stderr
+
+
+def test_interactivity(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test interaction"""
+    # Windows can't read a currently-opened file, so here we use
+    # NamedTemporaryFile just to get a good name
+    fname = tmp_path / "tmp"
+    fname.touch()
+    try:
+        assert cs.main(fname) == 0, "empty file"
+        fname.write_text("abandonned\n")
+        with mock.patch.object(sys, "argv", ("-i", "-1", fname)):
+            with pytest.raises(SystemExit) as e:
+                cs.main("-i", "-1", fname)
+            assert e.type is SystemExit
+            assert e.value.code != 0
+        with FakeStdin("n\n"):
+            result = cs.main("-w", "-i", "3", fname, std=True)
+            assert isinstance(result, tuple)
+            code, stdout, _ = result
+            assert code == 0
+        assert "==>" in stdout
+        with FakeStdin("x\ny\n"):
+            assert cs.main("-w", "-i", "3", fname) == 0
+        assert cs.main(fname) == 0
+    finally:
+        fname.unlink()
+
+    # New example
+    fname = tmp_path / "tmp2"
+    fname.write_text("abandonned\n")
+    try:
+        assert cs.main(fname) == 1
+        with FakeStdin(" "):  # blank input -> Y
+            assert cs.main("-w", "-i", "3", fname) == 0
+        assert cs.main(fname) == 0
+    finally:
+        fname.unlink()
+
+    # multiple options
+    fname = tmp_path / "tmp3"
+    fname.write_text("ackward\n")
+    try:
+        assert cs.main(fname) == 1
+        with FakeStdin(" \n"):  # blank input -> nothing
+            assert cs.main("-w", "-i", "3", fname) == 0
+        assert cs.main(fname) == 1
+        with FakeStdin("0\n"):  # blank input -> nothing
+            assert cs.main("-w", "-i", "3", fname) == 0
+        assert cs.main(fname) == 0
+        assert fname.read_text() == "awkward\n"
+        fname.write_text("ackward\n")
+        assert cs.main(fname) == 1
+        with FakeStdin("x\n1\n"):  # blank input -> nothing
+            result = cs.main("-w", "-i", "3", fname, std=True)
+            assert isinstance(result, tuple)
+            code, stdout, _ = result
+            assert code == 0
+        assert "a valid option" in stdout
+        assert cs.main(fname) == 0
+        assert fname.read_text() == "backward\n"
+    finally:
+        fname.unlink()
+
+
+def test_summary(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test summary functionality."""
+    fname = tmp_path / "tmp"
+    fname.touch()
+    result = cs.main(fname, std=True, count=False)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 0
+    assert not stdout
+    assert not stderr, "no output"
+    result = cs.main(fname, "--summary", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 0
+    assert stderr == "0\n"
+    assert "SUMMARY" in stdout
+    assert len(stdout.split("\n")) == 5
+    fname.write_text("abandonned\nabandonned")
+    assert code == 0
+    result = cs.main(fname, "--summary", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert stderr == "2\n"
+    assert "SUMMARY" in stdout
+    assert len(stdout.split("\n")) == 7
+    assert "abandonned" in stdout.split()[-2]
+
+
+def test_ignore_dictionary(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore dictionary functionality."""
+    bad_name = tmp_path / "bad.txt"
+    bad_name.write_text(
+        "1 abandonned 1\n"
+        "2 abandonned 2\n"
+        "3 abandonned 3\r\n"
+        "4 abilty 4\n"
+        "5 abilty 5\n"
+        "6 abilty 6\r\n"
+        "7 ackward 7\n"
+        "8 ackward 8\n"
+        "9 ackward 9\r\n"
+        "abondon\n"
+    )
+    assert cs.main(bad_name) == 10
+    fname = tmp_path / "ignore.txt"
+    fname.write_text("abandonned\nabilty\r\nackward")
+    assert cs.main("-I", fname, bad_name) == 1
+    # missing file in ignore list
+    fname_missing = tmp_path / "missing.txt"
+    result = cs.main("-I", fname_missing, bad_name, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE
+    assert "ERROR:" in stderr
+    # comma-separated list of files
+    fname_dummy1 = tmp_path / "dummy1.txt"
+    fname_dummy1.touch()
+    fname_dummy2 = tmp_path / "dummy2.txt"
+    fname_dummy2.touch()
+    assert cs.main("-I", fname_dummy1, "-I", fname, "-I", fname_dummy2, bad_name) == 1
+    assert cs.main("-I", f"{fname_dummy1},{fname},{fname_dummy2}", bad_name) == 1
+
+
+def test_ignore_words_with_cases(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test case-sensitivity implemented for -I and -L options in #3272."""
+    bad_name = tmp_path / "MIS.txt"
+    bad_name.write_text(
+        "1 MIS (Management Information System) 1\n2 Les Mis (1980 musical) 2\n3 mis 3\n"
+    )
+    assert cs.main(bad_name) == 3
+    assert cs.main(bad_name, "-f") == 4
+    fname = tmp_path / "ignore.txt"
+
+    fname.write_text("miS")
+    assert cs.main("-I", fname, bad_name) == 3
+    assert cs.main("-LmiS", bad_name) == 3
+    assert cs.main("-I", fname, "-f", bad_name) == 4
+    assert cs.main("-LmiS", "-f", bad_name) == 4
+    fname.write_text("MIS")
+    assert cs.main("-I", fname, bad_name) == 2
+    assert cs.main("-LMIS", bad_name) == 2
+    assert cs.main("-I", fname, "-f", bad_name) == 2
+    assert cs.main("-LMIS", "-f", bad_name) == 2
+    fname.write_text("MIS\nMis")
+    assert cs.main("-I", fname, bad_name) == 1
+    assert cs.main("-LMIS,Mis", bad_name) == 1
+    assert cs.main("-I", fname, "-f", bad_name) == 1
+    assert cs.main("-LMIS,Mis", "-f", bad_name) == 1
+    fname.write_text("mis")
+    assert cs.main("-I", fname, bad_name) == 0
+    assert cs.main("-Lmis", bad_name) == 0
+    assert cs.main("-I", fname, "-f", bad_name) == 0
+    assert cs.main("-Lmis", "-f", bad_name) == 0
+
+
+def test_ignore_word_list(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore word list functionality."""
+    (tmp_path / "bad.txt").write_text("abandonned\nabondon\nabilty\n")
+    assert cs.main(tmp_path) == 3
+    assert cs.main("-Labandonned,someword", "-Labilty", tmp_path) == 1
+
+
+@pytest.mark.parametrize(
+    ("content", "expected_error_count"),
+    [
+        # recommended form
+        ("abandonned abondon abilty  # codespell:ignore abondon", 2),
+        ("abandonned abondon abilty  // codespell:ignore abondon,abilty", 1),
+        (
+            "abandonned abondon abilty  /* codespell:ignore abandonned,abondon,abilty",
+            0,
+        ),
+        # ignore unused ignore
+        ("abandonned abondon abilty  # codespell:ignore nomenklatur", 3),
+        # wildcard form
+        ("abandonned abondon abilty  # codespell:ignore ", 0),
+        ("abandonned abondon abilty  # codespell:ignore", 0),
+        ("abandonned abondon abilty  # codespell:ignore\n", 0),
+        ("abandonned abondon abilty  # codespell:ignore\r\n", 0),
+        ("abandonned abondon abilty  # codespell:ignore  # noqa: E501\n", 0),
+        ("abandonned abondon abilty  # codespell:ignore # noqa: E501\n", 0),
+        ("abandonned abondon abilty  # codespell:ignore# noqa: E501\n", 0),
+        ("abandonned abondon abilty  # codespell:ignore, noqa: E501\n", 0),
+        ("abandonned abondon abilty  #codespell:ignore\n", 0),
+        # ignore these for safety
+        ("abandonned abondon abilty  # codespell:ignorenoqa: E501\n", 3),
+        ("abandonned abondon abilty  codespell:ignore\n", 3),
+        ("abandonned abondon abilty codespell:ignore\n", 3),
+        # ignore these as they aren't valid
+        ("abandonned abondon abilty  # codespell:igore\n", 4),
+        # showcase different comment markers
+        ("abandonned abondon abilty ' codespell:ignore\n", 0),
+        ('abandonned abondon abilty " codespell:ignore\n', 0),
+        ("abandonned abondon abilty ;; codespell:ignore\n", 0),
+        ("abandonned abondon abilty /* codespell:ignore */\n", 0),
+        # prose examples
+        (
+            "You could also use line based igore ( codespell:ignore ) to igore ",
+            0,
+        ),
+        ("You could also use line based igore (codespell:ignore) to igore ", 0),
+        (
+            "You could also use line based igore (codespell:ignore igore) to igore ",
+            0,
+        ),
+        (
+            "You could also use line based igore (codespell:ignore igare) to igore ",
+            2,
+        ),
+    ],
+)
+def test_inline_ignores(
+    tmpdir: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+    content: str,
+    expected_error_count: int,
+) -> None:
+    d = str(tmpdir)
+    with open(op.join(d, "bad.txt"), "w", encoding="utf-8") as f:
+        f.write(content)
+    assert cs.main(d) == expected_error_count
+
+
+def test_custom_regex(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test custom word regex."""
+    (tmp_path / "bad.txt").write_text("abandonned_abondon\n")
+    assert cs.main(tmp_path) == 0
+    assert cs.main("-r", "[a-z]+", tmp_path) == 2
+    result = cs.main("-r", "[a-z]+", "--write-changes", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE
+    assert "ERROR:" in stderr
+
+
+def test_exclude_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test exclude file functionality."""
+    bad_name = tmp_path / "bad.txt"
+    # check all possible combinations of lines to ignore and ignores
+    combinations = "".join(
+        f"{n} abandonned {n}\n"
+        f"{n} abandonned {n}\r\n"
+        f"{n} abandonned {n} \n"
+        f"{n} abandonned {n} \r\n"
+        for n in range(1, 5)
+    )
+    bad_name.write_bytes(
+        (combinations + "5 abandonned 5\n6 abandonned 6").encode("utf-8")
+    )
+    assert cs.main(bad_name) == 18
+    fname = tmp_path / "tmp.txt"
+    fname.write_bytes(
+        b"1 abandonned 1\n"
+        b"2 abandonned 2\r\n"
+        b"3 abandonned 3 \n"
+        b"4 abandonned 4 \r\n"
+        b"6 abandonned 6\n"
+    )
+    assert cs.main(bad_name) == 18
+    assert cs.main("-x", fname, bad_name) == 1
+    # comma-separated list of files
+    fname_dummy1 = tmp_path / "dummy1.txt"
+    fname_dummy1.touch()
+    fname_dummy2 = tmp_path / "dummy2.txt"
+    fname_dummy2.touch()
+    assert cs.main("-x", fname_dummy1, "-x", fname, "-x", fname_dummy2, bad_name) == 1
+    assert cs.main("-x", f"{fname_dummy1},{fname},{fname_dummy2}", bad_name) == 1
+
+
+def test_encoding(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test encoding handling."""
+    # Some simple Unicode things
+    fname = tmp_path / "tmp"
+    fname.touch()
+    # with CaptureStdout() as sio:
+    assert cs.main(fname) == 0
+    fname.write_bytes("naïve\n".encode())
+    assert cs.main(fname) == 0
+    assert cs.main("-e", fname) == 0
+    with fname.open("ab") as f:
+        f.write(b"naieve\n")
+    assert cs.main(fname) == 1
+    # Encoding detection (only try ISO 8859-1 because UTF-8 is the default)
+    fname.write_bytes(b"Speling error, non-ASCII: h\xe9t\xe9rog\xe9n\xe9it\xe9\n")
+    # check warnings about wrong encoding are enabled with "-q 0"
+    result = cs.main("-q", "0", fname, std=True, count=True)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 1
+    assert "Speling" in stdout
+    assert "iso-8859-1" in stderr
+    # check warnings about wrong encoding are disabled with "-q 1"
+    result = cs.main("-q", "1", fname, std=True, count=True)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 1
+    assert "Speling" in stdout
+    assert "iso-8859-1" not in stderr
+    # Binary file warning
+    fname.write_bytes(b"\x00\x00naiive\x00\x00")
+    result = cs.main(fname, std=True, count=False)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 0
+    assert not stdout
+    assert not stderr
+    result = cs.main("-q", "0", fname, std=True, count=False)
+    assert isinstance(result, tuple)
+    code, stdout, stderr = result
+    assert code == 0
+    assert not stdout
+    assert "WARNING: Binary file" in stderr
+
+
+def test_unknown_encoding_chardet(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test opening a file with unknown encoding using chardet"""
+    fname = tmp_path / "tmp"
+    fname.touch()
+    assert cs.main("--hard-encoding-detection", fname) == 0
+
+
+def test_ignore(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignoring of files and directories."""
+    goodtxt = tmp_path / "good.txt"
+    goodtxt.write_text("this file is okay")
+    assert cs.main(tmp_path) == 0
+    badtxt = tmp_path / "bad.txt"
+    badtxt.write_text("abandonned")
+    assert cs.main(tmp_path) == 1
+    assert cs.main("--skip=bad*", tmp_path) == 0
+    assert cs.main("--skip=bad.txt", tmp_path) == 0
+    subdir = tmp_path / "ignoredir"
+    subdir.mkdir()
+    (subdir / "bad.txt").write_text("abandonned")
+    assert cs.main(tmp_path) == 2
+    assert cs.main("--skip=bad*", tmp_path) == 0
+    assert cs.main("--skip=whatever.txt,bad*,whatelse.txt", tmp_path) == 0
+    assert cs.main("--skip=whatever.txt,\n bad* ,", tmp_path) == 0
+    assert cs.main("--skip=*ignoredir*", tmp_path) == 1
+    assert cs.main("--skip=ignoredir", tmp_path) == 1
+    assert cs.main("--skip=*ignoredir/bad*", tmp_path) == 1
+    assert cs.main(f"--skip={tmp_path}", tmp_path) == 0
+    badjs = tmp_path / "bad.js"
+    copyfile(badtxt, badjs)
+    assert cs.main("--skip=*.js", goodtxt, badtxt, badjs) == 1
+
+
+def test_check_filename(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test filename check."""
+    fname = tmp_path / "abandonned.txt"
+    # Empty file
+    fname.touch()
+    assert cs.main("-f", tmp_path) == 1
+    # Normal file with contents
+    fname.write_text(".")
+    assert cs.main("-f", tmp_path) == 1
+    # Normal file with binary contents
+    fname.write_bytes(b"\x00\x00naiive\x00\x00")
+    assert cs.main("-f", tmp_path) == 1
+
+
+@pytest.mark.skipif(
+    (not hasattr(os, "mkfifo") or not callable(os.mkfifo)), reason="requires os.mkfifo"
+)
+def test_check_filename_irregular_file(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test irregular file filename check."""
+    # Irregular file (!isfile())
+    os.mkfifo(tmp_path / "abandonned")
+    assert cs.main("-f", tmp_path) == 1
+
+
+def test_check_hidden(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignoring of hidden files."""
+    # visible file
+    #
+    #         tmp_path
+    #         └── test.txt
+    #
+    fname = tmp_path / "test.txt"
+    fname.write_text("erorr\n")
+    assert cs.main(fname) == 1
+    assert cs.main(tmp_path) == 1
+
+    # hidden file
+    #
+    #         tmp_path
+    #         └── .test.txt
+    #
+    hidden_file = tmp_path / ".test.txt"
+    fname.rename(hidden_file)
+    assert cs.main(hidden_file) == 0
+    assert cs.main(tmp_path) == 0
+    assert cs.main("--check-hidden", hidden_file) == 1
+    assert cs.main("--check-hidden", tmp_path) == 1
+
+    # hidden file with typo in name
+    #
+    #         tmp_path
+    #         └── .abandonned.txt
+    #
+    typo_file = tmp_path / ".abandonned.txt"
+    hidden_file.rename(typo_file)
+    assert cs.main(typo_file) == 0
+    assert cs.main(tmp_path) == 0
+    assert cs.main("--check-hidden", typo_file) == 1
+    assert cs.main("--check-hidden", tmp_path) == 1
+    assert cs.main("--check-hidden", "--check-filenames", typo_file) == 2
+    assert cs.main("--check-hidden", "--check-filenames", tmp_path) == 2
+
+    # hidden directory
+    #
+    #         tmp_path
+    #         ├── .abandonned
+    #         │   ├── .abandonned.txt
+    #         │   └── subdir
+    #         │       └── .abandonned.txt
+    #         └── .abandonned.txt
+    #
+    assert cs.main(tmp_path) == 0
+    assert cs.main("--check-hidden", tmp_path) == 1
+    assert cs.main("--check-hidden", "--check-filenames", tmp_path) == 2
+    hidden = tmp_path / ".abandonned"
+    hidden.mkdir()
+    copyfile(typo_file, hidden / typo_file.name)
+    subdir = hidden / "subdir"
+    subdir.mkdir()
+    copyfile(typo_file, subdir / typo_file.name)
+    assert cs.main(tmp_path) == 0
+    assert cs.main("--check-hidden", tmp_path) == 3
+    assert cs.main("--check-hidden", "--check-filenames", tmp_path) == 8
+    # check again with a relative path
+    try:
+        rel = op.relpath(tmp_path)
+    except ValueError:
+        # Windows: path is on mount 'C:', start on mount 'D:'
+        pass
+    else:
+        assert cs.main(rel) == 0
+        assert cs.main("--check-hidden", rel) == 3
+        assert cs.main("--check-hidden", "--check-filenames", rel) == 8
+
+    # hidden subdirectory
+    #
+    #         tmp_path
+    #         ├── .abandonned
+    #         │   ├── .abandonned.txt
+    #         │   └── subdir
+    #         │       └── .abandonned.txt
+    #         ├── .abandonned.txt
+    #         └── subdir
+    #             └── .abandonned
+    #                 └── .abandonned.txt
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    hidden = subdir / ".abandonned"
+    hidden.mkdir()
+    copyfile(typo_file, hidden / typo_file.name)
+    assert cs.main(tmp_path) == 0
+    assert cs.main("--check-hidden", tmp_path) == 4
+    assert cs.main("--check-hidden", "--check-filenames", tmp_path) == 11
+
+
+def test_case_handling(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test that capitalized entries get detected properly."""
+    # Some simple Unicode things
+    fname = tmp_path / "tmp"
+    fname.touch()
+    # with CaptureStdout() as sio:
+    assert cs.main(fname) == 0
+    fname.write_bytes(b"this has an ACII error")
+    result = cs.main(fname, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    assert "ASCII" in stdout
+    result = cs.main("-w", fname, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == 0
+    assert "FIXED" in stderr
+    assert fname.read_text(encoding="utf-8") == "this has an ASCII error"
+
+
+def _helper_test_case_handling_in_fixes(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    reason: bool,
+) -> None:
+    dictionary_name = tmp_path / "dictionary.txt"
+    if reason:
+        dictionary_name.write_text("adoptor->adopter, adaptor, reason\n")
+    else:
+        dictionary_name.write_text("adoptor->adopter, adaptor,\n")
+
+    # the misspelled word is entirely lowercase
+    fname = tmp_path / "bad.txt"
+    fname.write_text("early adoptor\n")
+    result = cs.main("-D", dictionary_name, fname, std=True)
+    assert isinstance(result, tuple)
+    _, stdout, _ = result
+    # all suggested fixes must be lowercase too
+    assert "adopter, adaptor" in stdout
+    # the reason, if any, must not be modified
+    if reason:
+        assert "reason" in stdout
+
+    # the misspelled word is capitalized
+    fname.write_text("Early Adoptor\n")
+    result = cs.main("-D", dictionary_name, fname, std=True)
+    assert isinstance(result, tuple)
+    _, stdout, _ = result
+    # all suggested fixes must be capitalized too
+    assert "Adopter, Adaptor" in stdout
+    # the reason, if any, must not be modified
+    if reason:
+        assert "reason" in stdout
+
+    # the misspelled word is entirely uppercase
+    fname.write_text("EARLY ADOPTOR\n")
+    result = cs.main("-D", dictionary_name, fname, std=True)
+    assert isinstance(result, tuple)
+    _, stdout, _ = result
+    # all suggested fixes must be uppercase too
+    assert "ADOPTER, ADAPTOR" in stdout
+    # the reason, if any, must not be modified
+    if reason:
+        assert "reason" in stdout
+
+    # the misspelled word mixes lowercase and uppercase
+    fname.write_text("EaRlY AdOpToR\n")
+    result = cs.main("-D", dictionary_name, fname, std=True)
+    assert isinstance(result, tuple)
+    _, stdout, _ = result
+    # all suggested fixes should be lowercase
+    assert "adopter, adaptor" in stdout
+    # the reason, if any, must not be modified
+    if reason:
+        assert "reason" in stdout
+
+
+def test_case_handling_in_fixes(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Test that the case of fixes is similar to the misspelled word."""
+    _helper_test_case_handling_in_fixes(tmp_path, capsys, reason=False)
+    _helper_test_case_handling_in_fixes(tmp_path, capsys, reason=True)
+
+
+def test_context(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test context options."""
+    (tmp_path / "context.txt").write_text(
+        "line 1\nline 2\nline 3 abandonned\nline 4\nline 5"
+    )
+
+    # symmetric context, fully within file
+    result = cs.main("-C", "1", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    lines = stdout.split("\n")
+    assert len(lines) == 5
+    assert lines[0] == ": line 2"
+    assert lines[1] == "> line 3 abandonned"
+    assert lines[2] == ": line 4"
+
+    # requested context is bigger than the file
+    result = cs.main("-C", "10", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    lines = stdout.split("\n")
+    assert len(lines) == 7
+    assert lines[0] == ": line 1"
+    assert lines[1] == ": line 2"
+    assert lines[2] == "> line 3 abandonned"
+    assert lines[3] == ": line 4"
+    assert lines[4] == ": line 5"
+
+    # only before context
+    result = cs.main("-B", "2", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    lines = stdout.split("\n")
+    assert len(lines) == 5
+    assert lines[0] == ": line 1"
+    assert lines[1] == ": line 2"
+    assert lines[2] == "> line 3 abandonned"
+
+    # only after context
+    result = cs.main("-A", "1", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    lines = stdout.split("\n")
+    assert len(lines) == 4
+    assert lines[0] == "> line 3 abandonned"
+    assert lines[1] == ": line 4"
+
+    # asymmetric context
+    result = cs.main("-B", "2", "-A", "1", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 1
+    lines = stdout.split("\n")
+    assert len(lines) == 6
+    assert lines[0] == ": line 1"
+    assert lines[1] == ": line 2"
+    assert lines[2] == "> line 3 abandonned"
+    assert lines[3] == ": line 4"
+
+    # both '-C' and '-A' on the command line
+    result = cs.main("-C", "2", "-A", "1", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE
+    lines = stderr.split("\n")
+    assert "ERROR" in lines[0]
+
+    # both '-C' and '-B' on the command line
+    result = cs.main("-C", "2", "-B", "1", tmp_path, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == EX_USAGE
+    lines = stderr.split("\n")
+    assert "ERROR" in lines[0]
+
+
+def test_ignore_regex_option(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore regex option functionality."""
+
+    # Invalid regex.
+    result = cs.main("--ignore-regex=(", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == EX_USAGE
+    assert "usage:" in stdout
+
+    fname = tmp_path / "flag.txt"
+    fname.write_text("# Please see http://example.com/abandonned for info\n")
+    # Test file has 1 invalid entry, and it's not ignored by default.
+    assert cs.main(fname) == 1
+    # An empty regex is the default value, and nothing is ignored.
+    assert cs.main(fname, "--ignore-regex=") == 1
+    assert cs.main(fname, '--ignore-regex=""') == 1
+    # Non-matching regex results in nothing being ignored.
+    assert cs.main(fname, "--ignore-regex=^$") == 1
+    # A word can be ignored.
+    assert cs.main(fname, "--ignore-regex=abandonned") == 0
+    # Ignoring part of the word can result in odd behavior.
+    assert cs.main(fname, "--ignore-regex=nn") == 0
+
+    fname.write_text("abandonned donn\n")
+    # Test file has 2 invalid entries.
+    assert cs.main(fname) == 2
+    # Ignoring donn breaks them both.
+    assert cs.main(fname, "--ignore-regex=donn") == 0
+    # Adding word breaks causes only one to be ignored.
+    assert cs.main(fname, r"--ignore-regex=\bdonn\b") == 1
+
+
+def test_ignore_multiline_regex_option(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore regex option functionality."""
+
+    # Invalid regex.
+    result = cs.main("--ignore-multiline-regex=(", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == EX_USAGE
+    assert "usage:" in stdout
+
+    fname = tmp_path / "flag.txt"
+    fname.write_text(
+        """
+        Please see http://example.com/abandonned for info
+        # codespell:ignore-begin
+        '''
+        abandonned
+        abandonned
+        '''
+        # codespell:ignore-end
+        abandonned
+        """
+    )
+    assert cs.main(fname) == 4
+    assert (
+        cs.main(
+            fname,
+            "--ignore-multiline-regex",
+            "codespell:ignore-begin.*codespell:ignore-end",
+        )
+        == 2
+    )
+
+
+def test_uri_regex_option(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test --uri-regex option functionality."""
+
+    # Invalid regex.
+    result = cs.main("--uri-regex=(", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == EX_USAGE
+    assert "usage:" in stdout
+
+    fname = tmp_path / "flag.txt"
+    fname.write_text("# Please see http://abandonned.com for info\n")
+
+    # By default, the standard regex is used.
+    assert cs.main(fname) == 1
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 0
+
+    # If empty, nothing matches.
+    assert cs.main(fname, "--uri-regex=", "--uri-ignore-words-list=abandonned") == 0
+
+    # Can manually match urls.
+    assert (
+        cs.main(fname, "--uri-regex=\\bhttp.*\\b", "--uri-ignore-words-list=abandonned")
+        == 0
+    )
+
+    # Can also match arbitrary content.
+    fname.write_text("abandonned")
+    assert cs.main(fname) == 1
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 1
+    assert cs.main(fname, "--uri-regex=.*") == 1
+    assert cs.main(fname, "--uri-regex=.*", "--uri-ignore-words-list=abandonned") == 0
+
+
+def test_uri_ignore_words_list_option_uri(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore regex option functionality."""
+
+    fname = tmp_path / "flag.txt"
+    fname.write_text("# Please see http://example.com/abandonned for info\n")
+    # Test file has 1 invalid entry, and it's not ignored by default.
+    assert cs.main(fname) == 1
+    # An empty list is the default value, and nothing is ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=") == 1
+    # Non-matching regex results in nothing being ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=foo,example") == 1
+    # A word can be ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 0
+    assert cs.main(fname, "--uri-ignore-words-list=foo,abandonned,bar") == 0
+    assert cs.main(fname, "--uri-ignore-words-list=*") == 0
+    # The match must be for the complete word.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonn") == 1
+
+    fname.write_text("abandonned http://example.com/abandonned\n")
+    # Test file has 2 invalid entries.
+    assert cs.main(fname) == 2
+    # Ignoring the value in the URI won't ignore the word completely.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 1
+    assert cs.main(fname, "--uri-ignore-words-list=*") == 1
+    # The regular --ignore-words-list will ignore both.
+    assert cs.main(fname, "--ignore-words-list=abandonned") == 0
+
+    variation_option = "--uri-ignore-words-list=abandonned"
+
+    # Variations where an error is ignored.
+    for variation in (
+        "# Please see http://abandonned for info\n",
+        '# Please see "http://abandonned" for info\n',
+        # This variation could be un-ignored, but it'd require a
+        # more complex regex as " is valid in parts of URIs.
+        '# Please see "http://foo"abandonned for info\n',
+        "# Please see https://abandonned for info\n",
+        "# Please see ftp://abandonned for info\n",
+        "# Please see http://example/abandonned for info\n",
+        "# Please see http://example.com/abandonned for info\n",
+        "# Please see http://exam.com/ple#abandonned for info\n",
+        "# Please see http://exam.com/ple?abandonned for info\n",
+        "# Please see http://127.0.0.1/abandonned for info\n",
+        "# Please see http://[2001:0db8:85a3:0000:0000:8a2e:0370"
+        ":7334]/abandonned for info\n",
+    ):
+        fname.write_text(variation)
+        assert cs.main(fname) == 1, variation
+        assert cs.main(fname, variation_option) == 0, variation
+
+    # Variations where no error is ignored.
+    for variation in (
+        "# Please see abandonned/ for info\n",
+        "# Please see http:abandonned for info\n",
+        "# Please see foo/abandonned for info\n",
+        "# Please see http://foo abandonned for info\n",
+    ):
+        fname.write_text(variation)
+        assert cs.main(fname) == 1, variation
+        assert cs.main(fname, variation_option) == 1, variation
+
+
+def test_uri_ignore_words_list_option_email(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Test ignore regex option functionality."""
+
+    fname = tmp_path / "flag.txt"
+    fname.write_text("# Please see example@abandonned.com for info\n")
+    # Test file has 1 invalid entry, and it's not ignored by default.
+    assert cs.main(fname) == 1
+    # An empty list is the default value, and nothing is ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=") == 1
+    # Non-matching regex results in nothing being ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=foo,example") == 1
+    # A word can be ignored.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 0
+    assert cs.main(fname, "--uri-ignore-words-list=foo,abandonned,bar") == 0
+    assert cs.main(fname, "--uri-ignore-words-list=*") == 0
+    # The match must be for the complete word.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonn") == 1
+
+    fname.write_text("abandonned example@abandonned.com\n")
+    # Test file has 2 invalid entries.
+    assert cs.main(fname) == 2
+    # Ignoring the value in the URI won't ignore the word completely.
+    assert cs.main(fname, "--uri-ignore-words-list=abandonned") == 1
+    assert cs.main(fname, "--uri-ignore-words-list=*") == 1
+    # The regular --ignore-words-list will ignore both.
+    assert cs.main(fname, "--ignore-words-list=abandonned") == 0
+
+    variation_option = "--uri-ignore-words-list=abandonned"
+
+    # Variations where an error is ignored.
+    for variation in (
+        "# Please see example@abandonned for info\n",
+        "# Please see abandonned@example for info\n",
+        "# Please see abandonned@example.com for info\n",
+        "# Please see mailto:abandonned@example.com?subject=Test for info\n",
+    ):
+        fname.write_text(variation)
+        assert cs.main(fname) == 1, variation
+        assert cs.main(fname, variation_option) == 0, variation
+
+    # Variations where no error is ignored.
+    for variation in (
+        "# Please see example @ abandonned for info\n",
+        "# Please see abandonned@ example for info\n",
+        "# Please see mailto:foo@example.com?subject=Test abandonned for info\n",
+    ):
+        fname.write_text(variation)
+        assert cs.main(fname) == 1, variation
+        assert cs.main(fname, variation_option) == 1, variation
+
+
+def test_uri_regex_def() -> None:
+    uri_regex = re.compile(uri_regex_def)
+
+    # Tests based on https://mathiasbynens.be/demo/url-regex
+    true_positives = (
+        "http://foo.com/blah_blah",
+        "http://foo.com/blah_blah/",
+        "http://foo.com/blah_blah_(wikipedia)",
+        "http://foo.com/blah_blah_(wikipedia)_(again)",
+        "http://www.example.com/wpstyle/?p=364",
+        "https://www.example.com/foo/?bar=baz&inga=42&quux",
+        "http://✪df.ws/123",
+        "http://userid:password@example.com:8080",
+        "http://userid:password@example.com:8080/",
+        "http://userid@example.com",
+        "http://userid@example.com/",
+        "http://userid@example.com:8080",
+        "http://userid@example.com:8080/",
+        "http://userid:password@example.com",
+        "http://userid:password@example.com/",
+        "http://142.42.1.1/",
+        "http://142.42.1.1:8080/",
+        "http://➡.ws/䨹",
+        "http://⌘.ws",
+        "http://⌘.ws/",
+        "http://foo.com/blah_(wikipedia)#cite-1",
+        "http://foo.com/blah_(wikipedia)_blah#cite-1",
+        "http://foo.com/unicode_(✪)_in_parens",
+        "http://foo.com/(something)?after=parens",
+        "http://☺.damowmow.com/",
+        "http://code.google.com/events/#&product=browser",
+        "http://j.mp",
+        "ftp://foo.bar/baz",
+        "http://foo.bar/?q=Test%20URL-encoded%20stuff",
+        "http://مثال.إختبار",
+        "http://例子.测试",
+        "http://उदाहरण.परीक्षा",
+        "http://-.~_!$&'()*+,;=:%40:80%2f::::::@example.com",
+        "http://1337.net",
+        "http://a.b-c.de",
+        "http://223.255.255.254",
+    )
+    true_negatives = (
+        "http://",
+        "//",
+        "//a",
+        "///a",
+        "///",
+        "foo.com",
+        "rdar://1234",
+        "h://test",
+        "://should.fail",
+        "ftps://foo.bar/",
+    )
+    false_positives = (
+        "http://.",
+        "http://..",
+        "http://../",
+        "http://?",
+        "http://??",
+        "http://??/",
+        "http://#",
+        "http://##",
+        "http://##/",
+        "http:///a",
+        "http://-error-.invalid/",
+        "http://a.b--c.de/",
+        "http://-a.b.co",
+        "http://a.b-.co",
+        "http://0.0.0.0",
+        "http://10.1.1.0",
+        "http://10.1.1.255",
+        "http://224.1.1.1",
+        "http://1.1.1.1.1",
+        "http://123.123.123",
+        "http://3628126748",
+        "http://.www.foo.bar/",
+        "http://www.foo.bar./",
+        "http://.www.foo.bar./",
+        "http://10.1.1.1",
+    )
+
+    boilerplate = "Surrounding text %s more text"
+
+    for uri in true_positives + false_positives:
+        assert uri_regex.findall(uri) == [uri], uri
+        assert uri_regex.findall(boilerplate % uri) == [uri], uri
+
+    for uri in true_negatives:
+        assert not uri_regex.findall(uri), uri
+        assert not uri_regex.findall(boilerplate % uri), uri
+
+
+def test_quiet_level_32(
+    tmp_path: Path,
+    tmpdir: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    d = tmp_path / "files"
+    d.mkdir()
+    conf = str(tmp_path / "setup.cfg")
+    with open(conf, "w", encoding="utf-8") as f:
+        # It must contain a "codespell" section.
+        f.write("[codespell]\n")
+    args = ("--config", conf)
+
+    # Config files should NOT be in output.
+    result = cs.main(str(d), *args, "--quiet-level=32", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 0
+    assert "Used config files:" not in stdout
+
+    # Config files SHOULD be in output.
+    result = cs.main(str(d), *args, "--quiet-level=2", std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 0
+    assert "Used config files:" in stdout
+    assert "setup.cfg" in stdout
+
+
+def test_ill_formed_ini_config_file(
+    tmp_path: Path,
+    tmpdir: pytest.TempPathFactory,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    d = tmp_path / "files"
+    d.mkdir()
+    conf = str(tmp_path / "setup.cfg")
+    with open(conf, "w", encoding="utf-8") as f:
+        # It should contain but lacks a section.
+        f.write("foobar =\n")
+    args = ("--config", conf)
+
+    # Should not raise a configparser.Error exception.
+    result = cs.main(str(d), *args, std=True)
+    assert isinstance(result, tuple)
+    code, _, stderr = result
+    assert code == 78
+    assert "ill-formed config file" in stderr
+
+
+@pytest.mark.parametrize("kind", ["cfg", "cfg_multiline", "toml", "toml_list"])
+def test_config_toml(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    kind: str,
+) -> None:
+    """Test loading options from a config file or toml."""
+    d = tmp_path / "files"
+    d.mkdir()
+    (d / "bad.txt").write_text("abandonned donn\n")
+    (d / "good.txt").write_text("good")
+    (d / "abandonned.txt").write_text("")
+
+    # Should fail when checking all files.
+    result = cs.main(d, "--check-filenames", count=True, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    # Code in this case is not exit code, but count of misspellings.
+    assert code == 3
+    assert "bad.txt" in stdout
+    assert "abandonned.txt" in stdout
+
+    if kind.startswith("cfg"):
+        conffile = tmp_path / "setup.cfg"
+        args = ("--config", conffile)
+        if kind == "cfg":
+            text = """\
+[codespell]
+skip = bad.txt, whatever.txt
+count =
+"""
+        else:
+            assert kind == "cfg_multiline"
+            text = """\
+[codespell]
+skip = whatever.txt,
+   bad.txt ,
+   ,
+
+count =
+"""
+        conffile.write_text(text)
+    else:
+        if sys.version_info < (3, 11):
+            pytest.importorskip("tomli")
+        tomlfile = tmp_path / "pyproject.toml"
+        args = ("--toml", tomlfile)
+        if kind == "toml":
+            text = """\
+[tool.codespell]
+skip = 'bad.txt,whatever.txt'
+check-filenames = false
+count = true
+"""
+        else:
+            assert kind == "toml_list"
+            text = """\
+[tool.codespell]
+skip = ['bad.txt', 'whatever.txt']
+check-filenames = false
+count = true
+"""
+        tomlfile.write_text(text)
+
+    # Should pass when skipping bad.txt or abandonned.txt
+    result = cs.main(d, *args, std=True)
+    assert isinstance(result, tuple)
+    code, stdout, _ = result
+    assert code == 0
+    assert "bad.txt" not in stdout
+    assert "abandonned.txt" not in stdout
+
+    # And both should automatically work if they're in cwd
+    cwd = Path.cwd()
+    try:
+        os.chdir(tmp_path)
+        result = cs.main(d, count=True, std=True)
+        assert isinstance(result, tuple)
+        code, stdout, _ = result
+    finally:
+        os.chdir(cwd)
+    assert code == 0
+    assert "bad.txt" not in stdout
+    assert "abandonned.txt" not in stdout
+
+
+@contextlib.contextmanager
+def FakeStdin(text: str) -> Generator[None, None, None]:
+    oldin = sys.stdin
+    try:
+        in_ = StringIO(text)
+        sys.stdin = in_
+        yield
+    finally:
+        sys.stdin = oldin
+
+
+def run_codespell_stdin(
+    text: str,
+    args: Tuple[Any, ...],
+    cwd: Optional[Path] = None,
+) -> int:
+    """Run codespell in stdin mode and return number of lines in output."""
+    proc = subprocess.run(  # noqa: S603
+        ["codespell", *args, "-"],  # noqa: S607
+        cwd=cwd,
+        input=text,
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+    output = proc.stdout
+    # get number of lines
+    return output.count("\n")
+
+
+def test_stdin(tmp_path: Path) -> None:
+    """Test running the codespell executable."""
+    input_file_lines = 4
+    text = ""
+    for _ in range(input_file_lines):
+        text += "abandonned\n"
+    for single_line_per_error in (True, False):
+        args: Tuple[str, ...] = ()
+        if single_line_per_error:
+            args = ("--stdin-single-line",)
+        # we expect 'input_file_lines' number of lines with
+        # --stdin-single-line and input_file_lines * 2 lines without it
+        assert run_codespell_stdin(
+            text, args=args, cwd=tmp_path
+        ) == input_file_lines * (2 - int(single_line_per_error))
+-- codespell_lib/tests/test_dictionary.py --
+import glob
+import os
+import os.path as op
+import pathlib
+import re
+from typing import Any, Dict, Iterable, Optional, Set, Tuple
+
+import pytest
+
+from codespell_lib._codespell import (
+    _builtin_dictionaries,
+    supported_languages,
+    word_regex_def,
+)
+
+spellers = {}
+
+root = pathlib.Path(__file__).parent.parent
+
+try:
+    import aspell  # type: ignore[import]
+
+    _test_data_dir = op.join(op.dirname(__file__), "..", "tests", "data")
+    for lang in supported_languages:
+        _wordlist = op.join(_test_data_dir, f"{lang}-additional.wordlist")
+        if op.isfile(_wordlist):
+            spellers[lang] = aspell.Speller(
+                ("lang", lang), ("size", "80"), ("wordlists", _wordlist)
+            )
+        else:
+            spellers[lang] = aspell.Speller(("lang", lang), ("size", "80"))
+except ImportError as e:
+    if os.getenv("REQUIRE_ASPELL", "false").lower() == "true":
+        msg = (
+            "Cannot run complete tests without aspell when "
+            f"REQUIRE_ASPELL=true. Got error during import:\n{e}"
+        )
+        raise RuntimeError(msg) from e
+
+global_err_dicts: Dict[str, Dict[str, Any]] = {}
+global_pairs: Set[Tuple[str, str]] = set()
+
+# Filename, should be seen as errors in aspell or not
+_data_dir = op.join(op.dirname(__file__), "..", "data")
+_fnames_in_aspell = [
+    (op.join(_data_dir, f"dictionary{d[2]}.txt"), d[3:5], d[5:7])
+    for d in _builtin_dictionaries
+]
+fname_params = pytest.mark.parametrize(
+    ("fname", "in_aspell", "in_dictionary"), _fnames_in_aspell
+)
+
+
+def test_dictionaries_exist() -> None:
+    """Test consistency of dictionaries."""
+    doc_fnames = {op.basename(f[0]) for f in _fnames_in_aspell}
+    got_fnames = {op.basename(f) for f in glob.glob(op.join(_data_dir, "*.txt"))}
+    assert doc_fnames == got_fnames
+
+
+@fname_params
+def test_dictionary_formatting(
+    fname: str,
+    in_aspell: Tuple[bool, bool],
+    in_dictionary: Tuple[Iterable[str], Iterable[str]],
+) -> None:
+    """Test that all dictionary entries are valid."""
+    errors = []
+    with open(fname, encoding="utf-8") as fid:
+        for line in fid:
+            err, rep = line.split("->")
+            err = err.lower()
+            rep = rep.rstrip("\n")
+            try:
+                _check_err_rep(err, rep, in_aspell, fname, in_dictionary)
+            except AssertionError as exp:
+                errors.append(str(exp).split("\n", maxsplit=1)[0])
+    if errors:
+        msg = "\n" + "\n".join(errors)
+        raise AssertionError(msg)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        *(root / "data").rglob("dictionary*.txt"),
+        *(root / "tests/data").rglob("*.wordlist"),
+    ],
+)
+def test_dictionary_sorting(filename: pathlib.Path) -> None:
+    relative_path = filename.relative_to(root)
+    previous_line = None
+    with filename.open(encoding="utf-8") as file:
+        for current_line in file:
+            current_line = current_line.strip().lower()
+            if previous_line is not None:
+                assert previous_line < current_line, f"{relative_path} is not sorted"
+            previous_line = current_line
+
+
+def _check_aspell(
+    phrase: str,
+    msg: str,
+    in_aspell: Optional[bool],
+    fname: str,
+    languages: Iterable[str],
+) -> None:
+    if not spellers:  # if no spellcheckers exist
+        return  # cannot check
+    if in_aspell is None:
+        return  # don't check
+    if " " in phrase:
+        for word in phrase.split():
+            _check_aspell(word, msg, in_aspell, fname, languages)
+        return  # stop normal checking as we've done each word above
+    this_in_aspell = any(
+        spellers[lang].check(phrase.encode(spellers[lang].ConfigKeys()["encoding"][1]))
+        for lang in languages
+    )
+    end = f"be in aspell dictionaries ({', '.join(languages)}) for dictionary {fname}"
+    if in_aspell:  # should be an error in aspell
+        assert this_in_aspell, f"{msg} should {end}"
+    else:  # shouldn't be
+        assert not this_in_aspell, f"{msg} should not {end}"
+
+
+whitespace = re.compile(r"\s")
+start_whitespace = re.compile(r"^\s")
+start_comma = re.compile(r"^,")
+whitespace_comma = re.compile(r"\s,")
+comma_whitespaces = re.compile(r",\s\s")
+comma_without_space = re.compile(r",[^ ]")
+whitespace_end = re.compile(r"\s+$")
+single_comma = re.compile(r"^[^,]*,\s*$")
+
+
+def _check_err_rep(
+    err: str,
+    rep: str,
+    in_aspell: Tuple[Optional[bool], Optional[bool]],
+    fname: str,
+    languages: Tuple[Iterable[str], Iterable[str]],
+) -> None:
+    assert whitespace.search(err) is None, f"error {err!r} has whitespace"
+    assert "," not in err, f"error {err!r} has a comma"
+    assert len(rep) > 0, f"error {err}: correction {rep!r} must be non-empty"
+    assert not start_whitespace.match(rep), (
+        f"error {err}: correction {rep!r} cannot start with whitespace"
+    )
+    _check_aspell(err, f"error {err!r}", in_aspell[0], fname, languages[0])
+    prefix = f"error {err}: correction {rep!r}"
+    for regex, msg in (
+        (start_comma, "%s starts with a comma"),
+        (
+            whitespace_comma,
+            "%s contains a whitespace character followed by a comma",
+        ),
+        (
+            comma_whitespaces,
+            "%s contains a comma followed by multiple whitespace characters",
+        ),
+        (comma_without_space, "%s contains a comma *not* followed by a space"),
+        (whitespace_end, "%s has a trailing space"),
+        (single_comma, "%s has a single entry but contains a trailing comma"),
+    ):
+        assert not regex.search(rep), msg % (prefix,)
+    del msg
+    if rep.count(","):
+        assert rep.endswith(","), (
+            f'error {err}: multiple corrections must end with trailing ","'
+        )
+    reps = [r.strip() for r in rep.split(",")]
+    reps = [r for r in reps if len(r)]
+    for r in reps:
+        assert err != r.lower(), f"error {err!r} corrects to itself amongst others"
+        _check_aspell(
+            r,
+            f"error {err}: correction {r!r}",
+            in_aspell[1],
+            fname,
+            languages[1],
+        )
+
+    # aspell dictionary is case sensitive, so pass the original case into there
+    # we could ignore the case, but that would miss things like days of the
+    # week which we want to be correct
+    reps = [r.lower() for r in reps]
+    assert len(set(reps)) == len(reps), (
+        f'error {err}: corrections "{rep}" are not (lower-case) unique'
+    )
+
+
+@pytest.mark.parametrize(
+    ("err", "rep", "match"),
+    [
+        ("a a", "bar", "has whitespace"),
+        ("a,a", "bar", "has a comma"),
+        ("a", "", "non-empty"),
+        ("a", " bar", "start with whitespace"),
+        ("a", ",bar", "starts with a comma"),
+        ("a", "bar,bat", ".*not.*followed by a space"),
+        ("a", "bar ", "trailing space"),
+        ("a", "b ,ar", "contains a whitespace.*followed by a comma"),
+        ("a", "bar,", "single entry.*comma"),
+        ("a", "bar, bat", 'must end with trailing ","'),
+        ("a", "a, bar,", "corrects to itself amongst others"),
+        ("a", "a", "corrects to itself"),
+        ("a", "bar, Bar,", "unique"),
+    ],
+)
+def test_error_checking(err: str, rep: str, match: str) -> None:
+    """Test that our error checking works."""
+    with pytest.raises(AssertionError, match=match):
+        _check_err_rep(
+            err,
+            rep,
+            (None, None),
+            "dummy",
+            (supported_languages, supported_languages),
+        )
+
+
+@pytest.mark.skipif(not spellers, reason="requires aspell-en")
+@pytest.mark.parametrize(
+    ("err", "rep", "err_aspell", "rep_aspell", "match"),
+    [
+        # This doesn't raise any exceptions, so skip for now:
+        # pytest.param('a', 'uvw, bar,', None, None, 'should be in aspell'),
+        ("abcdef", "uvwxyz, bar,", True, None, "should be in aspell"),
+        ("a", "uvwxyz, bar,", False, None, "should not be in aspell"),
+        ("a", "abcdef, uvwxyz,", None, True, "should be in aspell"),
+        ("abcdef", "uvwxyz, bar,", True, True, "should be in aspell"),
+        ("abcdef", "uvwxyz, bar,", False, True, "should be in aspell"),
+        ("a", "bar, back,", None, False, "should not be in aspell"),
+        ("a", "bar, back, Wednesday,", None, False, "should not be in aspell"),
+        ("abcdef", "ghijkl, uvwxyz,", True, False, "should be in aspell"),
+        ("abcdef", "uvwxyz, bar,", False, False, "should not be in aspell"),
+        # Multi-word corrections
+        # One multi-word, both parts
+        ("a", "abcdef uvwxyz", None, True, "should be in aspell"),
+        ("a", "bar back", None, False, "should not be in aspell"),
+        ("a", "bar back Wednesday", None, False, "should not be in aspell"),
+        # Second multi-word, both parts
+        (
+            "a",
+            "bar back, abcdef uvwxyz, bar,",
+            None,
+            True,
+            "should be in aspell",
+        ),
+        (
+            "a",
+            "abcdef uvwxyz, bar back, ghijkl,",
+            None,
+            False,
+            "should not be in aspell",
+        ),
+        # One multi-word, second part
+        ("a", "bar abcdef", None, True, "should be in aspell"),
+        ("a", "abcdef back", None, False, "should not be in aspell"),
+    ],
+)
+def test_error_checking_in_aspell(
+    err: str,
+    rep: str,
+    err_aspell: Optional[bool],
+    rep_aspell: Optional[bool],
+    match: str,
+) -> None:
+    """Test that our error checking works with aspell."""
+    with pytest.raises(AssertionError, match=match):
+        _check_err_rep(
+            err,
+            rep,
+            (err_aspell, rep_aspell),
+            "dummy",
+            (supported_languages, supported_languages),
+        )
+
+
+# allow some duplicates, like "m-i-n-i-m-i-s-e", or "c-a-l-c-u-l-a-t-a-b-l-e"
+# correction in left can appear as typo in right
+allowed_dups = {
+    ("dictionary.txt", "dictionary_code.txt"),
+    ("dictionary.txt", "dictionary_en-GB_to_en-US.txt"),
+    ("dictionary.txt", "dictionary_names.txt"),
+    ("dictionary.txt", "dictionary_rare.txt"),
+    ("dictionary.txt", "dictionary_usage.txt"),
+    ("dictionary_code.txt", "dictionary_rare.txt"),
+    ("dictionary_rare.txt", "dictionary_en-GB_to_en-US.txt"),
+    ("dictionary_rare.txt", "dictionary_usage.txt"),
+}
+
+
+@fname_params
+@pytest.mark.dependency(name="dictionary loop")
+def test_dictionary_looping(
+    fname: str,
+    in_aspell: Tuple[bool, bool],
+    in_dictionary: Tuple[bool, bool],
+) -> None:
+    """Test that all dictionary entries are valid."""
+    this_err_dict = {}
+    short_fname = op.basename(fname)
+    word_regex = re.compile(word_regex_def)
+    with open(fname, encoding="utf-8") as fid:
+        for line in fid:
+            err, rep = line.split("->")
+            err = err.lower()
+            assert err not in this_err_dict, (
+                f"error {err!r} already exists in {short_fname}"
+            )
+            rep = rep.rstrip("\n")
+            reps = [r.strip() for r in rep.lower().split(",")]
+            reps = [r for r in reps if len(r)]
+            this_err_dict[err] = reps
+    # 1. check the dict against itself (diagonal)
+    for err, reps in this_err_dict.items():
+        assert word_regex.fullmatch(err), (
+            f"error {err!r} does not match default word regex '{word_regex_def}'"
+        )
+        for r in reps:
+            assert r not in this_err_dict, (
+                f"error {err}: correction {r} is an error itself "
+                f"in the same dictionary file {short_fname}"
+            )
+    pair = (short_fname, short_fname)
+    assert pair not in global_pairs
+    global_pairs.add(pair)
+    for other_fname, other_err_dict in global_err_dicts.items():
+        # error duplication (eventually maybe we should just merge?)
+        for err in this_err_dict:
+            assert err not in other_err_dict, (
+                f"error {err!r} in dictionary {short_fname} "
+                f"already exists in dictionary {other_fname}"
+            )
+        # 2. check corrections in this dict against other dicts (upper)
+        pair = (short_fname, other_fname)
+        if pair not in allowed_dups:
+            for err, reps in this_err_dict.items():
+                assert err not in other_err_dict, (
+                    f"error {err!r} in dictionary {short_fname} "
+                    f"already exists in dictionary {other_fname}"
+                )
+                for r in reps:
+                    assert r not in other_err_dict, (
+                        f"error {err}: correction {r} from dictionary {short_fname} "
+                        f"is an error itself in dictionary {other_fname}"
+                    )
+        assert pair not in global_pairs
+        global_pairs.add(pair)
+        # 3. check corrections in other dicts against this dict (lower)
+        pair = (other_fname, short_fname)
+        if pair not in allowed_dups:
+            for err in other_err_dict:
+                for r in other_err_dict[err]:
+                    assert r not in this_err_dict, (
+                        f"error {err}: correction {r} from dictionary {other_fname} "
+                        f"is an error itself in dictionary {short_fname}"
+                    )
+        assert pair not in global_pairs
+        global_pairs.add(pair)
+    global_err_dicts[short_fname] = this_err_dict
+
+
+@pytest.mark.dependency(depends=["dictionary loop"])
+def test_ran_all() -> None:
+    """Test that all pairwise tests ran."""
+    for f1, _, _ in _fnames_in_aspell:
+        f1 = op.basename(f1)
+        for f2, _, _ in _fnames_in_aspell:
+            f2 = op.basename(f2)
+            assert (f1, f2) in global_pairs
+    assert len(global_pairs) == len(_fnames_in_aspell) ** 2
+-- example/code.c --
+
+int f(int type)
+{
+    return type;
+}
+
+int main(void)
+{
+    int fd, clas;
+    /* tis code does nothing */
+
+    f(1, 2, 3);
+
+    fd = opem("/tmp/a", O_RDONLY);
+
+    // buring your cpu
+    return f(clas);
+}
+-- pyproject-codespell.precommit-toml --
+[tool.codespell]
+#builtin = ["clear","rare","informal","usage","code","names"]
+builtin = "clear,rare,informal,usage,code,names"
+#ignore-words-list = ["uint"]
+ignore-words-list = "adn,master,uint,wrod"
+#skip=[ "./.*","codespell_lib/data/*","codespell_lib/tests/*"]
+skip="./.*,codespell_lib/data/*,codespell_lib/tests/*"
+-- pyproject.toml --
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+
+[project]
+name = "codespell"
+description = "Fix common misspellings in text files"
+readme = { file = "README.rst", content-type = "text/x-rst" }
+requires-python = ">=3.8"
+license = {text = "GPL-2.0-only"}
+authors = [
+    {name = "Lucas De Marchi", email = "lucas.de.marchi@gmail.com"},
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "chardet",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "pytest-dependency",
+    "Pygments",
+    "ruff",
+    "tomli",
+    "twine"
+]
+hard-encoding-detection = [
+    "chardet"
+]
+toml = [
+    "tomli; python_version < '3.11'"
+]
+types = [
+    "chardet>=5.1.0",
+    "mypy",
+    "pytest",
+    "pytest-cov",
+    "pytest-dependency",
+]
+
+[project.scripts]
+codespell = "codespell_lib:_script_main"
+
+[project.urls]
+homepage = "https://github.com/codespell-project/codespell"
+repository = "https://github.com/codespell-project/codespell"
+
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=64", "setuptools_scm[toml]>=6.2, != 8.0.0"]
+
+[tool.setuptools_scm]
+write_to = "codespell_lib/_version.py"
+
+[tool.setuptools.packages.find]
+exclude = [
+    "dist",
+    "snap",
+]
+
+[tool.setuptools.package-data]
+codespell_lib = [
+    "data/dictionary*.txt",
+    "data/linux-kernel.exclude",
+    "py.typed",
+]
+
+# TODO: reintegrate codespell configuration after updating test cases
+#[tool.codespell]
+#builtin = ["clear","rare","informal","usage","code","names"]
+#ignore-words-list = ["uint"]
+#skip=[ "./.*","codespell_lib/data/*","codespell_lib/tests/*"]
+
+[tool.mypy]
+pretty = true
+hide_error_codes = false
+strict = true
+warn_unused_ignores = false
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[tool.pytest.ini_options]
+minversion = "6"
+testpaths = ["codespell_lib/tests"]
+log_cli_level = "INFO"
+xfail_strict = true
+addopts = ["--cov=codespell_lib", "-rs", "--strict-config", "--strict-markers", "--cov-report=", "--tb=short", "--junit-xml=junit-results.xml"]
+filterwarnings = ["error"]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "A",
+    "ANN",
+    "B",
+    "C40",
+    "C9",
+    "E",
+    "F",
+    "I",
+    "N",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PT",
+    "PLW",
+    "RET",
+    "RUF",
+    "S",
+    "SIM",
+    "TRY",
+    "U",
+    "UP",
+    "W",
+    "YTT",
+]
+ignore = [
+    "B904",
+    "PLR0914",
+    "PLR6201",
+    "PLW2901",
+    "RET505",
+    "S404",
+    "SIM105",
+    "SIM115",
+    "UP038",   # https://github.com/astral-sh/ruff/issues/7871
+    # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 45
+
+[tool.ruff.lint.per-file-ignores]
+"codespell_lib/_codespell.py" = ["A003"]
+"codespell_lib/tests/test_*" = ["S101"]
+"codespell_lib/tests/test_basic.py" = ["ANN401", "N802"]
+
+[tool.ruff.lint.pylint]
+allow-magic-value-types = ["bytes", "int", "str",]
+max-args = 13
+max-branches = 48
+max-returns = 12
+max-statements = 119
+-- snap/snapcraft.yaml --
+name: codespell
+version: git
+summary: Check code for common misspellings
+description: |
+  Codespell fixes common misspellings in text files. It's designed
+  primarily for checking misspelled words in source code, but it can
+  be used with other files as well.
+grade: stable
+confinement: strict
+
+apps:
+  codespell:
+    command: codespell
+    plugs: [home, removable-media]
+
+parts:
+  codespell:
+    source: .
+    plugin: python
+-- tox.ini --
+[tox]
+min_version = 4.0
+env_list = unitest,type,dictionaries
+
+[testenv:unitest]
+description = run unit tests
+extras = dev
+commands = pytest --cov=codespell_lib codespell_lib
+
+[testenv:type]
+description = run type checks
+extras = types
+commands = mypy codespell_lib
+
+[testenv:dictionaries]
+description = run dictionary checks
+skip_install = true
+allowlist_externals = make
+commands = make check-dictionaries
