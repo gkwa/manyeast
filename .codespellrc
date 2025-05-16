@@ -4,4 +4,5 @@ skip = ./nlp-product-classification/product-data.json,
     ./prompt-learn-how-to-use-goldmark-effectively/*.txtar,
     ./does-boilerplate-offer-option-as-library/*.txtar,
     ./parse-boilerplate-directory/*.txtar,
-    ./prompt-find-skip-config-for-codespell/*.txtar
+    ./prompt-find-skip-config-for-codespell/*.txtar,
+    ./prompt-learn-about-go-getter-package/go-getter-subset.txtar
