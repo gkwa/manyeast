@@ -6,6 +6,6 @@ https://docs.ferretdb.io/guides/vector-search/
 
 ```
 <doc_snippet>
-{{ snippet "out.txt" | trim }}"
+{{ shell "bash" "-e" "gen.sh" | trim }}
 </doc_snippet>
 ```

@@ -1,15 +1,2 @@
 skip_files:
   - path: README.md
-
-hooks:
-  before:
-    - command: bash
-      args:
-        - -e
-        - gen.sh
-
-  after:
-    - command: rm
-      args:
-        - -f
-        - out.txt
