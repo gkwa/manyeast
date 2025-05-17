@@ -1,21 +1,15 @@
-variables:
-  - name: LinkCount
-    description: How many google search links should be generated
-    type: int
-    default: 10
-
-  - name: ProjectName
-    description: Name of the project you're building
-    type: string
-    default: manyeast
-
 skip_files:
   - path: README.md
 
 hooks:
-  after:
+  before:
     - command: bash
       args:
-        - '-e'
-        - generate_docs_sample.sh
-      dir: '{{ outputFolder }}'
+        - -e
+        - gen.sh
+
+  after:
+    - command: rm
+      args:
+        - -f
+        - out.txt
