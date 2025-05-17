@@ -1,14 +1,6 @@
 This creates a script that helps me pose a question to claude regarding some repo.
 
-
-
-
-
-
-
-
 ## example
-
 
 When I do this:
 
@@ -53,15 +45,11 @@ bash -e /tmp/stuff/generate_txtar.sh
 
 Next, I update `/tmp/test3/boilerplate_mime.txt` to reduce the exclusion filtering and re-run this:
 
-
 ```
 bash -e /tmp/stuff/generate_txtar.sh
 ```
 
-
 ## example
-
-
 
 When I do this:
 
@@ -86,11 +74,3 @@ text/x-java
 text/x-shellscript
 text/xml
 ```
-
-
-
-
-
-
-
-

@@ -33,12 +33,25 @@ txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -shc {{ $txtarFile }}
 
 find {{ .BaseDir }} -maxdepth 1
+echo
 
-echo "bash -e {{ .OutputFolder }}/generate_txtar.sh"
-echo find {{ $subsetDir }} -not -path '*/\.git*' -type f -print0 \| xargs -0 wc -l \| sort -n
-echo find {{ $subsetDir }} -not -path '*/\.git*' -type f -print0 \| xargs -0 du -s \| sort -n
-echo you should customize {{ $mimeTypesFile }}
+echo \#run this
+echo bash -e {{ .OutputFolder }}/generate_txtar.sh
+echo
+
+echo \#customize this {{ $mimeTypesFile }}
 echo nvim {{ $mimeTypesFile }}
+echo
+
+echo \#run this again
+echo bash -e {{ .OutputFolder }}/generate_txtar.sh
+echo
+
+echo \#find how you can reduce
+echo find {{ $subsetDir }} -not -path \'*/\.git*\' -type f -print0 \| xargs -0 wc -l \| sort -n
+echo find {{ $subsetDir }} -not -path \'*/\.git*\' -type f -print0 \| xargs -0 du -s \| sort -n
 echo ncdu {{ $subsetDir }}
+echo
+
 echo du -shc {{ $txtarFile }}
 echo cat {{ $txtarFile }} | pbcopy

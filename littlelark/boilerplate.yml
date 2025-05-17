@@ -9,6 +9,15 @@ variables:
   - name: OutputFolder
     description: Output folder
     type: string
-    default: '{{ outputFolder }}'
+    default: "{{ outputFolder }}"
+
 skip_files:
   - path: README.md
+
+hooks:
+  after:
+    - command: bash
+      args:
+        - "-e"
+        - generate_txtar.sh
+      dir: "{{ outputFolder }}"
