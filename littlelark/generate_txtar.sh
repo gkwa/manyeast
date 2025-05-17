@@ -33,11 +33,8 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
 
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
+cat {{ $mimeTypesFile }}
 
-echo
-
-echo \#run this
-echo bash -e {{ .OutputFolder }}/generate_txtar.sh
 echo
 
 echo \#customize this {{ $mimeTypesFile }}

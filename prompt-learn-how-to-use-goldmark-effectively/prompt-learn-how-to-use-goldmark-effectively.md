@@ -14,16 +14,20 @@ For example I want to be able to parse the markdown into an Abstract Syntax Tree
 
 I've included the goldmark source below to give you a clear understanding of the current API.
 
+```
 <goldmark_source>
 {{ snippet "goldmark-subset.txtar" | trim }}"
 </goldmark_source>
+```
 
 # add tests using golang's golden testing methodology
 
 We will need extensive tests to verify that our output is what we expect using golang testing golden testing methodology. If you're not familiar with what that is, I've included a description below
 
+```
 <golang_golden_file_testing_reference>
 {{ include "../prompt-learn-how-to-reference-the-concept-of-golang-golden-files-for-testing/golden-files-article.md" . | trim }}
 </golang_golden_file_testing_reference>
+```
 
 {{ include "../golang-app/golang-app.md" . | trim }}
