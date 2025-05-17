@@ -22,7 +22,8 @@ else
     rg --files . -0 | xargs -0 file --mime-type >{{ $manifest }}
 fi
 
-test ! -f {{ $mimeTypesFile }} && cat {{ $manifest }} | cut -d: -f2 |
+test ! -f {{ $mimeTypesFile }} && cat {{ $manifest }} |
+    cut --delimiter : --fields 2 |
     perl -p -e 's#^ *##' | sort -u > {{ $mimeTypesFile }}
 
 grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
@@ -30,9 +31,8 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
     cpio --insecure --pass-through --make-directories {{ $subsetDir }}
 
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
-du -shc {{ $txtarFile }}
+du -sh {{ $txtarFile }}
 
-find {{ .BaseDir }} -maxdepth 1
 echo
 
 echo \#run this
