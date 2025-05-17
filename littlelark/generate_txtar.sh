@@ -24,7 +24,8 @@ fi
 
 test ! -f {{ $mimeTypesFile }} && cat {{ $manifest }} |
     cut --delimiter : --fields 2 |
-    perl -p -e 's#^ *##' | sort --unique > {{ $mimeTypesFile }}
+    perl -p -e 's#^ *##' |
+    sort --unique > {{ $mimeTypesFile }}
 
 grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
     cut --delimiter : --fields 1 |
