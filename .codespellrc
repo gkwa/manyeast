@@ -5,4 +5,6 @@ skip = ./nlp-product-classification/product-data.json,
     ./does-boilerplate-offer-option-as-library/*.txtar,
     ./parse-boilerplate-directory/*.txtar,
     ./prompt-find-skip-config-for-codespell/*.txtar,
-    ./prompt-learn-about-go-getter-package/go-getter-subset.txtar
+    ./prompt-learn-about-go-getter-package/go-getter-subset.txtar,
+    ./prompt-update-littlewill-to-remove-techcrunch-url-tracking-nonsense/littlewill_subset.txtar,
+    ./prompt-generate-json-schema-from-boilerplate-yaml/boilerplate_subset.txtar
