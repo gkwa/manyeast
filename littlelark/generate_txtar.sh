@@ -34,4 +34,11 @@ du -shc {{ $txtarFile }}
 
 find {{ .BaseDir }} -maxdepth 1
 
+echo "bash -e {{ .OutputFolder }}/generate_txtar.sh"
+echo find {{ $subsetDir }} -not -path '*/\.git*' -type f -print0 \| xargs -0 wc -l \| sort -n
+echo find {{ $subsetDir }} -not -path '*/\.git*' -type f -print0 \| xargs -0 du -s \| sort -n
 echo you should customize {{ $mimeTypesFile }}
+echo nvim {{ $mimeTypesFile }}
+echo ncdu {{ $subsetDir }}
+echo du -shc {{ $txtarFile }}
+echo cat {{ $txtarFile }} | pbcopy
