@@ -54,4 +54,4 @@ echo ncdu {{ $subsetDir }}
 echo
 
 echo du -shc {{ $txtarFile }}
-echo cat {{ $txtarFile }} | pbcopy
+echo cat {{ $txtarFile }} \| pbcopy
