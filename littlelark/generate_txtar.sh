@@ -39,8 +39,11 @@ echo
 
 echo \#customize this {{ $mimeTypesFile }}
 echo examples:
-echo 'echo LICENSE >>{{ $mimeTypesFile }}'
+echo 'echo AUTHORS >>{{ $mimeTypesFile }}'
 echo 'echo CHANGELOG >>{{ $mimeTypesFile }}'
+echo 'echo CHANGES >>{{ $mimeTypesFile }}'
+echo 'echo LICENSE >>{{ $mimeTypesFile }}'
+echo 'echo MANIFEST >>{{ $mimeTypesFile }}'
 echo 'echo pnpm-lock >>{{ $mimeTypesFile }}'
 echo nvim {{ $mimeTypesFile }}
 echo
