@@ -39,3 +39,23 @@ After cleaning the URL, provide the minimal URL that should still render the int
 Then, explain what changes you made and why.
 
 Mention any parameters you removed and any you decided to keep, with your reasoning.
+
+In addition, please write the param keys as a go slice similar to this:
+
+```go
+var ParamsToRemove = []string{
+	"bih",
+	"biw",
+	"client",
+	"cshid",
+}
+```
+
+So for example if our link containss the `bih` param and the `cshid` param then you'd create this slice code snippet in a code block:
+
+```go
+var ParamsToRemove = []string{
+	"bih",
+	"cshid",
+}
+```
