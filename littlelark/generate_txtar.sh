@@ -45,6 +45,7 @@ echo 'echo CHANGES >>{{ $mimeTypesFile }}'
 echo 'echo LICENSE >>{{ $mimeTypesFile }}'
 echo 'echo MANIFEST >>{{ $mimeTypesFile }}'
 echo 'echo pnpm-lock >>{{ $mimeTypesFile }}'
+echo 'echo package-lock >>{{ $mimeTypesFile }}'
 echo nvim {{ $mimeTypesFile }}
 echo
 
