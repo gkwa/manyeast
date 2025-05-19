@@ -16,7 +16,7 @@ I need a chrome extension that will perform these steps:
 
 ```
 <pre_defined_text>
-{{ snippet "prompt.txt" | trim }}"
+{{ include "../tldr/tldr.md" . | trim }}"
 </pre_defined_text>
 ```
 
