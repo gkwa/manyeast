@@ -13,7 +13,7 @@ import (
 	"github.com/gruntwork-io/boilerplate/variables"
 )
 
-const customHelpText = `Usage: {{.UsageText}}
+const customHelpText = `Usage: {{"{{"}}.UsageText{{"}}"}}
 
 A tool for generating files and folders (\"boilerplate\") from a set of templates. Examples:
 
@@ -36,8 +36,8 @@ Generate a project in ~/output from the templates in this repo's include example
 
 Options:
 
-   {{range .VisibleFlags}}{{.}}
-   {{end}}`
+   {{"{{"}}range .VisibleFlags{{"}}"}}{{"{{"}}.{{"}}"}}
+   {{"{{"}}end{{"}}"}}`
 
 func CreateBoilerplateCli() *cli.App {
 	cli.HelpPrinter = entrypoint.WrappedHelpPrinter
@@ -772,7 +772,7 @@ const CONFIG_MULTIPLE_DEPENDENCIES = `dependencies:
   - name: dep3
     template-url: /template/folder3
     output-folder: /output/folder3
-    skip: "{{ and .Foo .Bar }}"
+    skip: "{{"{{"}} and .Foo .Bar {{"}}"}}"
 `
 
 func TestParseBoilerplateConfigMultipleDependencies(t *testing.T) {
@@ -804,7 +804,7 @@ func TestParseBoilerplateConfigMultipleDependencies(t *testing.T) {
 				OutputFolder:         "/output/folder3",
 				DontInheritVariables: false,
 				Variables:            []variables.Variable{},
-				Skip:                 "{{ and .Foo .Bar }}",
+				Skip:                 "{{"{{"}} and .Foo .Bar {{"}}"}}",
 			},
 		},
 		Hooks: variables.Hooks{},
@@ -1010,12 +1010,12 @@ const CONFIG_MULTIPLE_HOOKS = `hooks:
 
      - command: run-some-script.sh
        args:
-         - "{{ .foo }}"
-         - "{{ .bar }}"
+         - "{{"{{"}} .foo {{"}}"}}"
+         - "{{"{{"}} .bar {{"}}"}}"
 
    after:
      - command: foo
-       skip: "{{ .baz }}"
+       skip: "{{"{{"}} .baz {{"}}"}}"
      - command: bar
 `
 
@@ -1029,10 +1029,10 @@ func TestParseBoilerplateConfigMultipleHooks(t *testing.T) {
 		Hooks: variables.Hooks{
 			BeforeHooks: []variables.Hook{
 				{Command: "echo", Args: []string{"Hello World"}, Env: map[string]string{"foo": "bar", "baz": "blah"}, Skip: "true"},
-				{Command: "run-some-script.sh", Args: []string{"{{ .foo }}", "{{ .bar }}"}},
+				{Command: "run-some-script.sh", Args: []string{"{{"{{"}} .foo {{"}}"}}", "{{"{{"}} .bar {{"}}"}}"}},
 			},
 			AfterHooks: []variables.Hook{
-				{Command: "foo", Skip: "{{ .baz }}"},
+				{Command: "foo", Skip: "{{"{{"}} .baz {{"}}"}}"},
 				{Command: "bar"},
 			},
 		},
@@ -1112,9 +1112,9 @@ func TestLoadBoilerplateConfigInvalidConfig(t *testing.T) {
 const configWithSkipFiles = `skip_files:
   - path: "docs/README_ALWAYS_SKIP.md"
   - path: "docs/README_MAYBE_SKIP.md"
-    if: "{{ .MaybeSkip }}"
+    if: "{{"{{"}} .MaybeSkip {{"}}"}}"
   - not_path: "docs/**/*"
-    if: "{{ .DocsOnly }}"
+    if: "{{"{{"}} .DocsOnly {{"}}"}}"
 `
 
 func TestParseBoilerplateConfigWithSkipFiles(t *testing.T) {
@@ -1129,8 +1129,8 @@ func TestParseBoilerplateConfigWithSkipFiles(t *testing.T) {
 		Hooks:        variables.Hooks{},
 		SkipFiles: []variables.SkipFile{
 			{Path: "docs/README_ALWAYS_SKIP.md", If: ""},
-			{Path: "docs/README_MAYBE_SKIP.md", If: "{{ .MaybeSkip }}"},
-			{NotPath: "docs/**/*", If: "{{ .DocsOnly }}"},
+			{Path: "docs/README_MAYBE_SKIP.md", If: "{{"{{"}} .MaybeSkip {{"}}"}}"},
+			{NotPath: "docs/**/*", If: "{{"{{"}} .DocsOnly {{"}}"}}"},
 		},
 	}
 	assert.Equal(t, expected, actual)
@@ -1203,12 +1203,12 @@ func GetVariables(opts *options.BoilerplateOptions, boilerplateConfig, rootBoile
 	renderedVariables := map[string]interface{}{}
 
 	// Add a variable for all variables contained in the root config file. This will allow Golang template users
-	// to directly access these with an expression like "{{ .BoilerplateConfigVars.foo.Default }}"
+	// to directly access these with an expression like "{{"{{"}} .BoilerplateConfigVars.foo.Default {{"}}"}}"
 	rootConfigVars := rootBoilerplateConfig.GetVariablesMap()
 	renderedVariables["BoilerplateConfigVars"] = rootConfigVars
 
 	// Add a variable for all dependencies contained in the root config file. This will allow Golang template users
-	// to directly access these with an expression like "{{ .BoilerplateConfigDeps.foo.OutputFolder }}"
+	// to directly access these with an expression like "{{"{{"}} .BoilerplateConfigDeps.foo.OutputFolder {{"}}"}}"
 	rootConfigDeps := map[string]variables.Dependency{}
 	for _, dep := range rootBoilerplateConfig.Dependencies {
 		rootConfigDeps[dep.Name] = dep
@@ -2528,12 +2528,12 @@ func TestSpecialFileNames(t *testing.T) {
 	}{
 		{"kebab-case-bug-unix",
 			func(testDir string) error {
-				return os.Rename(path.Join(testDir, "template.txt"), path.Join(testDir, "{{ .Name | kebabcase }}"))
+				return os.Rename(path.Join(testDir, "template.txt"), path.Join(testDir, "{{"{{"}} .Name | kebabcase {{"}}"}}"))
 			},
 		},
 		{"tofu-test-unix",
 			func(testDir string) error {
-				return os.Rename(path.Join(testDir, "template_test.go"), path.Join(testDir, "{{ .ModuleName | snakecase }}_test.go"))
+				return os.Rename(path.Join(testDir, "template_test.go"), path.Join(testDir, "{{"{{"}} .ModuleName | snakecase {{"}}"}}_test.go"))
 			},
 		},
 	}
@@ -3430,7 +3430,7 @@ import (
 
 const EMBED_WHOLE_FILE_TEMPLATE = `
 embed file:
-{{snippet "../test-fixtures/templates-test/full-file-snippet.txt"}}
+{{"{{"}}snippet "../test-fixtures/templates-test/full-file-snippet.txt"{{"}}"}}
 `
 
 const EMBED_WHOLE_FILE_TEMPLATE_OUTPUT = `
@@ -3444,7 +3444,7 @@ Bye
 
 const EMBED_SNIPPET_TEMPLATE = `
 embed snippet:
-{{snippet "../test-fixtures/templates-test/full-file-snippet.txt" "foo"}}
+{{"{{"}}snippet "../test-fixtures/templates-test/full-file-snippet.txt" "foo"{{"}}"}}
 `
 
 const EMBED_SNIPPET_TEMPLATE_OUTPUT = `
@@ -3479,41 +3479,41 @@ func TestRenderTemplate(t *testing.T) {
 	}{
 		{"", map[string]interface{}{}, options.ExitWithError, "", "", false},
 		{"plain text template", map[string]interface{}{}, options.ExitWithError, "", "plain text template", false},
-		{"variable lookup: {{.Foo}}", map[string]interface{}{"Foo": "bar"}, options.ExitWithError, "", "variable lookup: bar", false},
-		{"missing variable lookup, ExitWithError: {{.Foo}}", map[string]interface{}{}, options.ExitWithError, "map has no entry for key \"Foo\"", "", false},
-		{"missing variable lookup, Invalid: {{.Foo}}", map[string]interface{}{}, options.Invalid, "", "missing variable lookup, Invalid: <no value>", false},
+		{"variable lookup: {{"{{"}}.Foo{{"}}"}}", map[string]interface{}{"Foo": "bar"}, options.ExitWithError, "", "variable lookup: bar", false},
+		{"missing variable lookup, ExitWithError: {{"{{"}}.Foo{{"}}"}}", map[string]interface{}{}, options.ExitWithError, "map has no entry for key \"Foo\"", "", false},
+		{"missing variable lookup, Invalid: {{"{{"}}.Foo{{"}}"}}", map[string]interface{}{}, options.Invalid, "", "missing variable lookup, Invalid: <no value>", false},
 		// Note: options.ZeroValue does not work correctly with Go templating when you pass in a map[string]interface{}. For some reason, it always prints <no value>.
-		{"missing variable lookup, ZeroValue: {{.Foo}}", map[string]interface{}{}, options.ZeroValue, "", "missing variable lookup, ZeroValue: <no value>", false},
+		{"missing variable lookup, ZeroValue: {{"{{"}}.Foo{{"}}"}}", map[string]interface{}{}, options.ZeroValue, "", "missing variable lookup, ZeroValue: <no value>", false},
 		{EMBED_WHOLE_FILE_TEMPLATE, map[string]interface{}{}, options.ExitWithError, "", EMBED_WHOLE_FILE_TEMPLATE_OUTPUT, runtime.GOOS == "windows"},
 		{EMBED_SNIPPET_TEMPLATE, map[string]interface{}{}, options.ExitWithError, "", EMBED_SNIPPET_TEMPLATE_OUTPUT, false},
-		{"Invalid template syntax: {{.Foo", map[string]interface{}{}, options.ExitWithError, "unclosed action", "", false},
-		{"Uppercase test: {{ .Foo | upcase }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Uppercase test: SOME TEXT", false},
-		{"Lowercase test: {{ .Foo | downcase }}", map[string]interface{}{"Foo": "SOME TEXT"}, options.ExitWithError, "", "Lowercase test: some text", false},
-		{"Capitalize test: {{ .Foo | capitalize }}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Capitalize test: Some Text", false},
-		{"Replace test: {{ .Foo | replace \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace test: hello bar, how are foo", false},
-		{"Replace all test: {{ .Foo | replaceAll \"foo\" \"bar\" }}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace all test: hello bar, how are bar", false},
-		{"Trim test: {{ .Foo | trim }}", map[string]interface{}{"Foo": "   some text     \t"}, options.ExitWithError, "", "Trim test: some text", false},
-		{"Round test: {{ .Foo | round }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Round test: 0", false},
-		{"Ceil test: {{ .Foo | ceil }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Ceil test: 1", false},
-		{"Floor test: {{ .Foo | floor }}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Floor test: 0", false},
-		{"Dasherize test: {{ .Foo | dasherize }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Dasherize test: foo-bar-baz", false},
-		{"Snake case test: {{ .Foo | snakeCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Snake case test: foo_bar_baz", false},
-		{"Camel case test: {{ .Foo | camelCase }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case test: FooBARBaz", false},
-		{"Camel case lower test: {{ .Foo | camelCaseLower }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case lower test: fooBARBaz", false},
-		{"Plus test: {{ plus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Plus test: 8", false},
-		{"Minus test: {{ minus .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Minus test: 2", false},
-		{"Times test: {{ times .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Times test: 15", false},
-		{"Divide test: {{ divide .Foo .Bar | printf \"%1.5f\" }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Divide test: 1.66667", false},
-		{"Mod test: {{ mod .Foo .Bar }}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Mod test: 2", false},
-		{"Slice test: {{ slice 0 5 1 }}", map[string]interface{}{}, options.ExitWithError, "", "Slice test: [0 1 2 3 4]", false},
-		{"Keys test: {{ keys .Map }}", map[string]interface{}{"Map": map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, options.ExitWithError, "", "Keys test: [key1 key2 key3]", false},
-		{"Shell test: {{ shell \"echo\" .Text }}", map[string]interface{}{"Text": "Hello, World"}, options.ExitWithError, "", "Shell test: Hello, World\n", runtime.GOOS == "windows"},
-		{"Shell set env vars test: {{ shell \"printenv\" \"FOO\" \"ENV:FOO=bar\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell set env vars test: bar\n", runtime.GOOS == "windows"},
-		{"Shell read env vars test: {{ env \"USER\" \"should-not-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", fmt.Sprintf("Shell read env vars test: %s", userFromEnvVar), runtime.GOOS == "windows"},
-		{"Shell read env vars test, fallback: {{ env \"not-a-valid-env-var\" \"should-get-fallback\" }}", map[string]interface{}{}, options.ExitWithError, "", "Shell read env vars test, fallback: should-get-fallback", false},
-		{"Template folder test: {{ templateFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Template folder test: " + defaultTemplateDir, false},
-		{"Output folder test: {{ outputFolder }}", map[string]interface{}{}, options.ExitWithError, "", "Output folder test: " + defaultOutputDir, false},
-		{"Filter chain test: {{ .Foo | downcase | replaceAll \" \" \"\" }}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Filter chain test: foobarbaz!", false},
+		{"Invalid template syntax: {{"{{"}}.Foo{{"}}"}}", map[string]interface{}{}, options.ExitWithError, "unclosed action", "", false},
+		{"Uppercase test: {{"{{"}} .Foo | upcase {{"}}"}}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Uppercase test: SOME TEXT", false},
+		{"Lowercase test: {{"{{"}} .Foo | downcase {{"}}"}}", map[string]interface{}{"Foo": "SOME TEXT"}, options.ExitWithError, "", "Lowercase test: some text", false},
+		{"Capitalize test: {{"{{"}} .Foo | capitalize {{"}}"}}", map[string]interface{}{"Foo": "some text"}, options.ExitWithError, "", "Capitalize test: Some Text", false},
+		{"Replace test: {{"{{"}} .Foo | replace \"foo\" \"bar\" {{"}}"}}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace test: hello bar, how are foo", false},
+		{"Replace all test: {{"{{"}} .Foo | replaceAll \"foo\" \"bar\" {{"}}"}}", map[string]interface{}{"Foo": "hello foo, how are foo"}, options.ExitWithError, "", "Replace all test: hello bar, how are bar", false},
+		{"Trim test: {{"{{"}} .Foo | trim {{"}}"}}", map[string]interface{}{"Foo": "   some text     \t"}, options.ExitWithError, "", "Trim test: some text", false},
+		{"Round test: {{"{{"}} .Foo | round {{"}}"}}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Round test: 0", false},
+		{"Ceil test: {{"{{"}} .Foo | ceil {{"}}"}}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Ceil test: 1", false},
+		{"Floor test: {{"{{"}} .Foo | floor {{"}}"}}", map[string]interface{}{"Foo": "0.45"}, options.ExitWithError, "", "Floor test: 0", false},
+		{"Dasherize test: {{"{{"}} .Foo | dasherize {{"}}"}}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Dasherize test: foo-bar-baz", false},
+		{"Snake case test: {{"{{"}} .Foo | snakeCase {{"}}"}}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Snake case test: foo_bar_baz", false},
+		{"Camel case test: {{"{{"}} .Foo | camelCase {{"}}"}}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case test: FooBARBaz", false},
+		{"Camel case lower test: {{"{{"}} .Foo | camelCaseLower {{"}}"}}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Camel case lower test: fooBARBaz", false},
+		{"Plus test: {{"{{"}} plus .Foo .Bar {{"}}"}}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Plus test: 8", false},
+		{"Minus test: {{"{{"}} minus .Foo .Bar {{"}}"}}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Minus test: 2", false},
+		{"Times test: {{"{{"}} times .Foo .Bar {{"}}"}}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Times test: 15", false},
+		{"Divide test: {{"{{"}} divide .Foo .Bar | printf \"%1.5f\" {{"}}"}}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Divide test: 1.66667", false},
+		{"Mod test: {{"{{"}} mod .Foo .Bar {{"}}"}}", map[string]interface{}{"Foo": "5", "Bar": "3"}, options.ExitWithError, "", "Mod test: 2", false},
+		{"Slice test: {{"{{"}} slice 0 5 1 {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", "Slice test: [0 1 2 3 4]", false},
+		{"Keys test: {{"{{"}} keys .Map {{"}}"}}", map[string]interface{}{"Map": map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, options.ExitWithError, "", "Keys test: [key1 key2 key3]", false},
+		{"Shell test: {{"{{"}} shell \"echo\" .Text {{"}}"}}", map[string]interface{}{"Text": "Hello, World"}, options.ExitWithError, "", "Shell test: Hello, World\n", runtime.GOOS == "windows"},
+		{"Shell set env vars test: {{"{{"}} shell \"printenv\" \"FOO\" \"ENV:FOO=bar\" {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", "Shell set env vars test: bar\n", runtime.GOOS == "windows"},
+		{"Shell read env vars test: {{"{{"}} env \"USER\" \"should-not-get-fallback\" {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", fmt.Sprintf("Shell read env vars test: %s", userFromEnvVar), runtime.GOOS == "windows"},
+		{"Shell read env vars test, fallback: {{"{{"}} env \"not-a-valid-env-var\" \"should-get-fallback\" {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", "Shell read env vars test, fallback: should-get-fallback", false},
+		{"Template folder test: {{"{{"}} templateFolder {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", "Template folder test: " + defaultTemplateDir, false},
+		{"Output folder test: {{"{{"}} outputFolder {{"}}"}}", map[string]interface{}{}, options.ExitWithError, "", "Output folder test: " + defaultOutputDir, false},
+		{"Filter chain test: {{"{{"}} .Foo | downcase | replaceAll \" \" \"\" {{"}}"}}", map[string]interface{}{"Foo": "foo BAR baz!"}, options.ExitWithError, "", "Filter chain test: foobarbaz!", false},
 	}
 
 	for _, testCase := range testCases {
@@ -3657,7 +3657,7 @@ func CreateTemplateHelpers(templatePath string, opts *options.BoilerplateOptions
 		"trimPrefix": trimPrefix,
 		"trimSuffix": trimSuffix,
 
-		// In sprig, round supports arbitrary decimal place rounding. E.g {{ round 123.5555 3 }} returns 123.556. For
+		// In sprig, round supports arbitrary decimal place rounding. E.g {{"{{"}} round 123.5555 3 {{"}}"}} returns 123.556. For
 		// backwards compatibility, we have:
 		// - round : The original boilerplate round function that rounds to nearest int.
 		// - roundFloat : The sprig version of round.
@@ -3666,7 +3666,7 @@ func CreateTemplateHelpers(templatePath string, opts *options.BoilerplateOptions
 		"round": wrapFloatToIntFunction(round),
 
 		// In sprig, ceil and floor is functionally the same as the boilerplate versions, except they return floats as
-		// opposed to ints. E.g {{ ceil 1.1 }} returns 2.0. For backwards compatibility, we have:
+		// opposed to ints. E.g {{"{{"}} ceil 1.1 {{"}}"}} returns 2.0. For backwards compatibility, we have:
 		// - ceil : The original boilerplate ceil function that truncates.
 		// - ceilFloat : The sprig version of ceil.
 		// - ceilInt : Another name for the boilerplate version of ceil that doesn't overlap with sprig.
@@ -3683,7 +3683,7 @@ func CreateTemplateHelpers(templatePath string, opts *options.BoilerplateOptions
 		"env": env,
 
 		// In sprig, keys is the unordered keys version. To get the sorted version, you use
-		// {{ keys $myDict | sortAlpha }}. For backwards compatibility, we have:
+		// {{"{{"}} keys $myDict | sortAlpha {{"}}"}}. For backwards compatibility, we have:
 		// - keys : The original boilerplate keys function that returns the keys in sorted order.
 		// - keysUnordered : The sprig version of keys.
 		// - keysSorted : Another name for the boilerplate keys function that doesn't overlap with sprig.
@@ -3718,7 +3718,7 @@ func CreateTemplateHelpers(templatePath string, opts *options.BoilerplateOptions
 
 // When writing a template, it's natural to use a relative path, such as:
 //
-// {{snippet "../../foo/bar"}}
+// {{"{{"}}snippet "../../foo/bar"{{"}}"}}
 //
 // However, this only works if boilerplate is called from the same folder as the template itself. To work around this
 // issue, this function can be used to wrap boilerplate template helpers to make the path of the template itself
@@ -5705,8 +5705,8 @@ func TestOutPath(t *testing.T) {
 		{"foo/bar/template-folder/foo.txt", "foo/bar/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo.txt"},
 		{"template-folder/foo.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo.txt"},
 		{"template-folder/foo/bar/baz.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{}, "output-folder/foo/bar/baz.txt"},
-		{"template-folder/{{.Foo}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "foo"}, "output-folder/foo.txt"},
-		{"template-folder/{{.Foo | dasherize}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "Foo Bar Baz"}, "output-folder/foo-bar-baz.txt"},
+		{"template-folder/{{"{{"}}.Foo{{"}}"}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "foo"}, "output-folder/foo.txt"},
+		{"template-folder/{{"{{"}}.Foo | dasherize{{"}}"}}.txt", pwd + "/template-folder", "output-folder", map[string]interface{}{"Foo": "Foo Bar Baz"}, "output-folder/foo-bar-baz.txt"},
 	}
 
 	for _, testCase := range testCases {
@@ -5751,7 +5751,7 @@ func TestCloneOptionsForDependency(t *testing.T) {
 			options.BoilerplateOptions{TemplateUrl: "../dep1", TemplateFolder: filepath.FromSlash("/template/dep1"), OutputFolder: filepath.FromSlash("/output/out1"), NonInteractive: false, Vars: map[string]interface{}{"foo": "bar", "baz": "blah"}, OnMissingKey: options.Invalid},
 		},
 		{
-			variables.Dependency{Name: "dep1", TemplateUrl: "{{ .foo }}", OutputFolder: "{{ .baz }}"},
+			variables.Dependency{Name: "dep1", TemplateUrl: "{{"{{"}} .foo {{"}}"}}", OutputFolder: "{{"{{"}} .baz {{"}}"}}"},
 			options.BoilerplateOptions{TemplateFolder: "/template/path/", OutputFolder: "/output/path/", NonInteractive: false, Vars: map[string]interface{}{}, OnMissingKey: options.ExitWithError},
 			map[string]interface{}{"foo": "bar", "baz": "blah"},
 			options.BoilerplateOptions{TemplateUrl: "bar", TemplateFolder: filepath.FromSlash("/template/path/bar"), OutputFolder: filepath.FromSlash("/output/path/blah"), NonInteractive: false, Vars: map[string]interface{}{"foo": "bar", "baz": "blah"}, OnMissingKey: options.ExitWithError},

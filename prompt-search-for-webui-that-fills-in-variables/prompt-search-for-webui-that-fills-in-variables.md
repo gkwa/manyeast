@@ -28,8 +28,10 @@ I'm seeking a tool that generates web forms based on variables extracted from YA
 
 ### Example YAML Files
 
+```
 <examples>
 {{ snippet "examples.txtar" }}"
 </examples>
+```
 
 I would appreciate recommendations for existing solutions or guidance on building this functionality.
