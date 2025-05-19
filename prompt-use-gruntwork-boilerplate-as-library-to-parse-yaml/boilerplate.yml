@@ -15,3 +15,9 @@ variables:
 
 skip_files:
   - path: README.md
+  - path: sample-boilerplates.txtar
+
+dependencies:
+  - name: pre-render
+    template-url: ../does-boilerplate-offer-option-as-library
+    output-folder: /tmp/does-boilerplate-offer-option-as-library

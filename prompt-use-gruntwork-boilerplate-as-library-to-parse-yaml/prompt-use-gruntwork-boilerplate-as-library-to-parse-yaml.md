@@ -1,4 +1,4 @@
-{{ include "../does-boilerplate-offer-option-as-library/use-boilerplate-as-library.md" . | trim }}
+{{ include "/tmp/does-boilerplate-offer-option-as-library/use-boilerplate-as-library.md" . | trim }}
 
 Included here is sample_boilerplate_templates which is a sample of the boilerplate templates that I have.
 
