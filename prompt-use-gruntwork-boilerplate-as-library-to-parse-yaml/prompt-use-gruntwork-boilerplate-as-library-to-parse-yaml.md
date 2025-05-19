@@ -11,11 +11,11 @@ Included here is sample_boilerplate_templates which is a sample of the boilerpla
 You'll notice that we have variables stored in `boilerplate.yml` along with templates stored in arbitrary set of files that are golang templates.
 
 Our goal is to create a golang app with subcommand `gather` that will
-recurse 1 or more direcotries for boilerplate templates along with the templates config files `boilerplate.yml`.
+recurse 1 or more directories for boilerplate templates along with the templates config files `boilerplate.yml`.
 
 We are generating a manifest of the templates and their config files.
 
-We need a data strucutre 
+We need a data structure 
 
 - the paths to our templates
 - the paths to our boilerplate files

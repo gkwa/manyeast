@@ -4,8 +4,8 @@ variables:
     type: int
     default: 10
 
-  - name: ProjectName
-    description: Name of the project you're building
+  - name: NPMPackageName
+    description: Name of npm package
     type: string
 
 skip_files:

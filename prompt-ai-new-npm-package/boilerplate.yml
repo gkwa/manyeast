@@ -1,4 +1,8 @@
 variables:
+  - name: NPMPackageName
+    description: Name of npm package
+    type: string
+
   - name: LinkCount
     description: How many google search links should be generated
     type: int
