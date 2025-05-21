@@ -8,11 +8,11 @@ The each time we shrink a file we should show
 
 the file sizes should be showing in user frindly MB format.
 
-We should allso see summary saying original total size and new total size.
+We should also see summary saying original total size and new total size.
 
-If you need to take advantage of imagemagick, thats fine.
+If you need to take advantage of imagemagick, that's fine.
 
-We shoudld be able to specify globs on cli similar to this:
+We should be able to specify globs on cli similar to this:
 
 ```
 {{ .GoModuleName }} shrink *.jpg /tmp/*.jpg
