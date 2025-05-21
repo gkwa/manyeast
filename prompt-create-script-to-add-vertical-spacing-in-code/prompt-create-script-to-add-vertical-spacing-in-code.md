@@ -1,3 +1,6 @@
+Our project name will be {{ .ProjectName }}
+
+
 # Request: JavaScript Vertical Spacing Tool
 
 ## Problem Statement
@@ -110,4 +113,3 @@ async function initializeExtension(): Promise<void> {
 A Node.js script that uses Babel's AST tools to parse the code, identify logical sections, and insert blank lines at appropriate positions, without interfering with other formatting applied by Prettier.
 
 {{ include "../pnpm-project/pnpm-project.md" . | trim }}"
-
