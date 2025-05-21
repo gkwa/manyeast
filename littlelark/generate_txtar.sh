@@ -42,6 +42,7 @@ echo examples:
 echo 'echo AUTHORS >>{{ $mimeTypesFile }}'
 echo 'echo CHANGELOG >>{{ $mimeTypesFile }}'
 echo 'echo CHANGES >>{{ $mimeTypesFile }}'
+echo 'echo COPYING >>{{ $mimeTypesFile }}'
 echo 'echo LICENSE >>{{ $mimeTypesFile }}'
 echo 'echo MANIFEST >>{{ $mimeTypesFile }}'
 echo 'echo pnpm-lock >>{{ $mimeTypesFile }}'
