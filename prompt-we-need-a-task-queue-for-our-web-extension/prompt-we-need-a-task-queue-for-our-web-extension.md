@@ -1,3 +1,5 @@
+{{ include "../add-google-search-links/add-links.md" . | trim }}"
+
 I have a chrome extension that performs some task and then 
 our next step is to wait for some response and perform some sequence according to the
 response.

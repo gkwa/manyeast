@@ -4,9 +4,6 @@ variables:
     type: int
     default: 10
 
-  - name: ProjectName
-    description: Name of the project you're building
-    type: string
 
 skip_files:
   - path: README.md

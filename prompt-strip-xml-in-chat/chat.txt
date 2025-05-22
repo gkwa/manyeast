@@ -1,0 +1,143 @@
+# Mastering Concurrency in Go with sync.WaitGroup
+
+**Created:** 5/21/2025 18:22  
+**Updated:** 5/21/2025 18:22  
+**Exported:** 5/21/2025 18:22  
+
+## Prompt:
+<my_initial_request>
+    <source_url>https://wundergraph.com/blog/golang-wait-groups</source_url>
+    <boilerplate_text>
+
+**Role:** You are a specialized content summarization expert, designed to create concise and accurate TLDR (Too Long; Didn't Read) summaries from various text sources, particularly web content.
+
+**Key Responsibilities:**
+
+- **URL Identification**: Always begin responses by listing the source URL when summarizing web content
+- **Concise Summarization**: Transform lengthy content into essential key points without losing critical information
+- **Structured Formatting**: Present summaries with clear paragraph breaks for enhanced readability
+- **Resource Discovery**: Generate relevant search links to help users find additional related content
+
+**Approach:**
+
+1. **Content Analysis**
+   - Read and comprehend the full text thoroughly
+   - Identify the main themes, arguments, and key takeaways
+   - Note any important data points, statistics, or actionable insights
+
+2. **Summary Creation**
+   - Extract only the most essential information
+   - Maintain the logical flow of the original content
+   - Use clear, concise language that preserves meaning
+   - Keep each major point in its own paragraph for clarity
+   - The summary should be concise, capturing the main points or
+     key takeaways from the page.
+
+3. **Format Adherence**
+   - Start immediately with the source URL (if applicable)
+   - Present each sentence or major point as a separate paragraph
+   - Avoid introductory phrases like "Here's a summary" or "TLDR:"
+   - Do not create artifacts for the summary
+   - Do not include any additional text, preambles, or explanations
+     beyond what is specified above.
+   - Do not include any introductory phrases or explanations about what you're doing.
+   - For example please dont include comments similar to this: "Based on the
+     content from the original blog post that was available in the search results,
+     I'll create a TLDR summary"
+
+4. **Resource Generation**
+   - Create 10 Google search links in markdown format
+   - Focus on finding tutorials, use cases, blogs, and educational content
+   - Include YouTube search links when video content would be beneficial
+   - Ensure search terms are specific and relevant to the topic
+
+**Specific Tasks:**
+
+- Begin response with the source URL (when available)
+- Create 3-8 paragraph summary capturing essential points but to keep it
+  readable separate each sentence with new paragraph.
+- End with 10 markdown-formatted search links
+- Maintain professional, informative tone throughout
+- Ensure accuracy and completeness of key information
+
+**Additional Considerations:**
+
+- Adapt summary length based on source content complexity
+- Prioritize actionable insights and practical information
+- Consider the target audience's likely knowledge level
+- Ensure search links cover different aspects of the topic (beginner tutorials, advanced techniques, real-world applications, etc.)
+- Include both text-based and video resources when appropriate
+
+**Quality Checks:**
+
+- Verify that all essential information is captured
+- Ensure the summary can stand alone without the original text
+- Confirm search links would genuinely help users explore the topic further
+- Check that formatting follows the specified requirements exactly
+
+    </boilerplate_text>
+<page_content>
+Blog/EducationJens Neuse 2025-05-11·12min readGo makes it very easy to write concurrent code. Start a few goroutines, wait for all of them to finish, and done. The go keyword makes this a breeze, and with the sync.WaitGroup primitive, synchronization can be achieved with no hassle. But is it really that simple? (Spoiler: Sometimes, not quite.)At WunderGraph, we're using Golang to build a GraphQL Router that splits an incoming request into multiple smaller requests to different services. We then merge the results back together to form the final response. As you can imagine, you'd want your Router to be as efficient as possible, so you execute as many of these smaller requests in parallel as possible.Consequently, we had to dig quite deep into the guts of writing concurrent code in Go. This post aims to share some of the lessons we learned because slapping go in front of everything and using sync.WaitGroup without fully understanding it can easily lead to bugs like deadlocks or improper cancellation.We're hiring!We're looking for Golang (Go) Developers, DevOps Engineers and Solution Architects who want to help us shape the future of Microservices, distributed systems, and APIs.By working at WunderGraph, you'll have the opportunity to build the next generation of API and Microservices infrastructure. Our customer base ranges from small startups to well-known enterprises, allowing you to not just have an impact at scale, but also to build a network of industry professionals.See Open PositionsWhat is Golang's sync.WaitGroup?Let's start with a very simple example:123456789101112131415161718You can try out the code yourself in the Go Playground . If you remove the wg.Wait() call, you will see that the program exits before the goroutine is able to print the message.Like the name suggests, WaitGroup is a primitive that allows us to wait for a group of goroutines to finish. However, we didn't really leverage the "group" aspect of it, so let's make our example slightly more complex and realistic.Let's say we're fetching the availability of a product from one service and its price from another service. In GraphQL Federation, the query planner typically executes these two requests in parallel.123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354Here's a link to the Go Playground to run the code yourself. Now we're doing something that resembles a real-world scenario and we're using the WaitGroup to wait for both goroutines to finish.There are still a few lurking gotchas with this code (we'll get to those!), but let's first look into how the WaitGroup actually works under the hood.How does sync.WaitGroup Actually Work? (The Nitty Gritty)The WaitGroup implementation, although just 129 lines of code, is actually quite interesting to look at. We can learn a lot about writing concurrent code in Go and about the runtime and the Go scheduler.Let's take a look at the WaitGroup struct:123456789101112131415The first thing that stands out is the noCopy field. This isn't data; it's a clever trick. If you try to copy a WaitGroup after its first use, the Go vet tool will yell at you. Why? Because copying it would mean the counter and waiters wouldn't be shared correctly, leading to chaos. Think of it like trying to photocopy a shared to-do list – everyone ends up with different versions!The second thing is the state field, an atomic.Uint64. This is where the magic happens. Instead of using separate variables (and a mutex!) for the goroutine counter (how many Done() calls are still needed) and the waiter counter (how many goroutines are blocked on Wait()), it packs them both into one 64-bit integer. The high 32 bits track the main counter, and the low 32 bits track the waiters. This atomic variable allows multiple goroutines to update and read the state safely and efficiently without needing locks, in most cases. Pretty neat, huh?Finally, the sema field is a semaphore used internally by the Go runtime. When a goroutine calls Wait() and the counter isn't zero, it essentially tells the runtime, "Okay, put me to sleep on this semaphore (runtime_SemacquireWaitGroup)." When the counter does hit zero (because the last Done() was called), the runtime is signaled to wake up all the goroutines sleeping on that semaphore (runtime_Semrelease). This sema field is key to understanding potential issues, as we'll see later.In a nutshell, the WaitGroup lifecycle is:Call Add(n) before starting your goroutines to tell the WaitGroup how many Done() calls to expect. A common pattern is wg.Add(1) right before each go statement.Inside each goroutine, call defer wg.Done() immediately to ensure the counter is decremented when the goroutine finishes, no matter what.Call Wait() where you need to block until all n goroutines have called Done().Now that we've peeked behind the curtain, let's talk about where things can go wrong.Pitfalls of using the sync.WaitGroup in GolangOne of the most important lessons I've learned about Go is that you should always understand the lifecycle of a goroutine. Launching them is easy with go, but you must think about how they will eventually end. This is especially critical when using WaitGroup.Deadlock due to improper counter managementLet's look at a common mistake. What if we forget to call Done() under certain conditions?1234567891011121314151617181920212223242526272829303132In case of an error during request creation or sending, the Done() method is skipped. The WaitGroup counter never reaches zero, and our main goroutine calling wg.Wait() blocks indefinitely. Classic deadlock!If you run similar code locally, or sometimes in the Go Playground , you'll eventually get this dreaded output:123456789The fix is simple but crucial: use defer wg.Done() at the very beginning of the goroutine.123456789101112131415161718192021222324252627282930Okay, deadlock avoided. But wait, there's more! What about timeouts and cancellation?Improper context cancellation when using WaitGroupOur HTTP request example still has a subtle but dangerous problem: we're not passing a context.Context. The http.DefaultClient might hang forever waiting for a response if the network is slow or the server is unresponsive. If the HTTP call blocks, wg.Done() never runs, and wg.Wait() blocks forever. Back to deadlock city!So how can we add a timeout to wg.Wait() itself? You might see this pattern suggested online or by an LLM:12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849This seems like it solves the main goroutine blocking forever. We use a select statement with a timeout. If wg.Wait() finishes within 5 seconds, the done channel is closed and we proceed. If 5 seconds pass, the time.After case triggers and we print a timeout message. Problem solved?No! This is a trap! We've introduced a potential goroutine leak.Think about what happens in the timeout case:The select statement in main proceeds because time.After fires.The goroutine running wg.Wait() is still blocked waiting for the counter to hit zero. Remember runtime_SemacquireWaitGroup? It's stuck there.The original worker goroutine (doing the HTTP request) might also still be blocked, waiting indefinitely on the network call because we didn't give it a context with a deadline or cancellation signal. defer wg.Done() hasn't run yet!So, main continues, but we've potentially left two goroutines hanging around, consuming resources, unable to finish. They are leaked. This is bad, especially in long-running server applications. Like I said earlier: always reason about how your goroutines end!The WaitGroup itself doesn't support cancellation. wg.Wait() is fundamentally a blocking call until the counter reaches zero. The real fix is to make sure the work being done inside the goroutines can be cancelled.Let's bring context.Context to the rescue:123456789101112131415161718192021222324252627282930313233343536373839404142434445464748You can run the code in Go Playground . We now pass a context with a timeout to http.NewRequestWithContext, and the http.Client respects this context. If the request takes longer than the context's deadline, Do will return an error (usually context.DeadlineExceeded). Crucially, the goroutine unblocks and proceeds to its end, executing the deferred wg.Done().Now, wg.Wait() is safe to call directly. We don't need the leaky done channel hack anymore. If all worker goroutines properly handle context cancellation, wg.Wait() will eventually return.To be extra sure you're not leaking goroutines in your tests, you can use packages like goleak . Highly recommended!So, context is vital. But what if we also need to handle errors from our goroutines and potentially cancel other running tasks if one fails? WaitGroup doesn't help there. Enter its more sophisticated cousin...Alternatives to sync.WaitGroup: When to use errgroup.GroupSo far, we've focused on just waiting for tasks to finish. We haven't really considered what happens if one of those tasks fails or if we want to collect errors. WaitGroup isn't concerned with errors.This is fine if partial success is okay. Maybe you're firing off notifications and it's not critical if one fails.Still, in scenarios like our GraphQL Federation example, failure is not an option. If fetching the price fails, the entire product response is incomplete and likely useless. We need to know about the error, and maybe we shouldn't even bother waiting for the availability call to finish if the price call already failed.This is where errgroup.Group shines. It's designed specifically for running a group of tasks where you care about errors and want coordinated cancellation. It lives in the golang.org/x/sync/errgroup package.Let's refactor our product example using errgroup.Group:123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293(You'll need go get golang.org/x/sync/errgroup to run this locally.)Notice the key differences:We use errgroup.WithContext(context.Background()) to create the group and a derived context.We use eg.Go(func() error { ... }) to launch goroutines. errgroup manages the waiting internally (no manual Add/Done).Our worker functions (fetchAvailability, fetchPrice) now accept and respect the context.Context. This is crucial for cancellation.eg.Wait() blocks until all eg.Go functions complete. It returns the first non-nil error encountered.The magic: If any function passed to eg.Go returns a non-nil error, errgroup automatically cancels the ctx it created. Any other running goroutines launched via eg.Go that are properly checking ctx.Done() (like ours using select) will receive the cancellation signal and can exit early. This prevents wasted work.This behavior is exactly what we often need for scenarios like API gateways or data fetching: fail fast, clean up, and report the first problem.TL;DR: The WaitGroup & errgroup Cheat Sheet (For the Impatient Gopher)Okay, that was a lot. Here's the quick version:Use sync.WaitGroup when:You just need to wait for several independent goroutines to finish.You don't care too much if some of them error (or they handle errors internally).Partial success is acceptable.Remember: Call wg.Add(1) before go, defer wg.Done() inside, and ensure goroutines handle context.Context if they do blocking I/O to prevent leaks when using wg.Wait().Use golang.org/x/sync/errgroup when:You need to run several goroutines and get the first error that occurs.You want other goroutines to be cancelled automatically if one fails.Your goroutines perform work that should respect cancellation (e.g., network calls, long computations).Remember: Use eg, ctx := errgroup.WithContext(...), launch with eg.Go(func() error { ... }), pass ctx into your work functions and check ctx.Done(), and check the err returned by eg.Wait().General Go Concurrency Wisdom:Always think about the entire lifecycle of your goroutines (how do they start, how do they stop?).Use context.Context religiously for cancellation and deadlines in any blocking or long-running operation.defer wg.Done() is your friend for WaitGroup.Test for goroutine leaks using tools like goleak.A Go 1.25 Proposal might make WaitGroup more ergonomicThere's a proposal for Go 1.25 to make the use of WaitGroup more ergonomic and less error-prone.Here's what the usage would look like:12345The benefits of this proposal are:Simplified Syntax: Reduces the need for separate Add and go statements.Reduced Errors: Minimizes the risk of forgetting to call Done or calling Add after the goroutine has started.Improved Readability: Makes the code more concise and easier to understand.ConclusionWhen I first encountered WaitGroup, like many, I wondered, "Why doesn't Wait() just take a context?" It seemed like an obvious omission. But diving deeper, you realize WaitGroup is intentionally simple, a low-level primitive focused purely on counting. Its simplicity is its strength, but also its limitation. errgroup builds upon these ideas to provide the richer error handling and cancellation logic needed for more complex concurrent patterns.The big takeaway? Go makes concurrency accessible, but not necessarily easy to get right. The primitives are powerful, but subtle bugs like deadlocks and goroutine leaks are easy to introduce if you don't understand the underlying mechanics (like context propagation and how Wait blocks). There's no magic linter that catches all these concurrency nuances; it requires careful design, testing (including leak detection!), and code review.I hope this deeper dive into the world of WaitGroup and errgroup helps you navigate the sometimes-choppy waters of Go concurrency with a bit more confidence! May your goroutines always finish, and your channels never deadlock (unless you want them to, which is weird, but okay).If you're exploring performance techniques in Go, you might also find this deep dive into sync.Pool useful. It covers the trade-offs of object reuse and when pooling can backfire.You can follow me on X for more ramblings on Go, APIs, and the joy of building things.And hey, if wrangling concurrent network requests and building high-performance API infrastructure sounds like your kind of fun, check out our open positions at WunderGraph! We're always looking for Gophers who enjoy a good challenge. Find us here .The Go gopher was designed by Renée French . Used under Creative Commons Attribution 4.0 License .
+</page_content>
+</my_initial_request>
+
+
+
+## Response:
+
+
+**web_fetch**
+
+*Request*
+
+```javascript
+{
+  "url": "https://wundergraph.com/blog/golang-wait-groups"
+}
+```
+
+https://wundergraph.com/blog/golang-wait-groups
+
+Go makes concurrent programming accessible with the `go` keyword and `sync.WaitGroup`, but naive usage can lead to deadlocks and goroutine leaks.
+
+WunderGraph uses Go to build GraphQL routers that split requests into parallel calls to multiple services, requiring deep understanding of concurrent patterns.
+
+The `sync.WaitGroup` struct uses clever design: a `noCopy` field prevents copying issues, an atomic `state` field packs both counter and waiter count into one 64-bit integer, and a `sema` field manages runtime semaphore operations.
+
+Basic WaitGroup lifecycle involves calling `Add(n)` before launching goroutines, using `defer wg.Done()` inside each goroutine, and calling `Wait()` to block until all complete.
+
+Common deadlock occurs when `Done()` is skipped due to errors - the counter never reaches zero and `Wait()` blocks forever.
+
+Always use `defer wg.Done()` immediately at the start of goroutines to ensure execution regardless of error paths.
+
+Adding timeouts with channels around `wg.Wait()` creates goroutine leaks - the original goroutines remain blocked even after timeout.
+
+Proper cancellation requires passing `context.Context` to goroutines so they can respect deadlines and cancellation signals.
+
+WaitGroup doesn't handle errors or provide cancellation - use `errgroup.Group` when you need error handling and coordinated cancellation.
+
+The `errgroup.Group` automatically cancels remaining goroutines when any returns an error, providing fail-fast behavior ideal for scenarios like API gateways.
+
+A Go 1.25 proposal aims to make WaitGroup more ergonomic by combining `Add()` and `go` statements into single operations.
+
+Always consider goroutine lifecycles, use context for cancellation, test for leaks with tools like `goleak`, and choose between WaitGroup (simple waiting) vs errgroup (error handling + cancellation).
+
+**Related Resources:**
+
+- [Go WaitGroup Official Documentation](https://www.google.com/search?q=golang+sync.WaitGroup+official+documentation)
+- [Go Concurrency Patterns Tutorial](https://www.google.com/search?q=golang+concurrency+patterns+tutorial+beginners)
+- [errgroup Package Tutorial and Examples](https://www.google.com/search?q=golang+errgroup+tutorial+examples)
+- [Go Context Cancellation Best Practices](https://www.google.com/search?q=golang+context+cancellation+best+practices)
+- [Goroutine Leak Detection with goleak](https://www.google.com/search?q=golang+goroutine+leak+detection+goleak)
+- [Go Concurrency Video Tutorials](https://www.google.com/search?q=site:youtube.com+golang+concurrency+goroutines+tutorial)
+- [Advanced Go Concurrency Patterns](https://www.google.com/search?q=advanced+golang+concurrency+patterns+sync+primitives)
+- [Go Deadlock Debugging Techniques](https://www.google.com/search?q=golang+deadlock+debugging+techniques+waitgroup)
+- [Golang sync Package Deep Dive](https://www.google.com/search?q=golang+sync+package+deep+dive+mutex+waitgroup)
+- [Go Scheduler and Runtime Internals](https://www.google.com/search?q=golang+scheduler+runtime+internals+goroutines)
+
+
+
+
+
+---
+Powered by [Claude Exporter](https://www.claudexporter.com)
