@@ -30,18 +30,18 @@ if test ! -f {{ $mimeTypesFile }}; then
         sort --unique > {{ $mimeTypesFile }}
 
     cat >{{ $excludeTmpFile }} <<EOF
-    AUTHORS
-    BENCHMARKS
-    CHANGELOG
-    CHANGES
-    CONTRIBUTING
-    COPYING
-    LICENSE
-    MANIFEST
-    application/zip
-    image/
-    package-lock
-    pnpm-lock
+AUTHORS
+BENCHMARKS
+CHANGELOG
+CHANGES
+CONTRIBUTING
+COPYING
+LICENSE
+MANIFEST
+application/zip
+image/
+package-lock
+pnpm-lock
 EOF
     cat {{ $excludeTmpFile }}
 
