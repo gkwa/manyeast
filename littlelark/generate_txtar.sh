@@ -37,17 +37,18 @@ cat {{ $mimeTypesFile }}
 
 echo
 
+echo application/zip >>{{ $mimeTypesFile }}
 echo AUTHORS >>{{ $mimeTypesFile }}
 echo CHANGELOG >>{{ $mimeTypesFile }}
 echo CHANGES >>{{ $mimeTypesFile }}
-echo COPYING >>{{ $mimeTypesFile }}
 echo CONTRIBUTING >>{{ $mimeTypesFile }}
+echo COPYING >>{{ $mimeTypesFile }}
 echo image/ >>{{ $mimeTypesFile }}
-echo application/zip >>{{ $mimeTypesFile }}
 echo LICENSE >>{{ $mimeTypesFile }}
 echo MANIFEST >>{{ $mimeTypesFile }}
-echo pnpm-lock >>{{ $mimeTypesFile }}
 echo package-lock >>{{ $mimeTypesFile }}
+echo pnpm-lock >>{{ $mimeTypesFile }}
+
 echo nvim {{ $mimeTypesFile }}
 echo
 
