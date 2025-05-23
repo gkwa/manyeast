@@ -11,23 +11,20 @@
 {{ $txtarFile := printf "%s/%s_subset.txtar" .OutputFolder $repoName -}}
 {{ $excludeTmpFile := printf "%s_exclude.tmp" $repoName -}}
 
-
-cat << 'EOF'
+cat <<'EOF'
+BaseDir = {{ .BaseDir }}
+clonedDir = {{ $clonedDir }}
+excludeTmpFile = {{ $excludeTmpFile }}
+filterManifest = {{ $filterManifest }}
+manifest = {{ $manifest }}
+mimeTypesFile = {{ $mimeTypesFile }}
+OutputFolder = {{ .OutputFolder }}
 repoBase = {{ $repoBase }}
 repoName = {{ $repoName }}
-clonedDir = {{ $clonedDir }}
-subsetDir = {{ $subsetDir }}
-manifest = {{ $manifest }}
-filterManifest = {{ $filterManifest }}
-mimeTypesFile = {{ $mimeTypesFile }}
-txtarFile = {{ $txtarFile }}
-excludeTmpFile = {{ $excludeTmpFile }}
 RepoURL = {{ .RepoURL }}
-BaseDir = {{ .BaseDir }}
-OutputFolder = {{ .OutputFolder }}
+subsetDir = {{ $subsetDir }}
+txtarFile = {{ $txtarFile }}
 EOF
-
-
 
 test ! -d {{ $clonedDir }} && git clone {{ .RepoURL }} {{ $clonedDir }}
 
@@ -75,7 +72,6 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
 
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
-
 echo
 
 echo nvim {{ $mimeTypesFile }}
