@@ -57,6 +57,7 @@ COPYING
 LICENSE
 MANIFEST
 application/zip
+application/octet-stream
 image/
 font/
 package-lock
