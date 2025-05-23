@@ -9,6 +9,7 @@
 {{ $filterManifest := printf "%s_filter.txt" $clonedDir -}}
 {{ $mimeTypesFile := printf "%s_mime.txt" $clonedDir -}}
 {{ $txtarFile := printf "%s/%s_subset.txtar" .OutputFolder $repoName -}}
+{{ $excludeTmpFile := printf "%s_exclude.tmp" $repoName -}}
 
 test ! -d {{ $clonedDir }} && git clone {{ .RepoURL }} {{ $clonedDir }}
 
@@ -34,7 +35,7 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
 
-cat >{{ $repoName }}.tmp <<EOF
+cat >{{ $excludeTmpFile }} <<EOF
 AUTHORS
 BENCHMARKS
 CHANGELOG
@@ -48,10 +49,10 @@ image/
 package-lock
 pnpm-lock
 EOF
-cat {{ $mimeTypesFile }}
+cat {{ $excludeTmpFile }}
 
-cat {{ $repoName }}.tmp >>{{ $mimeTypesFile }}
-rm -f {{ $repoName }}.tmp
+cat {{ $excludeTmpFile }} >>{{ $mimeTypesFile }}
+rm -f {{ $excludeTmpFile }}
 
 echo
 
