@@ -37,19 +37,17 @@ cat {{ $mimeTypesFile }}
 
 echo
 
-echo \#customize this {{ $mimeTypesFile }}
-echo examples:
-echo 'echo AUTHORS >>{{ $mimeTypesFile }}'
-echo 'echo CHANGELOG >>{{ $mimeTypesFile }}'
-echo 'echo CHANGES >>{{ $mimeTypesFile }}'
-echo 'echo COPYING >>{{ $mimeTypesFile }}'
-echo 'echo CONTRIBUTING >>{{ $mimeTypesFile }}'
-echo 'echo image/ >>{{ $mimeTypesFile }}'
-echo 'echo application/zip >>{{ $mimeTypesFile }}'
-echo 'echo LICENSE >>{{ $mimeTypesFile }}'
-echo 'echo MANIFEST >>{{ $mimeTypesFile }}'
-echo 'echo pnpm-lock >>{{ $mimeTypesFile }}'
-echo 'echo package-lock >>{{ $mimeTypesFile }}'
+echo AUTHORS >>{{ $mimeTypesFile }}
+echo CHANGELOG >>{{ $mimeTypesFile }}
+echo CHANGES >>{{ $mimeTypesFile }}
+echo COPYING >>{{ $mimeTypesFile }}
+echo CONTRIBUTING >>{{ $mimeTypesFile }}
+echo image/ >>{{ $mimeTypesFile }}
+echo application/zip >>{{ $mimeTypesFile }}
+echo LICENSE >>{{ $mimeTypesFile }}
+echo MANIFEST >>{{ $mimeTypesFile }}
+echo pnpm-lock >>{{ $mimeTypesFile }}
+echo package-lock >>{{ $mimeTypesFile }}
 echo nvim {{ $mimeTypesFile }}
 echo
 
