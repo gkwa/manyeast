@@ -33,21 +33,27 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
 
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
+
+cat >{{ $repoName }}.tmp <<EOF
+AUTHORS
+BENCHMARKS
+CHANGELOG
+CHANGES
+CONTRIBUTING
+COPYING
+LICENSE
+MANIFEST
+application/zip
+image/
+package-lock
+pnpm-lock
+EOF
 cat {{ $mimeTypesFile }}
 
-echo
+cat {{ $repoName }}.tmp >>{{ $mimeTypesFile }}
+rm -f {{ $repoName }}.tmp
 
-echo application/zip >>{{ $mimeTypesFile }}
-echo AUTHORS >>{{ $mimeTypesFile }}
-echo CHANGELOG >>{{ $mimeTypesFile }}
-echo CHANGES >>{{ $mimeTypesFile }}
-echo CONTRIBUTING >>{{ $mimeTypesFile }}
-echo COPYING >>{{ $mimeTypesFile }}
-echo image/ >>{{ $mimeTypesFile }}
-echo LICENSE >>{{ $mimeTypesFile }}
-echo MANIFEST >>{{ $mimeTypesFile }}
-echo package-lock >>{{ $mimeTypesFile }}
-echo pnpm-lock >>{{ $mimeTypesFile }}
+echo
 
 echo nvim {{ $mimeTypesFile }}
 echo
