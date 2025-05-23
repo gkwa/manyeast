@@ -23,10 +23,31 @@ else
     rg --files . -0 | xargs -0 file --mime-type >{{ $manifest }}
 fi
 
-test ! -f {{ $mimeTypesFile }} && cat {{ $manifest }} |
-    cut --delimiter : --fields 2 |
-    perl -p -e 's#^ *##' |
-    sort --unique > {{ $mimeTypesFile }}
+if ! -f {{ $mimeTypesFile }}; then
+    cat {{ $manifest }} |
+        cut --delimiter : --fields 2 |
+        perl -p -e 's#^ *##' |
+        sort --unique > {{ $mimeTypesFile }}
+
+    cat >{{ $excludeTmpFile }} <<EOF
+    AUTHORS
+    BENCHMARKS
+    CHANGELOG
+    CHANGES
+    CONTRIBUTING
+    COPYING
+    LICENSE
+    MANIFEST
+    application/zip
+    image/
+    package-lock
+    pnpm-lock
+EOF
+    cat {{ $excludeTmpFile }}
+
+    cat {{ $excludeTmpFile }} >>{{ $mimeTypesFile }}
+    rm -f {{ $excludeTmpFile }}
+fi
 
 grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
     cut --delimiter : --fields 1 |
@@ -34,25 +55,6 @@ grep --invert-match --file {{ $mimeTypesFile }} {{ $manifest }} |
 
 txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
-
-cat >{{ $excludeTmpFile }} <<EOF
-AUTHORS
-BENCHMARKS
-CHANGELOG
-CHANGES
-CONTRIBUTING
-COPYING
-LICENSE
-MANIFEST
-application/zip
-image/
-package-lock
-pnpm-lock
-EOF
-cat {{ $excludeTmpFile }}
-
-cat {{ $excludeTmpFile }} >>{{ $mimeTypesFile }}
-rm -f {{ $excludeTmpFile }}
 
 echo
 
