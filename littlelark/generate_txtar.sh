@@ -23,7 +23,7 @@ else
     rg --files . -0 | xargs -0 file --mime-type >{{ $manifest }}
 fi
 
-if ! -f {{ $mimeTypesFile }}; then
+if test ! -f {{ $mimeTypesFile }}; then
     cat {{ $manifest }} |
         cut --delimiter : --fields 2 |
         perl -p -e 's#^ *##' |
