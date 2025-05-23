@@ -40,6 +40,7 @@ LICENSE
 MANIFEST
 application/zip
 image/
+font/
 package-lock
 pnpm-lock
 EOF
