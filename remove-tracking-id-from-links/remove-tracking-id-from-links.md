@@ -26,9 +26,10 @@ To clean the URL:
 1. Make a markdown table that includes all parameters found and a short description of what each one is along with it's value. Add a column indicating whether this parameter was kept because it was essential versus whether its a tracking url that we can remove. Show the table with these column headers in this order:
 
 - Parameter - The name of the URL parameter
+- Keep/Remove - Whether the parameter
 - Description - A brief explanation of what the parameter is used for
 - Value - The actual value assigned to the parameter in the URL
-- Keep/Remove - Whether the parameter
+- Orignal url minus this param - The orignal url with all the parameters except for this parameter.  This will allow us to test if the link works after having removed this parameter.
 
 1. Construct a list of google search links in markdown that helps me find more information about each parameter and how other people use this parameter in the wild.
 
