@@ -1,7 +1,7 @@
 I'm interested in learing about the localforage npm package for storing state
 
 Will you create CRUD application that makes heavy use of this package as a demo 
-of its capabilites?
+of its capabilities?
 
 The project name will be {{ .ProjectName }}
 

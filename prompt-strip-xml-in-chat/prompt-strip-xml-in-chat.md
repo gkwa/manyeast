@@ -8,7 +8,7 @@ Our application will offer the option to parse 0 or more file paths or 0 or more
 
 If the arguments are directories then our application will recurse into them and in place update the files it finds that contains this my_initial_request element.  
 
-If our application is recursing through a directory and encounters an error openning or parsing a file then our application will not fail, it will write a warning and continue.
+If our application is recursing through a directory and encounters an error opening or parsing a file then our application will not fail, it will write a warning and continue.
 
 Our application should have proper tests using golden files.  I've included a description of golden file testing within the golden_file_testing_docs element
 
