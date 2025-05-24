@@ -27,9 +27,9 @@ To clean the URL:
 
 - Parameter - The name of the URL parameter
 - Keep/Remove - Whether the parameter
+- Original url minus this param - The original url with all the parameters except for this parameter.  This will allow us to test if the link works after having removed this parameter.  Anchor name should be something to the effect of 'original url minus {param}'
 - Description - A brief explanation of what the parameter is used for
 - Value - The actual value assigned to the parameter in the URL
-- Original url minus this param - The original url with all the parameters except for this parameter.  This will allow us to test if the link works after having removed this parameter.
 
 1. Construct a list of google search links in markdown that helps me find more information about each parameter and how other people use this parameter in the wild.
 
