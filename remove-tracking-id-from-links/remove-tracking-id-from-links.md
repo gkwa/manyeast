@@ -60,3 +60,5 @@ var ParamsToRemove = []string{
 	"cshid",
 }
 ```
+
+We should not use claude artifacts for this thread.
