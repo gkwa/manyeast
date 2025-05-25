@@ -1,0 +1,8 @@
+variables:
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: cosykoala
+
+skip_files:
+  - path: README.md
