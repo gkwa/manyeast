@@ -14,7 +14,7 @@
 
 {{include "../silence-is-golden/silence-is-golden.md" . | trim}}
 
-## log to stderr
+## logging
 
 {{include "../logging-to-stderr/logging-to-stderr.md" . | trim}}
 
