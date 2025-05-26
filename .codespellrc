@@ -1,6 +1,7 @@
 [codespell]
 skip = ./nlp-product-classification/product-data.json,
     ./prompt-use-gruntwork-boilerplate-as-library-to-parse-yaml/*.txtar,
+    ./prompt-convert-html-to-markdown/sample.html,
     ./prompt-learn-how-to-use-goldmark-effectively/*.txtar,
     ./does-boilerplate-offer-option-as-library/*.txtar,
     ./parse-boilerplate-directory/*.txtar,
