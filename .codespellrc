@@ -1,5 +1,7 @@
 [codespell]
 skip = ./nlp-product-classification/product-data.json,
+    ./prompt-use-rehype-remark-to-convert-claude-chat-to-markdown/sample.html,
+    ./prompt-parse-response-xml-from-html-page/sample.html,
     ./prompt-use-gruntwork-boilerplate-as-library-to-parse-yaml/*.txtar,
     ./prompt-convert-html-to-markdown/sample.html,
     ./prompt-learn-how-to-use-goldmark-effectively/*.txtar,
