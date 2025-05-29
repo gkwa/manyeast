@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 
-{{/* Get repository name using path API and replaceAll for .git */ -}}
+{{/* Create a safe directory name from the full URL */ -}}
+{{ $urlHash := .RepoURL | sha256sum | trunc 8 -}}
 {{ $repoBase := base .RepoURL -}}
 {{ $repoName := replaceAll ".git" "" $repoBase -}}
-{{ $clonedDir := printf "%s/%s" .BaseDir $repoName -}}
+{{ $safeDirName := printf "%s_%s" $repoName $urlHash -}}
+{{ $clonedDir := printf "%s/%s" .BaseDir $safeDirName -}}
 {{ $subsetDir := printf "%s_subset" $clonedDir -}}
 {{ $manifest := printf "%s.txt" $clonedDir -}}
 {{ $filterManifest := printf "%s_filter.txt" $clonedDir -}}
 {{ $mimeTypesFile := printf "%s_mime.txt" $clonedDir -}}
-{{ $txtarFile := printf "%s/%s_subset.txtar" .OutputFolder $repoName -}}
-{{ $excludeTmpFile := printf "%s_exclude.tmp" $repoName -}}
+{{ $txtarFile := printf "%s/%s_subset.txtar" .OutputFolder $safeDirName -}}
+{{ $excludeTmpFile := printf "%s_exclude.tmp" $safeDirName -}}
 
 cat <<'EOF'
 BaseDir = {{ .BaseDir }}
@@ -22,8 +24,10 @@ OutputFolder = {{ .OutputFolder }}
 repoBase = {{ $repoBase }}
 repoName = {{ $repoName }}
 RepoURL = {{ .RepoURL }}
+safeDirName = {{ $safeDirName }}
 subsetDir = {{ $subsetDir }}
 txtarFile = {{ $txtarFile }}
+urlHash = {{ $urlHash }}
 EOF
 
 test ! -d {{ $clonedDir }} && git clone {{ .RepoURL }} {{ $clonedDir }}
