@@ -61,6 +61,7 @@ application/zip
 application/octet-stream
 image/
 font/
+yarn.lock
 package-lock
 pnpm-lock
 EOF
