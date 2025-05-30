@@ -11,3 +11,8 @@ variables:
 
 skip_files:
   - path: README.md
+
+dependencies:
+  - name: pre-render
+    template-url: ../webui-common
+    output-folder: webui-common
