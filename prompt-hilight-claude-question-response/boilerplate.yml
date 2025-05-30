@@ -1,0 +1,13 @@
+variables:
+  - name: LinkCount
+    description: How many google search links should be generated
+    type: int
+    default: 10
+
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: melodicmarlin
+
+skip_files:
+  - path: README.md
