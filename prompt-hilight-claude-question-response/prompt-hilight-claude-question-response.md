@@ -27,6 +27,6 @@ We don't necessarily want to remove these items but possibly we will so for that
 
 We need to keep these css selectors readably accessible because I assume the upstream pages will change often so for that we should be able to find them easily to adjust.
 
-{{ include (printf "%s/../webui-common/webui-common.md" (templateFolder)) . | trim}}
+{{ include "../webui-common/webui-common.md" . | trim}}
 
 
