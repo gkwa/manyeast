@@ -15,4 +15,4 @@ skip_files:
 dependencies:
   - name: pre-render
     template-url: ../webui-common
-    output-folder: {{ outputFolder }}/webui-common
+    output-folder: ./webui-common
