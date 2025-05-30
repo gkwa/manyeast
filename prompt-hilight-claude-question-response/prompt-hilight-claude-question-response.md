@@ -18,6 +18,7 @@ We also will need to remove certain buttons or other items from the page and for
 
 We don't necessarily want to remove these items but possibly we will so for that we'll need both an option to highlight as well as to remove.
 
+
 ```
 <hilight_chat_items>
 {{ snippet "fetch-button.js" | trim }}"

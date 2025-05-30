@@ -1,6 +1,5 @@
-https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated
+Source is from here: https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated
 
-which states
 
 CJS
 Vite CJS Node API deprecated
@@ -24,3 +23,5 @@ If you'd like to temporarily ignore the warning, you can run your script with th
 
 VITE_CJS_IGNORE_WARNING=true vite dev
 Note that postcss config files do not support ESM + TypeScript (.mts or .ts in "type": "module") yet. If you have postcss configs with .ts and added "type": "module" to package.json, you'll also need to rename the postcss config to use .cts.
+
+
