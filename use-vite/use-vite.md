@@ -8,7 +8,7 @@ If you choose to use vite, then please follow this list of suggestions:
 {{ include (printf "%s/../use-vite/cjs.md" (templateFolder)) . | trim}}
 </vite_cjs_node_deprecation>
 
-- adjust this to integegrate into your build script
+- adjust these instructions to integegrate vite plugin checker into your build script
 
 <vite_add_plugin_checker>
 {{ include (printf "%s/../use-vite/vite-plugin-checker.md" (templateFolder)) . | trim}}
