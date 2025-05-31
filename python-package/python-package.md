@@ -4,6 +4,8 @@
 
 {{include "../common-apps/common-apps.md" . | trim}}
 
+## our python code should have full type annotations
+
 ## add option to show version
 
 We should be able to see our app's version number using `--version` param.
