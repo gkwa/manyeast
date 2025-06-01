@@ -35,7 +35,9 @@ To clean the URL:
 
 Be cautious not to remove parameters that might be necessary for the page to function correctly. If you're unsure about a parameter, it's better to keep it.
 
-After cleaning the URL, provide the minimal URL that should still render the intended page but do not wrap the url in code blocks. This way the url will be clickable.
+In your report, proivde the original url as documentation for what we've changed.  This url should be in code fences to prevent it from being cleaned since we're documenting what would be removed.
+
+After cleaning the URL, provide the minimal URL that should still render the intended page but do not wrap this cleaned url in code blocks. This way the cleaned url will be clickable.
 
 Then, explain what changes you made and why.
 
