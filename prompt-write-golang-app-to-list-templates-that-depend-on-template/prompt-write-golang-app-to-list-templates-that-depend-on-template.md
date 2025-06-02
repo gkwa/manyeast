@@ -1,3 +1,6 @@
+Our application name will be {{ .ProjectName }}
+
+
 # Boilerplate Template Dependency Detection Plan
 
 ## Motivation
@@ -32,9 +35,9 @@ dependencies:
 
 ### 2. Implicit Template Dependencies (in template files)
 ```go
-{{ include "/tmp/does-boilerplate-offer-option-as-library/use-boilerplate-as-library.md" . | trim }}
+{{"{{"}} include "/tmp/does-boilerplate-offer-option-as-library/use-boilerplate-as-library.md" . | trim {{"}}"}}
 
-{{ snippet "sample-boilerplates.txtar" }}
+{{"{{"}} snippet "sample-boilerplates.txtar" {{"}}"}}
 ```
 
 ## Solution: Create `gather` Subcommand
@@ -120,7 +123,7 @@ With the manifest, the app can:
 ### Template Function Detection
 - Need comprehensive list of boilerplate's file-reading functions
 - Implement robust parsing to extract file paths from template syntax
-- Handle variable substitution in file paths (e.g., `{{ include .SomeVar . }}`)
+- Handle variable substitution in file paths (e.g., `{{"{{"}} include .SomeVar . {{"}}"}}`)
 
 ### Path Resolution
 - Resolve relative paths correctly based on template locations
@@ -148,7 +151,15 @@ Given any boilerplate template execution, we can:
 - Reproduce the generation process from the manifest
 
 
-Our application name will be {{ .ProjectName }}
 
-{{ include "../golang-app/golang-app.md" . | trim }}"
+I've included boilerplate source her for reference:
+
+```
+<boilerplate_source>
+{{ snippet (printf "%s/../does-boilerplate-offer-option-as-library/boilerplate.txtar" (templateFolder))  | trim}}
+</boilerplate_source>
+```
+
+
+{{ include "../golang-app/golang-app.md" . | trim }}
 

@@ -14,5 +14,10 @@ variables:
     type: string
     default: '{{ .ProjectName }}'
 
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 100
+
 skip_files:
   - path: README.md
