@@ -22,7 +22,7 @@ Here are the templates I'm relying on
 </template_dependencies>
 ```
 
-I am aware of a workround but I think it should be unnecessary to do this workaround and possibly I'm simply not using boilerplate as intended.
+I am aware of a workaround but I think it should be unnecessary to do this workaround and possibly I'm simply not using boilerplate as intended.
 
 Here is the workaround.  I could have adjusted the boilerplate.yml like this:
 
