@@ -61,6 +61,7 @@ application/zip
 application/octet-stream
 image/
 font/
+go.sum
 yarn.lock
 package-lock
 pnpm-lock

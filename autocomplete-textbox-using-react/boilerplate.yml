@@ -3,3 +3,8 @@ variables:
     description: Create new folder with this name
     type: string
     default: mytest
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150

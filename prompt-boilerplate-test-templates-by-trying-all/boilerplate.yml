@@ -4,6 +4,11 @@ variables:
     type: int
     default: 10
 
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: '{{ .GoModuleName }}'
+
   - name: GoModuleNamespace
     description: go module namespace (eg github.com/gkwa)
     type: string
@@ -12,7 +17,7 @@ variables:
   - name: GoModuleName
     description: Name of the project you're building
     type: string
-    default: universeunicorn
+    default: cozycapybara
 
   - name: LineCountPerFile
     description: Keep files small.  This is a requested rough goal.

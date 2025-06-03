@@ -6,6 +6,6 @@ I've included the boilerplate source code within `<code/>` block here.
 
 ```
 <code>
-{{ snippet "boilerplate.txtar" }}
+{{ snippet (printf "%s/../does-boilerplate-offer-option-as-library/boilerplate.txtar" (templateFolder))  | trim}}
 </code>
 ```

@@ -1,0 +1,34 @@
+variables:
+  - name: LinkCount
+    description: How many google search links should be generated
+    type: int
+    default: 10
+
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+
+  - name: PackageAuthorEmail
+    description: Email address of package author
+    type: string
+    default: taylormonacelli@gmail.com
+
+  - name: PackageAuthorName
+    description: Package author first and last name
+    type: string
+    default: Taylor Monacelli
+
+  - name: PackageName
+    description: Name of package
+    type: string
+    default: '{{ .ProjectName }}'
+
+  - name: PythonVersion
+    description: Python version
+    type: string
+    default: '3.12'
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150

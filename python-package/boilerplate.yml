@@ -16,6 +16,13 @@ variables:
     type: string
     default: "3.12"
 
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150
+
+
 dependencies:
   - name: version
     template-url: git::https://github.com/gkwa/manyeast.git//my-bump-version-python

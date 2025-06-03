@@ -1,3 +1,7 @@
+variables:
+
+
+
 skip_files:
   - path: README.md
   - path: generate_txtar.sh

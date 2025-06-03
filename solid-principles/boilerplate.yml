@@ -4,5 +4,3 @@ variables:
     type: int
     default: 150
 
-skip_files:
-  - path: README.md

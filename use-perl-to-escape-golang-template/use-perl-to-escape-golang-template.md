@@ -2,7 +2,7 @@ This is my test file in txtar format.
 
 ```
 -- test.tmpl --
-The variable's value is {{ .MyVar }}
+The variable's value is {{"{{"}} .MyVar {{"}}"}}
 ```
 
 Write a bash script and keep it simple.

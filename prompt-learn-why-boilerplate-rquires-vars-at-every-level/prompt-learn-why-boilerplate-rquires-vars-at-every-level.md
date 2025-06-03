@@ -10,7 +10,7 @@ Here's a log of using boilerplate:
 [boilerplate] 2025/06/01 16:59:56 Skipping /Users/mtm/pdev/taylormonacelli/manyeast/prompt-reuse-vscode-components-in-webui
 [boilerplate] 2025/06/01 16:59:56 Skipping /Users/mtm/pdev/taylormonacelli/manyeast/prompt-reuse-vscode-components-in-webui/README.md
 [boilerplate] 2025/06/01 16:59:56 Skipping /Users/mtm/pdev/taylormonacelli/manyeast/prompt-reuse-vscode-components-in-webui/boilerplate.yml
-ERRO[2025-06-01T16:59:56-07:00] template: prompt-reuse-vscode-components-in-webui.md:1:3: executing "prompt-reuse-vscode-components-in-webui.md" at <include "../add-google-search-links/add-links.md" .>: error calling include: template: prompt-reuse-vscode-components-in-webui.md:3:21: executing "prompt-reuse-vscode-components-in-webui.md" at <.LinkCount>: map has no entry for key "LinkCount"  binary=boilerplate version=v0.6.1
+ERROR[2025-06-01T16:59:56-07:00] template: prompt-reuse-vscode-components-in-webui.md:1:3: executing "prompt-reuse-vscode-components-in-webui.md" at <include "../add-google-search-links/add-links.md" .>: error calling include: template: prompt-reuse-vscode-components-in-webui.md:3:21: executing "prompt-reuse-vscode-components-in-webui.md" at <.LinkCount>: map has no entry for key "LinkCount"  binary=boilerplate version=v0.6.1
 (warmwalrus) ➜  mac manyeast git:(master) ✗ 
 ```
 
@@ -50,7 +50,7 @@ variables:
     default: 10
 ```
 
-I think that sould be enough for the default LinkCount to be defined.
+I think that should be enough for the default LinkCount to be defined.
 
 If I want to override the link count then I should use the workaround but under the conition that I want to leave the default link count 10, I think I should not need to specify the LinkCount in `prompt-reuse-vscode-components-in-webui/boilerplate.yml`.
 

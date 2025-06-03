@@ -15,3 +15,9 @@ variables:
     description: Python version
     type: string
     default: "3.12"
+
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150

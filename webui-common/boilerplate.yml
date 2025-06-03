@@ -4,5 +4,10 @@ variables:
     type: string
     default: manyeast
 
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150
+
 # skip_files:
 #  - path: README.md
