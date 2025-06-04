@@ -156,7 +156,7 @@ I've included boilerplate source her for reference:
 
 ```
 <boilerplate_source>
-{{ snippet (printf "%s/../does-boilerplate-offer-option-as-library/boilerplate.txtar" (templateFolder))  | trim}}
+{{ snippet (printf "%s/../does-boilerplate-offer-option-as-library/boilerplate.txtar" (templateFolder)) | trim}}
 </boilerplate_source>
 ```
 

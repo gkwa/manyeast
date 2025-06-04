@@ -1,0 +1,23 @@
+variables:
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: gracefulgrouse
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150
+
+  - name: GoModuleNamespace
+    description: go module namespace (eg github.com/gkwa)
+    type: string
+    default: github.com/gkwa
+
+  - name: GoModuleName
+    description: Name of the project you're building
+    type: string
+    default: '{{ .ProjectName }}'
+
+skip_files:
+  - path: README.md

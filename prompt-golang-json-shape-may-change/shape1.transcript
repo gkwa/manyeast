@@ -1,0 +1,116 @@
+```bash
+jq 'del(.Items[2:]) | walk(if type == "object" and has("Value") and (.Value | type) == "string" and (.Value | length) > 40 then .Value = (.Value[0:40] + "...") else . end)' /tmp/product.json
+```
+
+output:
+
+```json
+
+{
+  "Items": [
+    {
+      "category": {
+        "Value": "frozen blueberries"
+      },
+      "domain": {
+        "Value": "www.amazon.com"
+      },
+      "entity_type": {
+        "Value": "category"
+      },
+      "id": {
+        "Value": "a481e51d-dbd0-40e9-afc1-28228d8880f7"
+      },
+      "imageUrl": {
+        "Value": "https://m.media-amazon.com/images/I/81LU..."
+      },
+      "name": {
+        "Value": "365 Everyday Value, Blueberries, 12 oz, ..."
+      },
+      "price": {
+        "Value": "$3.49"
+      },
+      "ratings": {
+        "Value": "N/A"
+      },
+      "rawHtml": {
+        "Value": "eNrdWolz2jgX/1e8THenOxsBNne3ZIckJCUNCTnY..."
+      },
+      "rawTextContent": {
+        "Value": "365 Everyday Value , Blueberries , 12 oz..."
+      },
+      "reviewCount": {
+        "Value": "N/A"
+      },
+      "size": {
+        "Value": "N/A"
+      },
+      "timestamp": {
+        "Value": "2025-06-03#www.amazon.com#365 Everyday V..."
+      },
+      "ttl": {
+        "Value": "1751552514"
+      },
+      "url": {
+        "Value": "https://www.amazon.com/365-Everyday-Valu..."
+      },
+      "variants": {
+        "Value": "[\"N/A\"]"
+      }
+    },
+    {
+      "category": {
+        "Value": "frozen blueberries"
+      },
+      "domain": {
+        "Value": "www.amazon.com"
+      },
+      "entity_type": {
+        "Value": "category"
+      },
+      "id": {
+        "Value": "4a679de0-7b43-4d34-945a-74eb3855d214"
+      },
+      "imageUrl": {
+        "Value": "https://m.media-amazon.com/images/I/61+g..."
+      },
+      "name": {
+        "Value": "365 Everyday Value, Organic Blackberries..."
+      },
+      "price": {
+        "Value": "$4.49"
+      },
+      "ratings": {
+        "Value": "N/A"
+      },
+      "rawHtml": {
+        "Value": "eNrlPIty2ziSv4LVzmzN1piy3pYysbf8jJ1YtuNH..."
+      },
+      "rawTextContent": {
+        "Value": "365 Everyday Value , Organic Blackberrie..."
+      },
+      "reviewCount": {
+        "Value": "N/A"
+      },
+      "size": {
+        "Value": "N/A"
+      },
+      "timestamp": {
+        "Value": "2025-06-03#www.amazon.com#365 Everyday V..."
+      },
+      "ttl": {
+        "Value": "1751552514"
+      },
+      "url": {
+        "Value": "https://www.amazon.com/365-Everyday-Valu..."
+      },
+      "variants": {
+        "Value": "[\"N/A\"]"
+      }
+    }
+  ],
+  "Count": 233,
+  "ScannedCount": 233,
+  "ConsumedCapacity": null
+}
+```

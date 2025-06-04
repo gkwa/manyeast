@@ -1,0 +1,42 @@
+```bash
+jq . /tmp/product.json | gojq --from-file /Users/mtm/pdev/taylormonacelli/sharpshrew/transform.jq | jq 'del(.[2:]) | walk(if type == "string" and length > 40 then .[0:40] + "..." else . end)' | pbcopy
+```
+
+output
+
+```json
+[
+  {
+    "badge": null,
+    "category": "frozen blueberries",
+    "domain": "www.amazon.com",
+    "entity_type": "category",
+    "id": "a481e51d-dbd0-40e9-afc1-28228d8880f7",
+    "imageUrl": "https://m.media-amazon.com/images/I/81LU...",
+    "name": "365 Everyday Value, Blueberries, 12 oz, ...",
+    "price": "$3.49",
+    "pricePerUnit": null,
+    "rawHtml": "eNrdWolz2jgX/1e8THen...",
+    "rawTextContent": "365 Everyday Value , Blueberries , 12 oz...",
+    "timestamp": "2025-06-03#www.amazon.com#365 Everyday V...",
+    "ttl": "1751552514",
+    "url": "https://www.amazon.com/365-Everyday-Valu..."
+  },
+  {
+    "badge": null,
+    "category": "frozen blueberries",
+    "domain": "www.amazon.com",
+    "entity_type": "category",
+    "id": "4a679de0-7b43-4d34-945a-74eb3855d214",
+    "imageUrl": "https://m.media-amazon.com/images/I/61+g...",
+    "name": "365 Everyday Value, Organic Blackberries...",
+    "price": "$4.49",
+    "pricePerUnit": null,
+    "rawHtml": "eNrlPIty2ziSv4LVzmzN...",
+    "rawTextContent": "365 Everyday Value , Organic Blackberrie...",
+    "timestamp": "2025-06-03#www.amazon.com#365 Everyday V...",
+    "ttl": "1751552514",
+    "url": "https://www.amazon.com/365-Everyday-Valu..."
+  }
+]
+```
