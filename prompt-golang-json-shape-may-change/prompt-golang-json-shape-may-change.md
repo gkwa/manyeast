@@ -8,7 +8,7 @@ Lets discuss strategies for handling this.
 
 I have suspicion this is a task that protobufs can help with.
 
-Specifically i want to future proof my app while still getting strong typing.
+Specifically I want to future proof my app while still getting strong typing.
 
 Lets not code for now, lets discuss option for being flexible about handling the shape of our data.
 
