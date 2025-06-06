@@ -1,0 +1,25 @@
+variables:
+  - name: LinkCount
+    description: How many google search links should be generated
+    type: int
+    default: 10
+
+  - name: ProjectName
+    description: Name of the project you're building
+    type: string
+    default: enhance_refinerobin
+
+  - name: LineCountPerFile
+    description: Keep files small.  This is a requested rough goal.
+    type: int
+    default: 150
+
+hooks:
+  before:
+    - command: bash
+      args:
+        - generate_txtar.sh
+      dir: '{{templateFolder}}'
+
+skip_files:
+  - path: README.md

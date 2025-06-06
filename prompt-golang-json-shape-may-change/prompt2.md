@@ -1,4 +1,4 @@
-Lets discuss DAO - data access layer strategies in golang.
+Lets discuss DAL - data access layer strategies in golang.
 
 Our data can come in a variety of formats that we don't know all of them on the outset.
 
