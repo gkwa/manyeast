@@ -1,7 +1,9 @@
-We have chrome extension `refinerobin` that we need to enhance.
+We have chrome extension `{{ .ProjectName }}` that we need to enhance.
+
+The source for our project is here:
 
 ```
-<code>
+<{{ .ProjectName }}_source>
 {{ include (printf "%s/../prompt-enhance-refinerobin-to-close-tab-after-export/source.md" (templateFolder)) . | trim}}
-</code>
+</{{ .ProjectName }}_source>
 ```
