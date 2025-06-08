@@ -1,7 +1,6 @@
+Our data has these shapes:
 
+{{ include (printf "%s/shape1-desc.md" (templateFolder)) . | trim}}
 
-Our data has this shape
+{{ include (printf "%s/shape2-desc.md" (templateFolder)) . | trim}}
 
-{{ include (printf "%s/../prompt-golang-json-shape-may-change/shape2.transcript" (templateFolder)) . | trim}}
-
-{{ include (printf "%s/../prompt-golang-json-shape-may-change/shape1.transcript" (templateFolder)) . | trim}}

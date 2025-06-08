@@ -5,7 +5,7 @@ A key thing that sets CUE apart from its peer languages is that it merges types 
 Whereas in most languages types and values are strictly distinct, CUE orders them in a single hierarchy (a lattice, to be precise). This is a very powerful concept that allows CUE to do many fancy things. It also simplifies matters. For instance, there is no need for generics, and enums, sum types and null coalescing are all the same thing.
 
 Applications
-CUE’s design ensures that combining CUE values in any order always gives the same result (it is associative, commutative and idempotent). This makes CUE particularly well-suited for cases where CUE constraints are combined from different sources:
+CUE's design ensures that combining CUE values in any order always gives the same result (it is associative, commutative and idempotent). This makes CUE particularly well-suited for cases where CUE constraints are combined from different sources:
 
 Data validation: different departments or groups can each define their own constraints to apply to the same set of data.
 
@@ -57,7 +57,7 @@ capital: true
 In general, in CUE one starts with a broad definition of a type, describing all possible instances. One then narrows down these definitions, possibly by combining constraints from different sources (departments, users), until a concrete data instance remains.
 
 Push, not pull, constraints
-CUE’s constraints act as data validators, but also double as a mechanism to reduce boilerplate. This is a powerful approach, but requires some different thinking. With traditional inheritance approaches one specifies the templates that are to be inherited from at each point they should be used. In CUE, instead, one selects a set of nodes in the configuration to which to apply a template. This selection can be at a different point in the configuration altogether.
+CUE's constraints act as data validators, but also double as a mechanism to reduce boilerplate. This is a powerful approach, but requires some different thinking. With traditional inheritance approaches one specifies the templates that are to be inherited from at each point they should be used. In CUE, instead, one selects a set of nodes in the configuration to which to apply a template. This selection can be at a different point in the configuration altogether.
 
 Another way to view this, a JSON configuration, say, can be defined as a sequence of path-leaf values. For instance,
 
@@ -79,7 +79,7 @@ CUE generalizes this notion to the following pattern:
 
 Copy code
 <set of nodes>: <constraints>
-Each field declaration in CUE defines a set of nodes to which to apply a specific constraint. Because order doesn’t matter, multiple constraints can be applied to the same nodes, all of which need to apply simultaneously. Such constraints may even be in different files. But they may never contradict each other: if one declaration says a field is 5, another may not override it to be 6. Declaring a field to be both >5 and <10 is valid, though.
+Each field declaration in CUE defines a set of nodes to which to apply a specific constraint. Because order doesn't matter, multiple constraints can be applied to the same nodes, all of which need to apply simultaneously. Such constraints may even be in different files. But they may never contradict each other: if one declaration says a field is 5, another may not override it to be 6. Declaring a field to be both >5 and <10 is valid, though.
 
 This approach is more restricted than full-blown inheritance; it may not be possible to reuse existing configurations. On the other hand, it is also a more powerful boilerplate remover. For instance, suppose each job in a set needs to use a specific template. Instead of having to spell this out at each point, one can declare this separately in a one blanket statement.
 
@@ -110,7 +110,7 @@ This approach breaks down, of course, if the restrictions in acmeMonitoring are 
 Separate configuration from computation
 There comes a time that one (seemingly) will need do complex computations to generate some configuration data. But simplicity of a configuration language can be paramount when one quickly needs to make changes. These are obviously conflicting interests.
 
-CUE takes the stance that computation and configuration should be separated. And CUE actually makes this easy. The data that needs to be computed can be generated outside of CUE and put in a file that is to be mixed in. The data can even be generated in CUE’s scripting layer and automatically injected in a configuration pipeline. Both approaches rely on CUE’s property that the order in which this data gets added is irrelevant.
+CUE takes the stance that computation and configuration should be separated. And CUE actually makes this easy. The data that needs to be computed can be generated outside of CUE and put in a file that is to be mixed in. The data can even be generated in CUE's scripting layer and automatically injected in a configuration pipeline. Both approaches rely on CUE's property that the order in which this data gets added is irrelevant.
 
 Be useful at all scales
 The usefulness of a language may depend on the scale of the project. Having too many different languages can put a cognitive strain on developers, though, and migrating from one language to another as scaling requirements change can be very costly. CUE aims to minimize these costs by covering a myriad of data- and configuration-related tasks at all scales.
@@ -119,7 +119,7 @@ Small scale At small scales, reducing boilerplate in configurations is not neces
 
 Medium scale As soon the desire arises to reduce boilerplate, the cue tool can help to automatically rewrite configurations. See the Quick and Dirty section of the Kubernetes tutorial for an example using the import and trim tool. Thousands of lines can be obliterated automatically using this approach.
 
-Large scale CUE’s underlying formalism was developed for large-scale configuration. Its import model incorporates best practices for large-scale engineering and it is optimized for automation. A key to this is advanced tooling. The mathematical model underlying CUE’s operations allows for automation that is intractable for most other approaches. CUE’s trim command is an example of this.
+Large scale CUE's underlying formalism was developed for large-scale configuration. Its import model incorporates best practices for large-scale engineering and it is optimized for automation. A key to this is advanced tooling. The mathematical model underlying CUE's operations allows for automation that is intractable for most other approaches. CUE's trim command is an example of this.
 
 Tooling
 Automation is key. Nowadays, a good chunk of code gets generated, analyzed, reformatted, and so on by machines. The CUE language, APIs, and tooling have been designed to allow for machine manipulation. Aspects of this are:
@@ -132,3 +132,4 @@ and of course its value and type model.
 The order independence also plays a key role in this. It allows combining constraints from various sources without having to define any order in which they are to be applied to get predictable results.
 
 Last modified May 23, 2025
+
