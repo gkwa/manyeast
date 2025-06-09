@@ -1,4 +1,8 @@
-{{ include "problem-characteristics.md" . | trim }}"
 
-// include and interpret
-{{ include "../add-google-search-links/add-links.md" . | trim }}"
+{{ include "problem-characteristics.md" . | trim }}
+
+{{ include (printf "%s/../add-google-search-links/add-links.md" (templateFolder)) . | trim}}
+
+{{ include "../txtar/txtar.md" . | trim }}
+
+
