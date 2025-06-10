@@ -8,4 +8,8 @@
 
 ### each domain has its own html wrapping code for each product
 
-{{ include "data-fetching-demo.md" . | trim }}
+## data fetching examples
+
+{{ include "fetch3.md" . | trim }}
+
+

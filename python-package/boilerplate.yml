@@ -1,16 +1,20 @@
 variables:
+
   - name: PackageAuthorEmail
     description: Email address of package author
     type: string
     default: taylormonacelli@gmail.com
+
   - name: PackageAuthorName
     description: Package author first and last name
     type: string
     default: Taylor Monacelli
+
   - name: PackageName
     description: Name of package
     type: string
     default: testpackage
+
   - name: PythonVersion
     description: Python version
     type: string
