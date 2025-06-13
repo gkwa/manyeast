@@ -18,7 +18,7 @@ Our processing will only perform these actions
 
 and add the new `CleanedText` field to the json for each dict.
 
-Our app will be another app in this pipline:
+Our app will be another app in this pipeline:
 
 <sample_pipeline>
 {{include "fetch1.md" . | trim}}

@@ -10,6 +10,8 @@ You are tasked with creating Google search links in markdown format to help find
 Use this format for the markdown links:
 [query text](https://www.google.com/search?q=query+text+with+spaces+replaced+by+plus+signs)
 
-Provide only the markdown-formatted search links in your response, with no additional text or explanations. Each link should be on a new line.
+Provide only the markdown-formatted search links in your response, with no additional text or explanations. 
+
+Each link should be separated by two newlines.
 
 The question you need to create search links for is as follows:
