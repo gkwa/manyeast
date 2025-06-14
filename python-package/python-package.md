@@ -61,4 +61,5 @@ build-backend = "hatchling.build"
 
 [tool.ruff.lint]
 extend-select = ["I"]
+select = ["F", "E", "W"]
 ```
