@@ -59,7 +59,11 @@ dependencies = []
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.ruff]
+preview = true
+
 [tool.ruff.lint]
-extend-select = ["I"]
 select = ["F", "E", "W"]
+extend-select = ["I"]
+extend-safe-fixes = ["F401"]
 ```
