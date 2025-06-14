@@ -32,7 +32,7 @@ I will use python with a package
 
 {{include "../python-package/python-package.md" . | trim}}
 
-Want to use a hybride approach using rule based filtering and supervised learning
+Want to use a hybrid approach using rule based filtering and supervised learning
 
 - active learning to bootstrap using rules and then train and iterate
 
@@ -53,7 +53,7 @@ I have got started earlier with this project in a getting started python script 
 </old_salmon_filtering_py>
 ```
 
-If hydra supports configuration inheritance or overlays then we should ues it in order to keep our configuration dry.
+If hydra supports configuration inheritance or overlays then we should use it in order to keep our configuration dry.
 
 We should have the option to choose a group of filtering rules for different occasions.  What I mean by this is that we should be able to filter out the restriction that we need our salmon to be frozen for the case where we plan to consume it today, but for the case where we plan to travel for 8h on the plane we'd want to filter to only include frozen salmon.
 
