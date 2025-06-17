@@ -18,8 +18,13 @@ For debugging we need to have source maps available. Vite allows you to set this
 
 {{include "../justfile/justfile.md" . | trim }}
 
+## we most likely will need tsconfig.json too
+
+{{ include "add-tsconfig.md" . | trim }}
+
 ## if we're building chrome extension and using vite keep these extra chrome extension instructions in mind
 
 <chrome_extension_extra_instructions>
 {{ include "../prompt-chrome-extension-multiple-entry-points/prompt-chrome-extension-multiple-entry-points.md" . | trim }}
 </chrome_extension_extra_instructions>
+
