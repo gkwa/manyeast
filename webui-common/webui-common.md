@@ -20,7 +20,7 @@ For debugging we need to have source maps available. Vite allows you to set this
 
 ## we most likely will need tsconfig.json too
 
-{{ include "add-tsconfig.md" . | trim }}
+{{ include (printf "%s/../webui-common/add-tsconfig.md" (templateFolder)) . | trim}}
 
 ## if we're building chrome extension and using vite keep these extra chrome extension instructions in mind
 
