@@ -24,7 +24,7 @@ parser.add_argument(
 
 ## type hints are required
 
-Always add type hints to your python code.
+Always add type hints to our python code.
 
 ## python package scaffold
 
@@ -65,5 +65,5 @@ preview = true
 [tool.ruff.lint]
 select = ["F", "E", "W"]
 extend-select = ["I"]
-extend-safe-fixes = ["F401"]
+extend-safe-fixes = ["F401", "F841"]
 ```

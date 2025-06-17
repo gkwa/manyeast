@@ -1,6 +1,6 @@
 {{include "../common-apps/common-apps.md" . | trim }}
 
-## our appp will use typescript
+## our app will use typescript
 
 ## for build and test
 
