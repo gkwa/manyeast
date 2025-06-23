@@ -7,6 +7,7 @@ variables:
   - name: ProjectName
     description: Name of the project you're building
     type: string
+    default: resonantrabbit
 
   - name: LineCountPerFile
     description: Keep files small.  This is a requested rough goal.
