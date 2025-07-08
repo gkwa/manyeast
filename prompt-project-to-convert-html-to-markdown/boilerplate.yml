@@ -7,6 +7,7 @@ variables:
   - name: ProjectName
     description: Name of the project you're building
     type: string
+    default: leapinglizard
 
   - name: LineCountPerFile
     description: Keep files small.  This is a requested rough goal.
@@ -23,12 +24,12 @@ variables:
   - name: GoModuleName
     description: Name of the project you're building
     type: string
-    default: '{{"{{"}} .ProjectName {{"}}"}}'
+    default: '{{ .ProjectName }}'
 
   - name: PackageName
     description: Name of python package you're building
     type: string
-    default: '{{"{{"}} .ProjectName {{"}}"}}'
+    default: '{{ .ProjectName }}'
 
 
 
