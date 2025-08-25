@@ -36,7 +36,9 @@ Notice how when we add boolean --annotate-test the the file name get the '- test
 - we need to assume file is being created from scratch as well so that fronmatter is added as necessary
 - file names we generate should be lowercased
 - notice too how we added filetype: product to frontmatter
-
+- Preserve existing frontmatter values: If a key-value pair already exists in the frontmatter of a file, do not overwrite its value
+- Add new key-value pairs: If there are key-value pairs in the updates that don't already exist in the file, merge them in
+- Non-destructive merging: The operation should be additive only - existing data should never be lost or modified
 
 ## Requirements
 {{ include "../python-package/python-package.md" . | trim }}
