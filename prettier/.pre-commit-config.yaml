@@ -71,7 +71,9 @@ repos:
     rev: v1.100.0
     hooks:
       - id: terraform_fmt
+        language: docker_image
       - id: terraform_docs
+        language: docker_image
         args:
           - --args=--sort-by-required
   - repo: local
@@ -88,6 +90,7 @@ repos:
     rev: v1.7.7
     hooks:
       - id: actionlint
+        language: docker_image
         files: .github/workflows/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
