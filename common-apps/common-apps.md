@@ -1,3 +1,7 @@
+## use guard clauses and rturn early where apprpriate
+
+{{include "../prompt-use-return-early-pattern/prompt-use-return-early-pattern.md" . | trim}}
+
 ## readme: get to the point quickly
 
 {{include "../readme-be-brief/readme-be-brief.md" . | trim}}
