@@ -38,11 +38,12 @@ repos:
       - id: mixed-line-ending
       - id: trailing-whitespace
   - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.11
     hooks:
       - id: ruff-check
         name: ruff-check
         language: docker_image
-        entry: ghcr.io/astral-sh/ruff:v0.12.11
+        entry: ghcr.io/astral-sh/ruff
         args:
           - check
           - --fix
@@ -50,7 +51,7 @@ repos:
       - id: ruff-format
         name: ruff-format
         language: docker_image
-        entry: ghcr.io/astral-sh/ruff:v0.12.11
+        entry: ghcr.io/astral-sh/ruff
         args:
           - format
         files: '.*\.py$'
