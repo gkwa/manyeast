@@ -3,9 +3,11 @@ repos:
     hooks:
       - id: gofumpt
         name: gofumpt
-        entry: gofumpt -w
+        entry: docker run --rm -v $(pwd):/data -w /data qmcgaw/binpot:gofumpt
         language: system
         types: [go]
+        args:
+          - -w
   - repo: local
     hooks:
       - id: prettier
