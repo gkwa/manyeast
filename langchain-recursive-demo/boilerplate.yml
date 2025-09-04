@@ -21,12 +21,12 @@ variables:
   - name: PackageName
     description: Name of package
     type: string
-    default: '{{ .ProjectName }}'
+    default: "{{ .ProjectName }}"
 
   - name: PythonVersion
     description: Python version
     type: string
-    default: '3.12'
+    default: "3.12"
 
   - name: LineCountPerFile
     description: Keep files small.  This is a requested rough goal.
