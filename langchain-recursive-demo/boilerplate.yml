@@ -13,6 +13,7 @@ variables:
     type: string
     default: taylormonacelli@gmail.com
 
+  
   - name: PackageAuthorName
     description: Package author first and last name
     type: string
