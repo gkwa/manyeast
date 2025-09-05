@@ -15,7 +15,7 @@ Lets remove our code that handles fronttter CRUD and replace it with goldmark-fr
 Here is our obsidian-cli app 
 ```
 <obsidian-cli>
-{{ include "obsidian-cli_c1c62259_subset.txtarh" . | trim }}"
+{{ include "obsidian-cli_c1c62259_subset.txtar" . | trim }}"
 </obsidian-cli>
 ```
 
