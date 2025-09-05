@@ -1,0 +1,4474 @@
+-- Makefile --
+BINARY_NAME=obsidian-cli
+
+build-all:
+	GOOS=darwin GOARCH=amd64 go build -o bin/darwin/${BINARY_NAME}
+	GOOS=linux GOARCH=amd64 go build -o bin/linux/${BINARY_NAME}
+	GOOS=windows GOARCH=amd64 go build -o bin/windows/${BINARY_NAME}.exe
+
+clean-all:
+	go clean
+	rm bin/darwin/${BINARY_NAME}
+	rm bin/linux/${BINARY_NAME}
+	rm bin/windows/${BINARY_NAME}.exe
+
+test:
+	go test ./...
+
+test-coverage:
+	go test ./... -coverprofile=coverage.out
+
+update-usage-image:
+	freeze --execute "go run main.go --help" --theme dracula  --output docs/usage.png
+-- README.md --
+# Obsidian CLI
+
+---
+![obsidian-cli Usage](./docs/usage.png)
+---
+
+## Description
+
+Obsidian is a powerful and extensible knowledge base application 
+that works on top of your local folder of plain text notes. This CLI tool (written in Go) will let you interact with the application using the terminal. You are currently able to open, search, move, create, update and delete notes.
+
+---
+
+## Install
+
+### Windows
+You will need to have [Scoop](https://scoop.sh/) installed. On powershell run:
+```
+scoop bucket add scoop-yakitrak https://github.com/yakitrak/scoop-yakitrak.git
+```
+
+```
+scoop install obsidian-cli
+```
+
+### Mac and Linux
+
+You will need to have [Homebrew](https://brew.sh/) installed.
+
+```Bash
+brew tap yakitrak/yakitrak
+```
+
+```Bash
+brew install yakitrak/yakitrak/obsidian-cli
+```
+
+For full installation instructions, see [Mac and Linux manual](https://yakitrak.github.io/obsidian-cli-docs/docs/install/mac-and-linux).
+
+## Usage
+
+### Help
+
+```bash
+# See All command instructions
+obsidian-cli --help
+```
+
+### Set Default Vault
+
+Defines default vault for future usage. If not set, pass `--vault` flag for other commands. You don't provide the path to vault here, just the name.
+
+```bash
+obsidian-cli set-default "{vault-name}"
+```
+
+Note: `open` and other commands in `obsidian-cli` use this vault's base directory as the working directory, not the current working directory of your terminal.
+
+### Print Default Vault
+
+Prints default vault and path. Please set this with `set-default` command if not set.
+
+```bash
+obsidian-cli print-default
+```
+
+### Open Note
+
+Open given note name in Obsidian. Note can also be an absolute path from top level of vault.
+
+```bash
+# Opens note in obsidian vault
+obsidian-cli open "{note-name}"
+
+# Opens note in specified obsidian vault
+obsidian-cli open "{note-name}" --vault "{vault-name}"
+
+```
+
+### Daily Note
+
+Open daily note in Obsidian. It will create one (using template) if one does not exist.
+
+```bash
+# Creates / opens daily note in obsidian vault
+obsidian-cli daily
+
+# Creates / opens daily note in specified obsidian vault
+obsidian-cli dauly --vault "{vault-name}"
+
+```
+
+### Search Note
+
+Starts a fuzzy search displaying notes in the terminal from the vault. You can hit enter on a note to open that in Obsidian
+
+```bash
+# Searches in default obsidian vault
+obsidian-cli search 
+
+# Searches in specified obsidian vault
+obsidian-cli search --vault "{vault-name}"
+
+```
+
+### Print Note
+
+Prints the contents of given note name in Obsidian.
+
+```bash
+# Prints note in default vault
+obsidian-cli print "{note-name}"
+
+# Prints note in specified obsidian
+obsidian-cli print "{note-name}" --vault "{vault-name}"
+
+```
+
+### Create / Update Note
+
+Creates note (can also be a path with name) in vault. By default, if the note exists, it will create another note but passing `--overwrite` or `--append` can be used to edit the named note.
+
+```bash
+# Creates empty note in default obsidian and opens it
+obsidian-cli create "{note-name}"
+
+# Creates empty note in given obsidian and opens it
+obsidian-cli create "{note-name}"  --vault "{vault-name}"
+
+# Creates note in default obsidian with content
+obsidian-cli create "{note-name}" --content "abcde"
+
+# Creates note in default obsidian with content - overwrite existing note
+obsidian-cli create "{note-name}" --content "abcde" --overwrite
+
+# Creates note in default obsidian with content - append existing note
+obsidian-cli create "{note-name}" --content "abcde" --append
+
+# Creates note and opens it
+obsidian-cli create "{note-name}" --content "abcde" --open
+
+```
+
+### Move / Rename Note
+
+Moves a given note(path from top level of vault) with new name given (top level of vault). If given same path but different name then its treated as a rename. All links inside vault are updated to match new name.
+
+```bash
+# Renames a note in default obsidian
+obsidian-cli move "{current-note-path}" "{new-note-path}"
+
+# Renames a note and given obsidian
+obsidian-cli move "{current-note-path}" "{new-note-path}" --vault "{vault-name}"
+
+# Renames a note in default obsidian and opens it
+obsidian-cli move "{current-note-path}" "{new-note-path}" --open
+```
+
+### Delete Note
+
+Deletes a given note (path from top level of vault).
+
+```bash
+# Renames a note in default obsidian
+obsidian-cli delete "{note-path}" 
+
+# Renames a note in given obsidian
+obsidian-cli delete "{note-path}" --vault "{vault-name}"
+```
+
+### Frontmatter Edit
+
+Edits or creates a YAML frontmatter key in a note. The value is optional:
+- If omitted and key is `tags`, an empty list will be set: []
+- If omitted for other keys, an empty string will be set: ""
+
+Value (when provided) can be a YAML literal (string/number/bool), a sequence like `[a, b]`, or a comma-separated list for tags.
+
+```bash
+# Add an empty tags key
+obsidian-cli frontmatter edit "{note-name}" --key "tags"
+
+# Add an empty custom key
+obsidian-cli frontmatter edit "{note-name}" --key "status"
+
+# Add multiple empty keys at once (comma-separated keys)
+obsidian-cli frontmatter edit "{note-name}" --key "tags,status,reviewer"
+
+# Set tags to a single tag
+obsidian-cli frontmatter edit "{note-name}" --key "tags" --value "project"
+
+# Set tags to multiple tags via comma-separated shorthand
+obsidian-cli frontmatter edit "{note-name}" --key "tags" --value "project,urgent"
+
+# Set an arbitrary key using YAML syntax
+obsidian-cli frontmatter edit "{note-name}" --key "status" --value "in-progress"
+
+# Specify a vault explicitly
+obsidian-cli frontmatter edit "{note-name}" --vault "{vault-name}" --key "tags" --value "project"
+```
+
+### Frontmatter View
+
+View a specific YAML frontmatter key from a note, or check if it matches/includes an expected value.
+
+```bash
+# View value of a frontmatter key (prints YAML/scalar)
+obsidian-cli frontmatter view "{note-name}" --key "tags"
+
+# Check whether a key matches/includes a value (prints true/false)
+obsidian-cli frontmatter view "{note-name}" --key "tags" --value "project"
+
+# Specify a vault explicitly
+obsidian-cli frontmatter view "{note-name}" --vault "{vault-name}" --key "status"
+```
+
+### Frontmatter Clear
+
+Clear the content/value of a frontmatter key, keeping the key present.
+
+```bash
+# Clear tags (becomes an empty list if it was a list; otherwise becomes empty string)
+obsidian-cli frontmatter clear "{note-name}" --key "tags"
+
+# Clear multiple keys (comma-separated)
+obsidian-cli frontmatter clear "{note-name}" --key "date, status, tags"
+
+# Clear multiple keys (bracketed list)
+obsidian-cli frontmatter clear "{note-name}" --key "[date, status, tags]"
+```
+
+### Frontmatter Remove
+
+Remove a frontmatter key entirely. If this was the last key, the whole frontmatter block is removed.
+
+```bash
+# Remove the tags key from frontmatter
+obsidian-cli frontmatter remove "{note-name}" --key "tags"
+
+# Remove multiple keys (comma-separated)
+obsidian-cli frontmatter remove "{note-name}" --key "date, status, tags"
+
+# Remove multiple keys (bracketed list)
+obsidian-cli frontmatter remove "{note-name}" --key "[date, status, tags]"
+```
+
+## Contribution
+Fork the project, add your feature or fix and submit a pull request. You can also open an [issue](https://github.com/yakitrak/obsidian-cli/issues/new/choose) to report a bug or request a feature.
+
+## License
+Available under [MIT License](./LICENSE)
+-- cmd/create.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+	"log"
+)
+
+var shouldAppend bool
+var shouldOverwrite bool
+var content string
+var createNoteCmd = &cobra.Command{
+	Use:     "create",
+	Aliases: []string{"c"},
+	Short:   "Creates note in vault",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		uri := obsidian.Uri{}
+		noteName := args[0]
+		params := actions.CreateParams{
+			NoteName:        noteName,
+			Content:         content,
+			ShouldAppend:    shouldAppend,
+			ShouldOverwrite: shouldOverwrite,
+			ShouldOpen:      shouldOpen,
+		}
+		err := actions.CreateNote(&vault, &uri, params)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	createNoteCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	createNoteCmd.Flags().BoolVarP(&shouldOpen, "open", "", false, "open created note")
+	createNoteCmd.Flags().StringVarP(&content, "content", "c", "", "text to add to note")
+	createNoteCmd.Flags().BoolVarP(&shouldAppend, "append", "a", false, "append to note")
+	createNoteCmd.Flags().BoolVarP(&shouldOverwrite, "overwrite", "o", false, "overwrite note")
+	createNoteCmd.MarkFlagsMutuallyExclusive("append", "overwrite")
+	rootCmd.AddCommand(createNoteCmd)
+}
+-- cmd/daily.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+	"log"
+)
+
+var DailyCmd = &cobra.Command{
+	Use:     "daily",
+	Aliases: []string{"d"},
+	Short:   "Creates or opens daily note in vault",
+	Args:    cobra.ExactArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		uri := obsidian.Uri{}
+		err := actions.DailyNote(&vault, &uri)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	DailyCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	rootCmd.AddCommand(DailyCmd)
+}
+-- cmd/delete.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"log"
+
+	"github.com/spf13/cobra"
+)
+
+var deleteCmd = &cobra.Command{
+	Use:     "delete",
+	Aliases: []string{"d"},
+	Short:   "Delete note in vault",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		note := obsidian.Note{}
+		notePath := args[0]
+		params := actions.DeleteParams{NotePath: notePath}
+		err := actions.DeleteNote(&vault, &note, params)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	deleteCmd.Flags().BoolVarP(&shouldOpen, "open", "o", false, "open new note")
+	deleteCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	rootCmd.AddCommand(deleteCmd)
+}
+-- cmd/frontmatter.go --
+package cmd
+
+import "github.com/spf13/cobra"
+
+var frontmatterCmd = &cobra.Command{
+	Use:   "frontmatter",
+	Short: "Manipulate note YAML frontmatter",
+}
+
+func init() {
+	rootCmd.AddCommand(frontmatterCmd)
+}
+-- cmd/frontmatter_clear.go --
+package cmd
+
+import (
+	"log"
+	"strings"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+)
+
+var fmClearKey string
+
+var frontmatterClearCmd = &cobra.Command{
+	Use:   "clear <note>",
+	Short: "Clear the content of a YAML frontmatter key in a note",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		v := obsidian.Vault{Name: vaultName}
+		note := args[0]
+		for _, k := range parseKeyList(fmClearKey) {
+			if err := actions.ClearFrontmatter(&v, note, k); err != nil {
+				log.Fatal(err)
+			}
+		}
+	},
+}
+
+// parseKeyList accepts a single key, a comma-separated list ("a, b, c"), or a bracketed list ("[a, b, c]")
+// and returns a slice of trimmed, non-empty keys.
+func parseKeyList(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	// Strip surrounding brackets if present
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	// If no comma, return single key
+	if !strings.Contains(s, ",") {
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func init() {
+	frontmatterClearCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	frontmatterClearCmd.Flags().StringVarP(&fmClearKey, "key", "k", "", "frontmatter key(s) to clear (supports \"a, b\" or \"[a, b]\")")
+	if err := frontmatterClearCmd.MarkFlagRequired("key"); err != nil {
+		log.Fatalf("failed to mark --key as required: %v", err)
+	}
+	frontmatterCmd.AddCommand(frontmatterClearCmd)
+}
+-- cmd/frontmatter_edit.go --
+package cmd
+
+import (
+	"log"
+	"strings"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+)
+
+var fmKey string
+var fmValue string
+
+var frontmatterEditCmd = &cobra.Command{
+	Use:   "edit <note>",
+	Short: "Edit YAML frontmatter key in a note",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		v := obsidian.Vault{Name: vaultName}
+		note := args[0]
+
+		// Support adding multiple empty keys at once using comma-separated --key when --value is omitted
+		if fmValue == "" && strings.Contains(fmKey, ",") {
+			parts := strings.Split(fmKey, ",")
+			for _, p := range parts {
+				k := strings.TrimSpace(p)
+				if k == "" {
+					continue
+				}
+				params := actions.FrontmatterEditParams{
+					NoteName: note,
+					Key:      k,
+					Value:    "",
+				}
+				if err := actions.EditFrontmatter(&v, params); err != nil {
+					log.Fatal(err)
+				}
+			}
+			return
+		}
+
+		// Default: single key edit (value may be empty or provided)
+		params := actions.FrontmatterEditParams{
+			NoteName: note,
+			Key:      fmKey,
+			Value:    fmValue,
+		}
+		if err := actions.EditFrontmatter(&v, params); err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	frontmatterEditCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	frontmatterEditCmd.Flags().StringVarP(&fmKey, "key", "k", "", "frontmatter key to set")
+	frontmatterEditCmd.Flags().StringVarP(&fmValue, "value", "V", "", "frontmatter value (YAML)")
+	if err := frontmatterEditCmd.MarkFlagRequired("key"); err != nil {
+		log.Fatalf("failed to mark --key as required: %v", err)
+	}
+	frontmatterCmd.AddCommand(frontmatterEditCmd)
+}
+-- cmd/frontmatter_remove.go --
+package cmd
+
+import (
+	"log"
+	"strings"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+)
+
+var fmRemoveKey string
+
+var frontmatterRemoveCmd = &cobra.Command{
+	Use:   "remove <note>",
+	Short: "Remove a YAML frontmatter key (and its value) from a note",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		v := obsidian.Vault{Name: vaultName}
+		note := args[0]
+		for _, k := range parseKeyListRemove(fmRemoveKey) {
+			if err := actions.RemoveFrontmatterKey(&v, note, k); err != nil {
+				log.Fatal(err)
+			}
+		}
+	},
+}
+
+// parseKeyListRemove accepts a single key, a comma-separated list ("a, b, c"), or a bracketed list ("[a, b, c]")
+// and returns a slice of trimmed, non-empty keys.
+func parseKeyListRemove(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	// Strip surrounding brackets if present
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = strings.TrimSpace(s[1 : len(s)-1])
+	}
+	// If no comma, return single key
+	if !strings.Contains(s, ",") {
+		if s == "" {
+			return nil
+		}
+		return []string{s}
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func init() {
+	frontmatterRemoveCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	frontmatterRemoveCmd.Flags().StringVarP(&fmRemoveKey, "key", "k", "", "frontmatter key(s) to remove (supports \"a, b\" or \"[a, b]\")")
+	if err := frontmatterRemoveCmd.MarkFlagRequired("key"); err != nil {
+		log.Fatalf("failed to mark --key as required: %v", err)
+	}
+	frontmatterCmd.AddCommand(frontmatterRemoveCmd)
+}
+-- cmd/frontmatter_view.go --
+package cmd
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+)
+
+var fmViewKey string
+var fmViewExpect string
+
+var frontmatterViewCmd = &cobra.Command{
+	Use:   "view <note>",
+	Short: "View YAML frontmatter key in a note or test equality/containment",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		v := obsidian.Vault{Name: vaultName}
+		note := args[0]
+
+		fv, err := actions.GetFrontmatterValue(&v, note, fmViewKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// If value flag provided, print true/false according to match rules
+		if fmViewExpect != "" {
+			fmt.Println(matchFrontmatterValue(fv, fmViewExpect))
+			return
+		}
+
+		// Otherwise, print the actual value (YAML-serialized) if found
+		if !fv.Found || fv.Value == nil {
+			// print nothing on missing key
+			return
+		}
+		// Pretty print the value in YAML but as a single scalar/sequence map dump (no frontmatter delimiters)
+		out, err := yaml.Marshal(fv.Value)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(string(out))
+	},
+}
+
+// matchFrontmatterValue evaluates if the actual value matches the expected string
+// Rules:
+// - If actual is a slice/array, returns true if any element stringifies exactly equals expected
+// - If actual is a scalar, returns true if its stringified form equals expected
+func matchFrontmatterValue(fv *actions.FrontmatterValue, expected string) bool {
+	if fv == nil || !fv.Found || fv.Value == nil {
+		return false
+	}
+	switch v := fv.Value.(type) {
+	case []interface{}:
+		for _, el := range v {
+			if stringifyFM(el) == expected {
+				return true
+			}
+		}
+		return false
+	case []string:
+		for _, el := range v {
+			if el == expected {
+				return true
+			}
+		}
+		return false
+	default:
+		return stringifyFM(v) == expected
+	}
+}
+
+func stringifyFM(v interface{}) string {
+	// Try YAML marshal then trim trailing newline
+	b, err := yaml.Marshal(v)
+	if err != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	// Remove any trailing newline introduced by yaml.Marshal
+	s := string(b)
+	if len(s) > 0 && s[len(s)-1] == '\n' {
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+func init() {
+	frontmatterViewCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	frontmatterViewCmd.Flags().StringVarP(&fmViewKey, "key", "k", "", "frontmatter key to view")
+	frontmatterViewCmd.Flags().StringVarP(&fmViewExpect, "value", "V", "", "expected value for boolean check")
+	if err := frontmatterViewCmd.MarkFlagRequired("key"); err != nil {
+		log.Fatalf("failed to mark --key as required: %v", err)
+	}
+	frontmatterCmd.AddCommand(frontmatterViewCmd)
+}
+-- cmd/move.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"log"
+
+	"github.com/spf13/cobra"
+)
+
+var shouldOpen bool
+var moveCmd = &cobra.Command{
+	Use:     "move",
+	Aliases: []string{"m"},
+	Short:   "Move or rename note in vault and updated corresponding links",
+	Args:    cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		currentName := args[0]
+		newName := args[1]
+		vault := obsidian.Vault{Name: vaultName}
+		note := obsidian.Note{}
+		uri := obsidian.Uri{}
+		params := actions.MoveParams{
+			CurrentNoteName: currentName,
+			NewNoteName:     newName,
+			ShouldOpen:      shouldOpen,
+		}
+		err := actions.MoveNote(&vault, &note, &uri, params)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	},
+}
+
+func init() {
+	moveCmd.Flags().BoolVarP(&shouldOpen, "open", "o", false, "open new note")
+	moveCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	rootCmd.AddCommand(moveCmd)
+}
+-- cmd/open.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+	"log"
+)
+
+var vaultName string
+var OpenVaultCmd = &cobra.Command{
+	Use:     "open",
+	Aliases: []string{"o"},
+	Short:   "Opens note in vault by note name",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		uri := obsidian.Uri{}
+		noteName := args[0]
+		params := actions.OpenParams{NoteName: noteName}
+		err := actions.OpenNote(&vault, &uri, params)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	OpenVaultCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name (not required if default is set)")
+	rootCmd.AddCommand(OpenVaultCmd)
+}
+-- cmd/print.go --
+package cmd
+
+import (
+	"fmt"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"log"
+
+	"github.com/spf13/cobra"
+)
+
+var shouldRenderMarkdown bool
+var printCmd = &cobra.Command{
+	Use:     "print",
+	Aliases: []string{"p"},
+	Short:   "Print contents of note",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		noteName := args[0]
+		vault := obsidian.Vault{Name: vaultName}
+		note := obsidian.Note{}
+		params := actions.PrintParams{
+			NoteName: noteName,
+		}
+		contents, err := actions.PrintNote(&vault, &note, params)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(contents)
+	},
+}
+
+func init() {
+	printCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	rootCmd.AddCommand(printCmd)
+}
+-- cmd/print_default.go --
+package cmd
+
+import (
+	"fmt"
+	"log"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+)
+
+var printPathOnly bool
+var printDefaultCmd = &cobra.Command{
+	Use:     "print-default",
+	Aliases: []string{"pd"},
+	Short:   "prints default vault name and path",
+	Args:    cobra.ExactArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{}
+		name, err := vault.DefaultName()
+		if err != nil {
+			log.Fatal(err)
+		}
+		path, err := vault.Path()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if printPathOnly {
+			fmt.Print(path)
+			return
+		}
+
+		fmt.Println("Default vault name: ", name)
+		fmt.Println("Default vault path: ", path)
+	},
+}
+
+func init() {
+	printDefaultCmd.Flags().BoolVar(&printPathOnly, "path-only", false, "print only the vault path")
+	rootCmd.AddCommand(printDefaultCmd)
+}
+-- cmd/root.go --
+package cmd
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+)
+
+var rootCmd = &cobra.Command{
+	Use:     "obsidian-cli",
+	Short:   "obsidian-cli - CLI to open, search, move, create, delete and update notes",
+	Version: "v0.1.9",
+	Long:    "obsidian-cli - CLI to open, search, move, create, delete and update notes",
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Whoops. There was an error while executing your CLI '%s'", err)
+		os.Exit(1)
+	}
+}
+-- cmd/search.go --
+package cmd
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"log"
+
+	"github.com/spf13/cobra"
+)
+
+var searchCmd = &cobra.Command{
+	Use:     "search",
+	Aliases: []string{"s"},
+	Short:   "Fuzzy searches and opens note in vault",
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		note := obsidian.Note{}
+		uri := obsidian.Uri{}
+		fuzzyFinder := obsidian.FuzzyFinder{}
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	searchCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	rootCmd.AddCommand(searchCmd)
+}
+-- cmd/search_content.go --
+package cmd
+
+import (
+	"log"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+
+	"github.com/spf13/cobra"
+)
+
+var searchContentCmd = &cobra.Command{
+	Use:     "search-content [search term]",
+	Short:   "Search node content for search term",
+	Args:    cobra.ExactArgs(1),
+	Aliases: []string{"sc"},
+	Run: func(cmd *cobra.Command, args []string) {
+		vault := obsidian.Vault{Name: vaultName}
+		note := obsidian.Note{}
+		uri := obsidian.Uri{}
+		fuzzyFinder := obsidian.FuzzyFinder{}
+
+		searchTerm := args[0]
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, searchTerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	},
+}
+
+func init() {
+	searchContentCmd.Flags().StringVarP(&vaultName, "vault", "v", "", "vault name")
+	rootCmd.AddCommand(searchContentCmd)
+}
+-- cmd/set_default.go --
+package cmd
+
+import (
+	"fmt"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/spf13/cobra"
+	"log"
+)
+
+var setDefaultCmd = &cobra.Command{
+	Use:     "set-default",
+	Aliases: []string{"sd"},
+	Short:   "Sets default vault",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		v := obsidian.Vault{Name: name}
+		err := v.SetDefaultName(name)
+		if err != nil {
+			log.Fatal(err)
+		}
+		path, err := v.Path()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Default vault set to: ", name)
+		fmt.Println("Default vault path set to: ", path)
+
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(setDefaultCmd)
+}
+-- go.mod --
+module github.com/Yakitrak/obsidian-cli
+
+go 1.19
+
+require (
+	github.com/ktr0731/go-fuzzyfinder v0.8.0
+	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
+	github.com/spf13/cobra v1.8.1
+	github.com/stretchr/testify v1.8.2
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gdamore/encoding v1.0.1 // indirect
+	github.com/gdamore/tcell/v2 v2.7.4 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/ktr0731/go-ansisgr v0.1.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/nsf/termbox-go v1.1.1 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+-- main.go --
+package main
+
+import "github.com/Yakitrak/obsidian-cli/cmd"
+
+func main() {
+	cmd.Execute()
+}
+-- mocks/config_dir.go --
+package mocks
+
+import (
+	"testing"
+)
+
+func CreateMockObsidianConfigFile(t *testing.T) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	return tmpDir + "/obsidian.json"
+}
+
+func CreateMockCliConfigDirectories(t *testing.T) (string, string) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	return tmpDir, tmpDir + "/preferences.json"
+}
+-- mocks/file_info.go --
+package mocks
+
+import (
+	"os"
+	"time"
+)
+
+type MockFileInfo struct {
+	FileName    string
+	IsDirectory bool
+}
+
+func (fi *MockFileInfo) Name() string {
+	return fi.FileName
+}
+
+func (fi *MockFileInfo) Size() int64 {
+	return 0
+}
+
+func (fi *MockFileInfo) Mode() os.FileMode {
+	return 0
+}
+
+func (fi *MockFileInfo) ModTime() time.Time {
+	return time.Now()
+}
+
+func (fi *MockFileInfo) IsDir() bool {
+	return fi.IsDirectory
+}
+
+func (fi *MockFileInfo) Sys() interface{} {
+	return nil
+}
+-- mocks/fuzzyfinder.go --
+package mocks
+
+type MockFuzzyFinder struct {
+	SelectedIndex int
+	FindErr       error
+}
+
+func (f *MockFuzzyFinder) Find(slice interface{}, itemFunc func(i int) string, opts ...interface{}) (int, error) {
+	if f.FindErr != nil {
+		return -1, f.FindErr
+	}
+	return f.SelectedIndex, nil
+}
+-- mocks/note.go --
+package mocks
+
+import "github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+
+type MockNoteManager struct {
+	DeleteErr        error
+	MoveErr          error
+	UpdateLinksError error
+	GetContentsError error
+	NoMatches        bool
+}
+
+func (m *MockNoteManager) Delete(string) error {
+	return m.DeleteErr
+}
+
+func (m *MockNoteManager) Move(string, string) error {
+	return m.MoveErr
+}
+
+func (m *MockNoteManager) UpdateLinks(string, string, string) error {
+	return m.UpdateLinksError
+}
+
+func (m *MockNoteManager) GetContents(string, string) (string, error) {
+	return "example contents", m.GetContentsError
+}
+
+func (m *MockNoteManager) GetNotesList(string) ([]string, error) {
+	return []string{"note1", "note2", "note3"}, m.GetContentsError
+}
+
+func (m *MockNoteManager) SearchNotesWithSnippets(string, string) ([]obsidian.NoteMatch, error) {
+	if m.GetContentsError != nil {
+		return nil, m.GetContentsError
+	}
+	if m.NoMatches {
+		return []obsidian.NoteMatch{}, nil
+	}
+	return []obsidian.NoteMatch{
+		{FilePath: "note1.md", LineNumber: 5, MatchLine: "example match line"},
+		{FilePath: "note2.md", LineNumber: 10, MatchLine: "another match"},
+	}, nil
+}
+-- mocks/uri.go --
+package mocks
+
+type MockUriManager struct {
+	ConstructedURI string
+	ExecuteErr     error
+}
+
+func (m *MockUriManager) Construct(base string, params map[string]string) string {
+	return m.ConstructedURI
+}
+
+func (m *MockUriManager) Execute(uri string) error {
+	return m.ExecuteErr
+}
+-- mocks/vault.go --
+package mocks
+
+type MockVaultOperator struct {
+	DefaultNameErr error
+	PathError      error
+	Name           string
+}
+
+func (m *MockVaultOperator) DefaultName() (string, error) {
+	if m.DefaultNameErr != nil {
+		return "", m.DefaultNameErr
+	}
+	return m.Name, nil
+}
+
+func (m *MockVaultOperator) SetDefaultName(_ string) error {
+	if m.DefaultNameErr != nil {
+		return m.DefaultNameErr
+	}
+	return nil
+}
+
+func (m *MockVaultOperator) Path() (string, error) {
+	if m.PathError != nil {
+		return "", m.PathError
+	}
+	return "path", nil
+}
+-- pkg/actions/constants.go --
+package actions
+
+const (
+	obsBaseUrl   = "obsidian://"
+	openAction   = "open"
+	createAction = "new"
+	dailyAction  = "daily"
+
+	ObsOpenUrl   = obsBaseUrl + openAction
+	ObsCreateUrl = obsBaseUrl + createAction
+	OnsDailyUrl  = obsBaseUrl + dailyAction
+)
+-- pkg/actions/create.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"strconv"
+	"strings"
+)
+
+type CreateParams struct {
+	NoteName        string
+	ShouldAppend    bool
+	ShouldOverwrite bool
+	Content         string
+	ShouldOpen      bool
+}
+
+func CreateNote(vault obsidian.VaultManager, uri obsidian.UriManager, params CreateParams) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	normalizedContent := NormalizeContent(params.Content)
+
+	obsidianUri := uri.Construct(ObsCreateUrl, map[string]string{
+		"vault":     vaultName,
+		"append":    strconv.FormatBool(params.ShouldAppend),
+		"overwrite": strconv.FormatBool(params.ShouldOverwrite),
+		"content":   normalizedContent,
+		"file":      params.NoteName,
+		"silent":    strconv.FormatBool(!params.ShouldOpen),
+	})
+
+	if err := uri.Execute(obsidianUri); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func NormalizeContent(content string) string {
+	replacer := strings.NewReplacer(
+		"\\n", "\n",
+		"\\r", "\r",
+		"\\t", "\t",
+		"\\\\", "\\",
+		"\\\"", "\"",
+		"\\'", "'",
+	)
+	return replacer.Replace(content)
+}
+-- pkg/actions/create_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestCreateNote(t *testing.T) {
+	t.Run("Successful create note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		// Act
+		err := actions.CreateNote(&vault, &uri, actions.CreateParams{
+			NoteName: "note.md",
+		})
+		// Assert
+		assert.NoError(t, err, "Expected no error")
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("Failed to get vault name"),
+		}
+		// Act
+		err := actions.CreateNote(&vault, &mocks.MockUriManager{}, actions.CreateParams{
+			NoteName: "note-name",
+		})
+		// Assert
+		assert.Equal(t, err, vault.DefaultNameErr)
+	})
+
+	t.Run("uri.Execute returns an error", func(t *testing.T) {
+		// Arrange
+		uri := mocks.MockUriManager{
+			ExecuteErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.CreateNote(&mocks.MockVaultOperator{}, &uri, actions.CreateParams{
+			NoteName: "note-name",
+		})
+		// Assert
+		assert.Equal(t, err, uri.ExecuteErr)
+	})
+}
+
+func TestNormalizeContent(t *testing.T) {
+	t.Run("Replaces escape sequences with actual characters", func(t *testing.T) {
+		// Arrange
+		input := "Hello\\nWorld\\tTabbed\\rReturn\\\"Quote\\'SingleQuote\\\\Backslash"
+		expected := "Hello\nWorld\tTabbed\rReturn\"Quote'SingleQuote\\Backslash"
+
+		// Act
+		result := actions.NormalizeContent(input)
+
+		// Assert
+		assert.Equal(t, expected, result, "The content should have the escape sequences replaced correctly")
+	})
+
+	t.Run("Handles empty input", func(t *testing.T) {
+		// Arrange
+		input := ""
+		expected := ""
+
+		// Act
+		result := actions.NormalizeContent(input)
+
+		// Assert
+		assert.Equal(t, expected, result, "Empty input should return empty output")
+	})
+
+	t.Run("No escape sequences in input", func(t *testing.T) {
+		// Arrange
+		input := "Plain text with no escapes"
+		expected := "Plain text with no escapes"
+
+		// Act
+		result := actions.NormalizeContent(input)
+
+		// Assert
+		assert.Equal(t, expected, result, "Content without escape sequences should remain unchanged")
+	})
+}
+-- pkg/actions/daily.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+)
+
+func DailyNote(vault obsidian.VaultManager, uri obsidian.UriManager) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	obsidianUri := uri.Construct(OnsDailyUrl, map[string]string{
+		"vault": vaultName,
+	})
+
+	err = uri.Execute(obsidianUri)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+-- pkg/actions/daily_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestDailyNote(t *testing.T) {
+	t.Run("Successful creates / opens daily note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		// Act
+		err := actions.DailyNote(&vault, &uri)
+		// Assert
+		assert.Equal(t, err, nil)
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vaultDefaultNameErr := errors.New("Failed to get vault name")
+		vaultOp := &mocks.MockVaultOperator{
+			DefaultNameErr: vaultDefaultNameErr,
+		}
+		// Act
+		err := actions.DailyNote(vaultOp, &mocks.MockUriManager{})
+		// Assert
+		assert.Error(t, err, vaultDefaultNameErr)
+	})
+
+	t.Run("uri.Execute returns an error", func(t *testing.T) {
+		// Arrange
+		uri := mocks.MockUriManager{
+			ExecuteErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.DailyNote(&mocks.MockVaultOperator{}, &uri)
+		// Assert
+		assert.Equal(t, err, uri.ExecuteErr)
+	})
+}
+-- pkg/actions/delete.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"path/filepath"
+)
+
+type DeleteParams struct {
+	NotePath string
+}
+
+func DeleteNote(vault obsidian.VaultManager, note obsidian.NoteManager, params DeleteParams) error {
+	_, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+	notePath := filepath.Join(vaultPath, params.NotePath)
+
+	err = note.Delete(notePath)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+-- pkg/actions/delete_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestDeleteNote(t *testing.T) {
+	t.Run("Successful delete note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		note := mocks.MockNoteManager{}
+		// Act
+		err := actions.DeleteNote(&vault, &note, actions.DeleteParams{
+			NotePath: "noteToDelete",
+		})
+		// Assert
+		assert.NoError(t, err, "Expected no error")
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("Failed to get default vault name"),
+		}
+		// Act
+		err := actions.DeleteNote(&vault, &mocks.MockNoteManager{}, actions.DeleteParams{
+			NotePath: "noteToDelete",
+		})
+		// Assert
+		assert.Equal(t, vault.DefaultNameErr, err)
+	})
+
+	t.Run("vault.Path returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			PathError: errors.New("Failed to get vault path"),
+		}
+		// Act
+		err := actions.DeleteNote(&vault, &mocks.MockNoteManager{}, actions.DeleteParams{
+			NotePath: "noteToDelete",
+		})
+		// Assert
+		assert.Equal(t, vault.PathError, err)
+	})
+
+	t.Run("note.Delete returns an error", func(t *testing.T) {
+		// Arrange
+		note := mocks.MockNoteManager{
+			DeleteErr: errors.New("Could not delete"),
+		}
+		// Act
+		err := actions.DeleteNote(&mocks.MockVaultOperator{}, &note, actions.DeleteParams{
+			NotePath: "noteToDelete",
+		})
+		// Assert
+		assert.Equal(t, note.DeleteErr, err)
+	})
+}
+-- pkg/actions/frontmatter.go --
+package actions
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"gopkg.in/yaml.v3"
+)
+
+type FrontmatterEditParams struct {
+	NoteName string
+	Key      string
+	Value    string
+}
+
+type FrontmatterValue struct {
+	Value any
+	Found bool
+}
+
+// GetFrontmatterValue locates a note and returns the value for a specific frontmatter key.
+func GetFrontmatterValue(vault obsidian.VaultManager, noteName string, key string) (*FrontmatterValue, error) {
+	if noteName == "" {
+		return nil, errors.New("note name is required")
+	}
+	if key == "" {
+		return nil, errors.New("key is required")
+	}
+
+	// Ensure default vault is set
+	if _, err := vault.DefaultName(); err != nil {
+		return nil, err
+	}
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return nil, err
+	}
+
+	// Find note path
+	targetFile := obsidian.AddMdSuffix(noteName)
+	var notePath string
+	err = filepath.WalkDir(vaultPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == targetFile {
+			notePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil || notePath == "" {
+		return nil, errors.New(obsidian.NoteDoesNotExistError)
+	}
+
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		return nil, errors.New(obsidian.VaultReadError)
+	}
+
+	fmMap, _, _, err := parseFrontmatter(string(data))
+	if err != nil {
+		return nil, err
+	}
+	if fmMap == nil {
+		return &FrontmatterValue{Value: nil, Found: false}, nil
+	}
+	val, ok := fmMap[key]
+	return &FrontmatterValue{Value: val, Found: ok}, nil
+}
+
+// EditFrontmatter finds the note in the vault and edits/creates the specified frontmatter key.
+func EditFrontmatter(vault obsidian.VaultManager, params FrontmatterEditParams) error {
+	if params.NoteName == "" {
+		return errors.New("note name is required")
+	}
+	if params.Key == "" {
+		return errors.New("key is required")
+	}
+
+	// Ensure default vault is set
+	_, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+
+	// Locate the note's absolute path within the vault
+	targetFile := obsidian.AddMdSuffix(params.NoteName)
+	var notePath string
+	err = filepath.WalkDir(vaultPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == targetFile {
+			notePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil || notePath == "" {
+		return errors.New(obsidian.NoteDoesNotExistError)
+	}
+
+	// Read the file
+	info, err := os.Stat(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	content := string(data)
+
+	// Parse frontmatter
+	fmMap, body, _, err := parseFrontmatter(content)
+	if err != nil {
+		return err
+	}
+
+	// Compute new value, supporting empty --value to add empty keys
+	var newVal any
+	if params.Value == "" {
+		// Empty value: tags -> [], others -> ""
+		if strings.EqualFold(params.Key, "tags") {
+			newVal = []interface{}{}
+		} else {
+			newVal = ""
+		}
+	} else {
+		// Try to parse YAML for flexibility
+		if err := yaml.Unmarshal([]byte(params.Value), &newVal); err != nil || newVal == nil {
+			// Fallback to raw string
+			newVal = params.Value
+		}
+		// Convenience: if key is tags and value contains commas, split into array of trimmed strings
+		if strings.EqualFold(params.Key, "tags") {
+			if strings.Contains(params.Value, ",") {
+				parts := strings.Split(params.Value, ",")
+				arr := make([]string, 0, len(parts))
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p != "" {
+						arr = append(arr, p)
+					}
+				}
+				newVal = arr
+			}
+		}
+	}
+
+	// Update map
+	if fmMap == nil {
+		fmMap = map[string]any{}
+	}
+	fmMap[params.Key] = newVal
+
+	// Marshal YAML
+	yml, err := yaml.Marshal(fmMap)
+	if err != nil {
+		return errors.New(obsidian.VaultWriteError)
+	}
+
+	// Reconstruct content
+	newContent := buildWithFrontmatter(string(yml), body)
+
+	// Write back
+	if err := os.WriteFile(notePath, []byte(newContent), info.Mode()); err != nil {
+		return errors.New(obsidian.VaultWriteError)
+	}
+
+	fmt.Printf("Updated frontmatter in %s: %s\n", filepath.Base(notePath), params.Key)
+	return nil
+}
+
+// parseFrontmatter extracts YAML frontmatter into a map and returns the body.
+// It supports both \n and \r\n line endings.
+func parseFrontmatter(content string) (map[string]any, string, bool, error) {
+	trimmed := content
+	if len(trimmed) == 0 {
+		return nil, "", false, nil
+	}
+	// Normalize line endings to \n for parsing
+	norm := strings.ReplaceAll(trimmed, "\r\n", "\n")
+	if !strings.HasPrefix(norm, "---\n") {
+		return nil, content, false, nil
+	}
+	// Find the next delimiter line starting at beginning of line
+	idx := strings.Index(norm[4:], "\n---\n")
+	if idx == -1 {
+		// malformed frontmatter; treat whole as body
+		return nil, content, false, nil
+	}
+	endIdx := 4 + idx + len("\n---\n")
+	fm := norm[4 : 4+idx]
+	body := norm[endIdx:]
+	// Marshal back to original newline style when building
+	var m map[string]any
+	if strings.TrimSpace(fm) != "" {
+		if err := yaml.Unmarshal([]byte(fm), &m); err != nil {
+			return nil, "", false, errors.New(obsidian.VaultReadError)
+		}
+	}
+	// Return body with original line endings if original had \r\n
+	return m, body, true, nil
+}
+
+func buildWithFrontmatter(yml string, body string) string {
+	// Ensure a single newline between YAML and body when body is non-empty
+	if len(body) > 0 {
+		if !strings.HasPrefix(body, "\n") {
+			body = "\n" + body
+		}
+	}
+	return "---\n" + yml + "---\n" + body
+}
+
+// ClearFrontmatter clears the content of an existing frontmatter key.
+// Behavior:
+// - If key exists and is a sequence: set to empty list []
+// - If key exists and is a mapping: set to empty map {}
+// - Otherwise: set to empty string ""
+// - If key does not exist: no changes are made.
+func ClearFrontmatter(vault obsidian.VaultManager, noteName string, key string) error {
+	if noteName == "" {
+		return errors.New("note name is required")
+	}
+	if key == "" {
+		return errors.New("key is required")
+	}
+	if _, err := vault.DefaultName(); err != nil {
+		return err
+	}
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+	targetFile := obsidian.AddMdSuffix(noteName)
+	var notePath string
+	err = filepath.WalkDir(vaultPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == targetFile {
+			notePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil || notePath == "" {
+		return errors.New(obsidian.NoteDoesNotExistError)
+	}
+	info, err := os.Stat(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	fmMap, body, hadFM, err := parseFrontmatter(string(data))
+	if err != nil {
+		return err
+	}
+	if fmMap == nil {
+		// no FM to clear
+		return nil
+	}
+	if _, exists := fmMap[key]; !exists {
+		return nil
+	}
+	// Determine empty based on current type
+	switch fmMap[key].(type) {
+	case []interface{}:
+		fmMap[key] = []interface{}{}
+	case map[string]interface{}:
+		fmMap[key] = map[string]interface{}{}
+	default:
+		fmMap[key] = ""
+	}
+	yml, err := yaml.Marshal(fmMap)
+	if err != nil {
+		return errors.New(obsidian.VaultWriteError)
+	}
+	newContent := ""
+	if hadFM {
+		newContent = buildWithFrontmatter(string(yml), body)
+	} else {
+		// shouldn't happen because fmMap!=nil implies hadFM, but keep safe
+		newContent = buildWithFrontmatter(string(yml), body)
+	}
+	if err := os.WriteFile(notePath, []byte(newContent), info.Mode()); err != nil {
+		return errors.New(obsidian.VaultWriteError)
+	}
+	fmt.Printf("Cleared frontmatter key in %s: %s\n", filepath.Base(notePath), key)
+	return nil
+}
+
+// RemoveFrontmatterKey removes a key (and its value) from frontmatter. If this
+// results in an empty frontmatter, the whole frontmatter block is removed.
+func RemoveFrontmatterKey(vault obsidian.VaultManager, noteName string, key string) error {
+	if noteName == "" {
+		return errors.New("note name is required")
+	}
+	if key == "" {
+		return errors.New("key is required")
+	}
+	if _, err := vault.DefaultName(); err != nil {
+		return err
+	}
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+	targetFile := obsidian.AddMdSuffix(noteName)
+	var notePath string
+	err = filepath.WalkDir(vaultPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) == targetFile {
+			notePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil || notePath == "" {
+		return errors.New(obsidian.NoteDoesNotExistError)
+	}
+	info, err := os.Stat(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	data, err := os.ReadFile(notePath)
+	if err != nil {
+		return errors.New(obsidian.VaultReadError)
+	}
+	fmMap, body, hadFM, err := parseFrontmatter(string(data))
+	if err != nil {
+		return err
+	}
+	if fmMap == nil {
+		// nothing to remove
+		return nil
+	}
+	if _, exists := fmMap[key]; !exists {
+		return nil
+	}
+	delete(fmMap, key)
+	var newContent string
+	if len(fmMap) == 0 {
+		// remove the whole frontmatter block; ensure body has no leading stray newline
+		newContent = body
+		// If body begins with a newline due to previous build rules, trim a single leading newline
+		if strings.HasPrefix(newContent, "\n") {
+			newContent = newContent[1:]
+		}
+	} else {
+		yml, err := yaml.Marshal(fmMap)
+		if err != nil {
+			return errors.New(obsidian.VaultWriteError)
+		}
+		if hadFM {
+			newContent = buildWithFrontmatter(string(yml), body)
+		} else {
+			newContent = buildWithFrontmatter(string(yml), body)
+		}
+	}
+	if err := os.WriteFile(notePath, []byte(newContent), info.Mode()); err != nil {
+		return errors.New(obsidian.VaultWriteError)
+	}
+	fmt.Printf("Removed frontmatter key in %s: %s\n", filepath.Base(notePath), key)
+	return nil
+}
+-- pkg/actions/frontmatter_test.go --
+package actions
+
+import (
+	"os"
+	"path/filepath"
+	"reflect"
+	"testing"
+)
+
+// testVault is a local stub implementing obsidian.VaultManager behavior we need.
+// It simply returns a fixed path for the vault and a fixed default name.
+type testVault struct{ path string }
+
+func (t testVault) DefaultName() (string, error)     { return "default", nil }
+func (t testVault) SetDefaultName(name string) error { return nil }
+func (t testVault) Path() (string, error)            { return t.path, nil }
+
+func writeNote(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	p := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+		t.Fatalf("failed to mkdir: %v", err)
+	}
+	if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+	return p
+}
+
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("failed to read file: %v", err)
+	}
+	return string(b)
+}
+
+func TestGetFrontmatterValue(t *testing.T) {
+	tmp := t.TempDir()
+	v := testVault{path: tmp}
+
+	content := "---\n" +
+		"title: Test\n" +
+		"tags:\n  - a\n  - b\n" +
+		"count: 3\n" +
+		"---\n" +
+		"Body text here\n"
+	writeNote(t, tmp, "note.md", content)
+
+	// existing key (string)
+	res, err := GetFrontmatterValue(v, "note", "title")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res.Found || res.Value != "Test" {
+		t.Fatalf("expected title=Test found=true, got: %+v", res)
+	}
+
+	// existing key (sequence)
+	res, err = GetFrontmatterValue(v, "note", "tags")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !res.Found {
+		t.Fatalf("expected tags found=true")
+	}
+	// YAML unmarshals sequences as []interface{} with string elements
+	arr, ok := res.Value.([]interface{})
+	if !ok || len(arr) != 2 || arr[0] != "a" || arr[1] != "b" {
+		t.Fatalf("expected tags [a b], got: %#v", res.Value)
+	}
+
+	// missing key
+	res, err = GetFrontmatterValue(v, "note", "missing")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Found || res.Value != nil {
+		t.Fatalf("expected missing key Found=false, Value=nil, got: %+v", res)
+	}
+
+	// note without frontmatter -> Found=false, Value=nil
+	writeNote(t, tmp, "plain.md", "Just body\n")
+	res, err = GetFrontmatterValue(v, "plain", "any")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.Found || res.Value != nil {
+		t.Fatalf("expected no FM, got: %+v", res)
+	}
+
+	// validation errors
+	if _, err := GetFrontmatterValue(v, "", "k"); err == nil {
+		t.Fatalf("expected error for empty note name")
+	}
+	if _, err := GetFrontmatterValue(v, "n", ""); err == nil {
+		t.Fatalf("expected error for empty key")
+	}
+	// not found
+	if _, err := GetFrontmatterValue(v, "does-not-exist", "k"); err == nil {
+		t.Fatalf("expected not found error")
+	}
+}
+
+func TestEditFrontmatter(t *testing.T) {
+	tmp := t.TempDir()
+	v := testVault{path: tmp}
+
+	// 1) Add to file without frontmatter
+	path := writeNote(t, tmp, "n1.md", "Body line\n")
+	if err := EditFrontmatter(v, FrontmatterEditParams{NoteName: "n1", Key: "title", Value: "Hello"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated := readFile(t, path)
+	fm, body, had, err := parseFrontmatter(updated)
+	if err != nil || !had {
+		t.Fatalf("expected frontmatter to be present, err=%v had=%v", err, had)
+	}
+	if val, ok := fm["title"]; !ok || val != "Hello" {
+		t.Fatalf("expected title=Hello, got: %#v", fm["title"])
+	}
+	// body should be preserved (with a single blank line inserted by builder)
+	if body != "\nBody line\n" {
+		t.Fatalf("unexpected body: %q", body)
+	}
+
+	// 2) Update tags using comma-separated string -> array
+	path = writeNote(t, tmp, "n2.md", "---\nother: x\n---\ncontent\n")
+	if err := EditFrontmatter(v, FrontmatterEditParams{NoteName: "n2", Key: "tags", Value: "a, b, c"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated = readFile(t, path)
+	fm, _, _, err = parseFrontmatter(updated)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	tags, ok := fm["tags"].([]interface{})
+	if !ok || len(tags) != 3 || tags[0] != "a" || tags[1] != "b" || tags[2] != "c" {
+		t.Fatalf("expected tags [a b c], got: %#v", fm["tags"])
+	}
+	if fm["other"] != "x" {
+		t.Fatalf("expected other=x to be preserved")
+	}
+
+	// 3) Empty value behavior: tags -> [] ; other -> ""
+	path = writeNote(t, tmp, "n3.md", "---\na: 1\n---\n")
+	if err := EditFrontmatter(v, FrontmatterEditParams{NoteName: "n3", Key: "tags", Value: ""}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated = readFile(t, path)
+	fm, _, _, _ = parseFrontmatter(updated)
+	if arr, ok := fm["tags"].([]interface{}); !ok || len(arr) != 0 {
+		t.Fatalf("expected empty tags list, got: %#v", fm["tags"])
+	}
+	if err := EditFrontmatter(v, FrontmatterEditParams{NoteName: "n3", Key: "summary", Value: ""}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated = readFile(t, path)
+	fm, _, _, _ = parseFrontmatter(updated)
+	if val, ok := fm["summary"]; !ok || val != "" {
+		t.Fatalf("expected summary to be empty string, got: %#v", val)
+	}
+}
+
+func TestClearFrontmatter(t *testing.T) {
+	tmp := t.TempDir()
+	v := testVault{path: tmp}
+
+	// Prepare a note with various types
+	note := "---\nlist:\n  - a\n  - b\nmap:\n  k: v\nstr: hello\n---\nB\n"
+	path := writeNote(t, tmp, "c1.md", note)
+
+	// Clear list -> []
+	if err := ClearFrontmatter(v, "c1", "list"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fm, _, _, err := parseFrontmatter(readFile(t, path))
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if arr, ok := fm["list"].([]interface{}); !ok || len(arr) != 0 {
+		t.Fatalf("expected cleared list [], got: %#v", fm["list"])
+	}
+
+	// Clear map -> {}
+	if err := ClearFrontmatter(v, "c1", "map"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fm, _, _, _ = parseFrontmatter(readFile(t, path))
+	if m, ok := fm["map"].(map[string]interface{}); !ok || len(m) != 0 {
+		t.Fatalf("expected cleared map {}, got: %#v", fm["map"])
+	}
+
+	// Clear string -> ""
+	if err := ClearFrontmatter(v, "c1", "str"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fm, _, _, _ = parseFrontmatter(readFile(t, path))
+	if val, ok := fm["str"]; !ok || val != "" {
+		t.Fatalf("expected cleared string \"\", got: %#v", fm["str"])
+	}
+
+	// Non-existent key -> no change
+	before := readFile(t, path)
+	if err := ClearFrontmatter(v, "c1", "missing"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	after := readFile(t, path)
+	if before != after {
+		t.Fatalf("expected no changes when clearing missing key")
+	}
+
+	// No frontmatter -> noop
+	writeNote(t, tmp, "c2.md", "body only\n")
+	if err := ClearFrontmatter(v, "c2", "any"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRemoveFrontmatterKey(t *testing.T) {
+	tmp := t.TempDir()
+	v := testVault{path: tmp}
+
+	// Remove one key, keep others
+	path := writeNote(t, tmp, "r1.md", "---\na: 1\nb: 2\n---\nBODY\n")
+	if err := RemoveFrontmatterKey(v, "r1", "a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fm, body, had, err := parseFrontmatter(readFile(t, path))
+	if err != nil || !had {
+		t.Fatalf("parse error or no frontmatter: %v had=%v", err, had)
+	}
+	if _, exists := fm["a"]; exists {
+		t.Fatalf("expected key 'a' removed")
+	}
+	if fm["b"] != 2 {
+		t.Fatalf("expected key 'b' remains with value 2, got: %#v", fm["b"])
+	}
+	if body != "\nBODY\n" {
+		t.Fatalf("unexpected body: %q", body)
+	}
+
+	// Remove last key -> entire FM removed and no leading blank line before body
+	path = writeNote(t, tmp, "r2.md", "---\na: z\n---\nContent\n")
+	if err := RemoveFrontmatterKey(v, "r2", "a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	updated := readFile(t, path)
+	// After removal, there should be no frontmatter; parse should report had=false and fm=nil
+	fm2, body2, had2, err := parseFrontmatter(updated)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if had2 || fm2 != nil {
+		t.Fatalf("expected no frontmatter, got had=%v fm=%#v", had2, fm2)
+	}
+	// Body should not start with an extra blank line
+	if body2 != "Content\n" {
+		t.Fatalf("unexpected body after removing last key: %q", body2)
+	}
+
+	// Removing non-existent key -> no changes
+	path = writeNote(t, tmp, "r3.md", "---\nx: 1\n---\nB\n")
+	before := readFile(t, path)
+	if err := RemoveFrontmatterKey(v, "r3", "nope"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	after := readFile(t, path)
+	if before != after {
+		t.Fatalf("expected file unchanged when removing missing key")
+	}
+}
+
+// Sanity test for parseFrontmatter with CRLF input
+func TestParseFrontmatter_CRLF(t *testing.T) {
+	input := "---\r\nkey: val\r\n---\r\nBody\r\n"
+	fm, body, had, err := parseFrontmatter(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !had || fm["key"] != "val" {
+		t.Fatalf("expected fm with key=val, got had=%v fm=%#v", had, fm)
+	}
+	// Body normalization returns body using \n; we just ensure content sans frontmatter is preserved.
+	if body != "Body\n" && body != "\nBody\n" {
+		t.Fatalf("unexpected body: %q", body)
+	}
+}
+
+// Additional safety: ensure YAML round-trip types are as expected for numbers
+func TestYamlNumberTypePreservedOnRemove(t *testing.T) {
+	tmp := t.TempDir()
+	v := testVault{path: tmp}
+
+	path := writeNote(t, tmp, "num.md", "---\nnum: 3\n---\nB\n")
+	// Edit another key so FM marshals; then remove it and ensure num remains 3 (as int)
+	if err := EditFrontmatter(v, FrontmatterEditParams{NoteName: "num", Key: "x", Value: "1"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := RemoveFrontmatterKey(v, "num", "x"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fm, _, _, _ := parseFrontmatter(readFile(t, path))
+	if v, ok := fm["num"]; !ok || reflect.TypeOf(v).Kind() != reflect.Int {
+		t.Fatalf("expected num to remain integer, got: %#v (%T)", v, v)
+	}
+}
+-- pkg/actions/move.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"path/filepath"
+)
+
+type MoveParams struct {
+	CurrentNoteName string
+	NewNoteName     string
+	ShouldOpen      bool
+}
+
+func MoveNote(vault obsidian.VaultManager, note obsidian.NoteManager, uri obsidian.UriManager, params MoveParams) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+
+	currentPath := filepath.Join(vaultPath, params.CurrentNoteName)
+	newPath := filepath.Join(vaultPath, params.NewNoteName)
+
+	err = note.Move(currentPath, newPath)
+	if err != nil {
+		return err
+	}
+
+	err = note.UpdateLinks(vaultPath, params.CurrentNoteName, params.NewNoteName)
+	if err != nil {
+		return err
+	}
+
+	if params.ShouldOpen {
+		obsidianUri := uri.Construct(ObsOpenUrl, map[string]string{
+			"file":  params.NewNoteName,
+			"vault": vaultName,
+		})
+
+		err := uri.Execute(obsidianUri)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+-- pkg/actions/move_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestMoveNote(t *testing.T) {
+	t.Run("Successful move note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		// Act
+		err := actions.MoveNote(&vault, &note, &uri, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      true,
+		})
+		// Assert
+		assert.NoError(t, err, "Expected no error")
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("Failed to get vault name"),
+		}
+		// Act
+		err := actions.MoveNote(&vault, &mocks.MockNoteManager{}, &mocks.MockUriManager{}, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      true,
+		})
+		// Assert
+		assert.Equal(t, err, vault.DefaultNameErr)
+	})
+
+	t.Run("vault.Path returns an error", func(t *testing.T) {
+		// Arrange
+		vaultOp := &mocks.MockVaultOperator{
+			PathError: errors.New("Failed to get vault path"),
+		}
+		// Act
+		err := actions.MoveNote(vaultOp, &mocks.MockNoteManager{}, &mocks.MockUriManager{}, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      false,
+		})
+		// Assert
+		assert.Equal(t, err, vaultOp.PathError)
+	})
+
+	t.Run("note.Move returns an error", func(t *testing.T) {
+		// Arrange
+		note := mocks.MockNoteManager{
+			MoveErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.MoveNote(&mocks.MockVaultOperator{}, &note, &mocks.MockUriManager{}, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      false,
+		})
+		// Assert
+		assert.Equal(t, err, note.MoveErr)
+	})
+
+	t.Run("note.UpdateLinks returns an error", func(t *testing.T) {
+		// Arrange
+		note := mocks.MockNoteManager{
+			UpdateLinksError: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.MoveNote(&mocks.MockVaultOperator{}, &note, &mocks.MockUriManager{}, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      false,
+		})
+		// Assert
+		assert.Equal(t, err, note.UpdateLinksError)
+	})
+
+	t.Run("uri.Execute returns an error", func(t *testing.T) {
+		// Arrange
+		uriManager := &mocks.MockUriManager{
+			ExecuteErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.MoveNote(&mocks.MockVaultOperator{}, &mocks.MockNoteManager{}, uriManager, actions.MoveParams{
+			CurrentNoteName: "string",
+			NewNoteName:     "string",
+			ShouldOpen:      true,
+		})
+		// Assert
+		assert.Equal(t, err, uriManager.ExecuteErr)
+	})
+}
+-- pkg/actions/open.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+)
+
+type OpenParams struct {
+	NoteName string
+}
+
+func OpenNote(vault obsidian.VaultManager, uri obsidian.UriManager, params OpenParams) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	obsidianUri := uri.Construct(ObsOpenUrl, map[string]string{
+		"vault": vaultName,
+		"file":  params.NoteName,
+	})
+
+	err = uri.Execute(obsidianUri)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+-- pkg/actions/open_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestOpenNote(t *testing.T) {
+	t.Run("Successful open note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		// Act
+		err := actions.OpenNote(&vault, &uri, actions.OpenParams{
+			NoteName: "note.md",
+		})
+		// Assert
+		assert.Equal(t, err, nil)
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vaultDefaultNameErr := errors.New("Failed to get vault name")
+		vaultOp := &mocks.MockVaultOperator{
+			DefaultNameErr: vaultDefaultNameErr,
+		}
+		// Act
+		err := actions.OpenNote(vaultOp, &mocks.MockUriManager{}, actions.OpenParams{
+			NoteName: "note.md",
+		})
+		// Assert
+		assert.Error(t, err, vaultDefaultNameErr)
+	})
+
+	t.Run("uri.Execute returns an error", func(t *testing.T) {
+		// Arrange
+		uri := mocks.MockUriManager{
+			ExecuteErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.OpenNote(&mocks.MockVaultOperator{}, &uri, actions.OpenParams{
+			NoteName: "note1.md",
+		})
+		// Assert
+		assert.Equal(t, err, uri.ExecuteErr)
+	})
+}
+-- pkg/actions/print.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+)
+
+type PrintParams struct {
+	NoteName string
+}
+
+func PrintNote(vault obsidian.VaultManager, note obsidian.NoteManager, params PrintParams) (string, error) {
+	_, err := vault.DefaultName()
+	if err != nil {
+		return "", err
+	}
+
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return "", err
+	}
+
+	contents, err := note.GetContents(vaultPath, params.NoteName)
+	if err != nil {
+		return "", err
+	}
+
+	return contents, nil
+}
+-- pkg/actions/print_test.go --
+package actions_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestPrintNote(t *testing.T) {
+	t.Run("Successful get contents of note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		note := mocks.MockNoteManager{}
+		// Act
+		content, err := actions.PrintNote(&vault, &note, actions.PrintParams{
+			NoteName: "note-name",
+		})
+		// Assert
+		assert.NoError(t, err, "Expected no error")
+		assert.Equal(t, content, "example contents", "Expect matching file contents")
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("Failed to get vault name"),
+		}
+		note := mocks.MockNoteManager{}
+		// Act
+		_, err := actions.PrintNote(&vault, &note, actions.PrintParams{
+			NoteName: "note-name",
+		})
+		// Assert
+		assert.Equal(t, err, vault.DefaultNameErr)
+	})
+
+	t.Run("GetContents returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{}
+		note := mocks.MockNoteManager{
+			GetContentsError: errors.New("Failed to read note"),
+		}
+		// Act
+		_, err := actions.PrintNote(&vault, &note, actions.PrintParams{
+			NoteName: "note-name",
+		})
+		// Assert
+		assert.Equal(t, err, note.GetContentsError)
+	})
+}
+-- pkg/actions/search.go --
+package actions
+
+import (
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+)
+
+func SearchNotes(vault obsidian.VaultManager, note obsidian.NoteManager, uri obsidian.UriManager, fuzzyFinder obsidian.FuzzyFinderManager) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+
+	notes, err := note.GetNotesList(vaultPath)
+	if err != nil {
+		return err
+	}
+
+	index, err := fuzzyFinder.Find(notes, func(i int) string {
+		return notes[i]
+	})
+
+	if err != nil {
+		return err
+	}
+
+	obsidianUri := uri.Construct(ObsOpenUrl, map[string]string{
+		"file":  notes[index],
+		"vault": vaultName,
+	})
+
+	err = uri.Execute(obsidianUri)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+-- pkg/actions/search_content.go --
+package actions
+
+import (
+	"fmt"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+)
+
+func SearchNotesContent(vault obsidian.VaultManager, note obsidian.NoteManager, uri obsidian.UriManager, fuzzyFinder obsidian.FuzzyFinderManager, searchTerm string) error {
+	vaultName, err := vault.DefaultName()
+	if err != nil {
+		return err
+	}
+
+	vaultPath, err := vault.Path()
+	if err != nil {
+		return err
+	}
+
+	matches, err := note.SearchNotesWithSnippets(vaultPath, searchTerm)
+	if err != nil {
+		return err
+	}
+
+	if len(matches) == 0 {
+		fmt.Printf("No notes found containing '%s'\n", searchTerm)
+		return nil
+	}
+
+	if len(matches) == 1 {
+		obsidianUri := uri.Construct(ObsOpenUrl, map[string]string{
+			"file":  matches[0].FilePath,
+			"vault": vaultName,
+		})
+		fmt.Printf("Opening note: %s\n", matches[0].FilePath)
+		return uri.Execute(obsidianUri)
+	}
+
+	displayItems := formatMatchesForDisplay(matches)
+
+	index, err := fuzzyFinder.Find(displayItems, func(i int) string {
+		return displayItems[i]
+	})
+	if err != nil {
+		return err
+	}
+
+	selectedMatch := matches[index]
+	obsidianUri := uri.Construct(ObsOpenUrl, map[string]string{
+		"file":  selectedMatch.FilePath,
+		"vault": vaultName,
+	})
+	return uri.Execute(obsidianUri)
+}
+
+func formatMatchesForDisplay(matches []obsidian.NoteMatch) []string {
+	maxPathLength := calculateMaxPathLength(matches)
+
+	var displayItems []string
+	for _, match := range matches {
+		displayStr := formatSingleMatch(match, maxPathLength)
+		displayItems = append(displayItems, displayStr)
+	}
+
+	return displayItems
+}
+
+func calculateMaxPathLength(matches []obsidian.NoteMatch) int {
+	maxLength := 0
+	for _, match := range matches {
+		pathWithLine := formatPathWithLine(match)
+		if len(pathWithLine) > maxLength {
+			maxLength = len(pathWithLine)
+		}
+	}
+	return maxLength
+}
+
+func formatPathWithLine(match obsidian.NoteMatch) string {
+	if match.LineNumber > 0 {
+		return fmt.Sprintf("%s:%d", match.FilePath, match.LineNumber)
+	}
+	return match.FilePath
+}
+
+func formatSingleMatch(match obsidian.NoteMatch, maxPathLength int) string {
+	pathWithLine := formatPathWithLine(match)
+	if match.LineNumber == 0 {
+		// Filename match - show path and indicate it's a filename match
+		return fmt.Sprintf("%-*s | %s", maxPathLength, pathWithLine, match.MatchLine)
+	}
+	// Content match - show path:line | snippet
+	return fmt.Sprintf("%-*s | %s", maxPathLength, pathWithLine, match.MatchLine)
+}
+-- pkg/actions/search_content_test.go --
+package actions_test
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSearchNotesContent(t *testing.T) {
+	t.Run("Successful content search with single match", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.NoError(t, err)
+	})
+
+	t.Run("No matches found", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{NoMatches: true}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "nonexistent")
+		assert.NoError(t, err)
+	})
+
+	t.Run("SearchNotesWithSnippets returns error", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{
+			GetContentsError: errors.New("search failed"),
+		}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.Error(t, err)
+	})
+
+	t.Run("vault.DefaultName returns error", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("vault name error"),
+		}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.Error(t, err)
+	})
+
+	t.Run("vault.Path returns error", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{
+			PathError: errors.New("vault path error"),
+		}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.Error(t, err)
+	})
+
+	t.Run("fuzzy finder returns error", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{
+			FindErr: errors.New("fuzzy finder error"),
+		}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.Error(t, err)
+	})
+
+	t.Run("uri execution returns error", func(t *testing.T) {
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{
+			ExecuteErr: errors.New("uri execution error"),
+		}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+
+		err := actions.SearchNotesContent(&vault, &note, &uri, &fuzzyFinder, "test")
+		assert.Error(t, err)
+	})
+}
+-- pkg/actions/search_test.go --
+package actions_test
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/actions"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSearchNotes(t *testing.T) {
+	t.Run("Successful search note", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+		// Act
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		// Assert
+		assert.NoError(t, err, "Expected no error")
+	})
+
+	t.Run("fuzzy find returns error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{
+			FindErr: errors.New("Fuzzy find error"),
+		}
+		// Act
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		// Assert
+		assert.Equal(t, err, fuzzyFinder.FindErr)
+	})
+
+	t.Run("vault.DefaultName returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			DefaultNameErr: errors.New("Failed to get vault name"),
+		}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+		// Act
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		// Assert
+		assert.Equal(t, err, vault.DefaultNameErr)
+	})
+
+	t.Run("vault.Path returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{
+			PathError: errors.New("Failed to get vault path"),
+		}
+		uri := mocks.MockUriManager{}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+		// Act
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		// Assert
+		assert.Equal(t, err, vault.PathError)
+	})
+
+	t.Run("uri.Execute returns an error", func(t *testing.T) {
+		// Arrange
+		vault := mocks.MockVaultOperator{Name: "myVault"}
+		note := mocks.MockNoteManager{}
+		fuzzyFinder := mocks.MockFuzzyFinder{}
+		uri := mocks.MockUriManager{
+			ExecuteErr: errors.New("Failed to execute URI"),
+		}
+		// Act
+		err := actions.SearchNotes(&vault, &note, &uri, &fuzzyFinder)
+		// Assert
+		assert.Equal(t, err, uri.ExecuteErr)
+	})
+}
+-- pkg/config/cli_path.go --
+package config
+
+import (
+	"errors"
+	"os"
+	"path/filepath"
+)
+
+var UserConfigDirectory = os.UserConfigDir
+
+func CliPath() (cliConfigDir string, cliConfigFile string, err error) {
+	userConfigDir, err := UserConfigDirectory()
+	if err != nil {
+		return "", "", errors.New(UserConfigDirectoryNotFoundErrorMessage)
+	}
+	cliConfigDir = filepath.Join(userConfigDir, ObsidianCLIConfigDirectory)
+	cliConfigFile = filepath.Join(cliConfigDir, ObsidianCLIConfigFile)
+	return cliConfigDir, cliConfigFile, nil
+}
+-- pkg/config/cli_path_test.go --
+package config_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/pkg/config"
+	"github.com/stretchr/testify/assert"
+	"path/filepath"
+	"testing"
+)
+
+func TestConfigCliPath(t *testing.T) {
+	originalUserConfigDirectory := config.UserConfigDirectory
+	defer func() { config.UserConfigDirectory = originalUserConfigDirectory }()
+
+	t.Run("UserConfigDir func returns a directory", func(t *testing.T) {
+		// Arrange
+		config.UserConfigDirectory = func() (string, error) {
+			return "user/config/dir", nil
+		}
+		// Act
+		obsConfigDir, obsConfigFile, err := config.CliPath()
+		// Assert
+		assert.Equal(t, nil, err)
+		// Normalize paths for cross-platform compatibility
+		obsConfigDir = filepath.ToSlash(obsConfigDir)
+		obsConfigFile = filepath.ToSlash(obsConfigFile)
+		assert.Equal(t, "user/config/dir/obsidian-cli", obsConfigDir)
+		assert.Equal(t, "user/config/dir/obsidian-cli/preferences.json", obsConfigFile)
+	})
+
+	t.Run("UserConfigDir func returns an error", func(t *testing.T) {
+		// Arrange
+		config.UserConfigDirectory = func() (string, error) {
+			return "", errors.New(config.UserConfigDirectoryNotFoundErrorMessage)
+		}
+		// Act
+		obsConfigDir, obsConfigFile, err := config.CliPath()
+		// Assert
+		assert.Equal(t, config.UserConfigDirectoryNotFoundErrorMessage, err.Error())
+		assert.Equal(t, "", obsConfigDir)
+		assert.Equal(t, "", obsConfigFile)
+	})
+
+}
+-- pkg/config/constants.go --
+package config
+
+const (
+	UserConfigDirectoryNotFoundErrorMessage = "User config directory not found"
+	ObsidianConfigDirectory                 = "obsidian"
+	ObsidianConfigFile                      = "obsidian.json"
+	ObsidianCLIConfigDirectory              = "obsidian-cli"
+	ObsidianCLIConfigFile                   = "preferences.json"
+)
+-- pkg/config/obsidian_path.go --
+package config
+
+import (
+	"errors"
+	"path/filepath"
+)
+
+func ObsidianFile() (obsidianConfigFile string, err error) {
+	userConfigDir, err := UserConfigDirectory()
+	if err != nil {
+		return "", errors.New(UserConfigDirectoryNotFoundErrorMessage)
+	}
+	obsidianConfigFile = filepath.Join(userConfigDir, ObsidianConfigDirectory, ObsidianConfigFile)
+	return obsidianConfigFile, nil
+}
+-- pkg/config/obsidian_path_test.go --
+package config_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/pkg/config"
+	"github.com/stretchr/testify/assert"
+	"path/filepath"
+	"testing"
+)
+
+func TestConfigObsidianPath(t *testing.T) {
+	t.Run("UserConfigDir func successfully returns directory", func(t *testing.T) {
+		// Arrange
+		config.UserConfigDirectory = func() (string, error) {
+			return "user/config/dir", nil
+		}
+		// Act
+		obsConfigFile, err := config.ObsidianFile()
+		// Assert
+		assert.Equal(t, nil, err)
+		obsConfigFile = filepath.ToSlash(obsConfigFile)
+		assert.Equal(t, "user/config/dir/obsidian/obsidian.json", obsConfigFile)
+	})
+
+	t.Run("UserConfigDir func returns an error", func(t *testing.T) {
+		// Arrange
+		config.UserConfigDirectory = func() (string, error) {
+			return "", errors.New(config.UserConfigDirectoryNotFoundErrorMessage)
+		}
+		// Act
+		obsConfigFile, err := config.ObsidianFile()
+		// Assert
+		assert.Equal(t, config.UserConfigDirectoryNotFoundErrorMessage, err.Error())
+		assert.Equal(t, "", obsConfigFile)
+	})
+}
+-- pkg/obsidian/constants.go --
+package obsidian
+
+const (
+	ExecuteUriError                    = "Failed to execute Obsidian URI"
+	NoteDoesNotExistError              = "Cannot find note in vault"
+	VaultAccessError                   = "Failed to access vault directory"
+	VaultReadError                     = "Failed to read notes in vault"
+	VaultWriteError                    = "Failed to write to update notes in vault"
+	ObsidianCLIConfigReadError         = "Cannot find vault config, please use set-default command to set default vault or use --vault flag"
+	ObsidianCLIConfigParseError        = "Could not parse vault config file, please use set-default command to set default vault or use --vault flag"
+	ObsidianCLIConfigDirWriteEror      = "Failed to create vault config directory. Please ensure you have the correct permissions."
+	ObsidianCLIConfigGenerateJSONError = "Failed to generate vault config file. Please ensure vault name does not contain any special characters."
+	ObsidianCLIConfigWriteError        = "Failed to write vault config file. Please ensure you have correct permissions."
+	ObsidianConfigReadError            = "Failed to read Obsidian config file. Please ensure vault has been set up in Obsidian."
+	ObsidianConfigParseError           = "Failed to parse Obsidian config file. Please ensure vault has been set up in Obsidian."
+	ObsidianConfigVaultNotFoundError   = "Vault not found in Obsidian config file. Please ensure vault has been set up in Obsidian."
+)
+-- pkg/obsidian/fuzzyfinder.go --
+package obsidian
+
+import (
+	"errors"
+	"github.com/ktr0731/go-fuzzyfinder"
+)
+
+type FuzzyFinder struct{}
+
+type FuzzyFinderManager interface {
+	Find(slice interface{}, itemFunc func(i int) string, opts ...interface{}) (int, error)
+}
+
+func (f *FuzzyFinder) Find(slice interface{}, itemFunc func(i int) string, opts ...interface{}) (int, error) {
+	items, ok := slice.([]string)
+	if !ok {
+		return -1, errors.New("invalid slice type, expected []string")
+	}
+
+	index, err := fuzzyfinder.Find(items, func(i int) string {
+		return itemFunc(i)
+	})
+	if err != nil {
+		return -1, errors.New(NoteDoesNotExistError)
+	}
+	return index, nil
+}
+-- pkg/obsidian/note.go --
+package obsidian
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type Note struct {
+}
+
+type NoteMatch struct {
+	FilePath   string
+	LineNumber int
+	MatchLine  string
+}
+
+type NoteManager interface {
+	Move(string, string) error
+	Delete(string) error
+	UpdateLinks(string, string, string) error
+	GetContents(string, string) (string, error)
+	GetNotesList(string) ([]string, error)
+	SearchNotesWithSnippets(string, string) ([]NoteMatch, error)
+}
+
+func (m *Note) Move(originalPath string, newPath string) error {
+	o := AddMdSuffix(originalPath)
+	n := AddMdSuffix(newPath)
+
+	err := os.Rename(o, n)
+
+	if err != nil {
+		return errors.New(NoteDoesNotExistError)
+	}
+
+	message := fmt.Sprintf(`Moved note 
+from %s
+to %s`, o, n)
+
+	fmt.Println(message)
+	return nil
+}
+func (m *Note) Delete(path string) error {
+	note := AddMdSuffix(path)
+	err := os.Remove(note)
+	if err != nil {
+		return errors.New(NoteDoesNotExistError)
+	}
+	fmt.Println("Deleted note: ", note)
+	return nil
+}
+
+func (m *Note) GetContents(vaultPath string, noteName string) (string, error) {
+	note := AddMdSuffix(noteName)
+
+	var notePath string
+	err := filepath.WalkDir(vaultPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err // Continue to the next path if there's an error
+		}
+		if d.IsDir() {
+			return nil // Skip directories
+		}
+
+		// Check for full path match first
+		relPath, err := filepath.Rel(vaultPath, path)
+		if err == nil && relPath == note {
+			notePath = path
+			return filepath.SkipDir
+		}
+
+		// Fall back to basename match for backward compatibility
+		if filepath.Base(path) == note {
+			notePath = path
+			return filepath.SkipDir
+		}
+		return nil
+	})
+
+	if err != nil || notePath == "" {
+		return "", errors.New(NoteDoesNotExistError)
+	}
+
+	file, err := os.Open(notePath)
+	if err != nil {
+		return "", errors.New(VaultReadError)
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return "", errors.New(VaultReadError)
+	}
+
+	return string(content), nil
+}
+
+func (m *Note) UpdateLinks(vaultPath string, oldNoteName string, newNoteName string) error {
+	err := filepath.Walk(vaultPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return errors.New(VaultAccessError)
+		}
+
+		if ShouldSkipDirectoryOrFile(info) {
+			return nil
+		}
+
+		originalContent, err := os.ReadFile(path)
+		if err != nil {
+			return errors.New(VaultReadError)
+		}
+
+		oldNoteLinkTexts := GenerateNoteLinkTexts(oldNoteName)
+		newNoteLinkTexts := GenerateNoteLinkTexts(newNoteName)
+
+		updatedContent := ReplaceContent(originalContent, map[string]string{
+			oldNoteLinkTexts[0]: newNoteLinkTexts[0],
+			oldNoteLinkTexts[1]: newNoteLinkTexts[1],
+			oldNoteLinkTexts[2]: newNoteLinkTexts[2],
+		})
+
+		if bytes.Equal(originalContent, updatedContent) {
+			return nil
+		}
+
+		err = os.WriteFile(path, updatedContent, info.Mode())
+		if err != nil {
+			return errors.New(VaultWriteError)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Note) GetNotesList(vaultPath string) ([]string, error) {
+	var notes []string
+	err := filepath.WalkDir(vaultPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
+			relPath, err := filepath.Rel(vaultPath, path)
+			if err != nil {
+				return err
+			}
+			notes = append(notes, relPath)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return notes, nil
+}
+
+func (m *Note) SearchNotesWithSnippets(vaultPath string, query string) ([]NoteMatch, error) {
+	var matches []NoteMatch
+	queryLower := strings.ToLower(query)
+
+	err := filepath.WalkDir(vaultPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(d.Name(), ".md") {
+			relPath, err := filepath.Rel(vaultPath, path)
+			if err != nil {
+				return err
+			}
+
+			fileNameMatches := strings.Contains(strings.ToLower(relPath), queryLower)
+			var hasContentMatch bool
+
+			// Check file size to avoid reading very large files (>10MB)
+			if info, err := d.Info(); err == nil && info.Size() < 10*1024*1024 {
+				content, err := os.ReadFile(path)
+				if err == nil {
+					lines := strings.Split(string(content), "\n")
+					for lineNum, line := range lines {
+						if strings.Contains(strings.ToLower(line), queryLower) {
+							hasContentMatch = true
+							matchLine := strings.TrimSpace(line)
+							if len(matchLine) > 80 {
+								// Find the query position and center around it
+								queryPos := strings.Index(strings.ToLower(matchLine), queryLower)
+								if queryPos != -1 {
+									start := queryPos - 20
+									end := queryPos + len(query) + 20
+									if start < 0 {
+										start = 0
+									}
+									if end > len(matchLine) {
+										end = len(matchLine)
+									}
+									if start > 0 {
+										matchLine = "..." + matchLine[start:]
+									}
+									if end < len(strings.TrimSpace(line)) {
+										matchLine = matchLine[:end-start] + "..."
+									}
+								} else {
+									matchLine = matchLine[:80] + "..."
+								}
+							}
+
+							matches = append(matches, NoteMatch{
+								FilePath:   relPath,
+								LineNumber: lineNum + 1,
+								MatchLine:  matchLine,
+							})
+						}
+					}
+				}
+			}
+
+			// Only add filename match if there are no content matches
+			if fileNameMatches && !hasContentMatch {
+				matches = append(matches, NoteMatch{
+					FilePath:   relPath,
+					LineNumber: 0,
+					MatchLine:  fmt.Sprintf("(filename match: %s)", filepath.Base(relPath)),
+				})
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return matches, nil
+}
+-- pkg/obsidian/note_test.go --
+package obsidian_test
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestDeleteNote(t *testing.T) {
+	tests := []struct {
+		testName     string
+		noteToCreate string
+		noteArg      string
+	}{
+		{"Delete note with .md", "note.md", "note.md"},
+		{"Delete note without .md", "note.md", "note"},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Arrange
+			tempDir := t.TempDir()
+			notePathToCreate := filepath.Join(tempDir, test.noteToCreate)
+			notePath := filepath.Join(tempDir, test.noteArg)
+
+			err := os.WriteFile(notePathToCreate, []byte(""), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Act
+			noteManager := obsidian.Note{}
+			err = noteManager.Delete(notePath)
+			// Assert
+			assert.Equal(t, nil, err, "Expected no error while deleting note")
+
+		})
+	}
+
+	t.Run("Delete non-existent note", func(t *testing.T) {
+		// Arrange
+		noteManager := obsidian.Note{}
+		// Act
+		err := noteManager.Delete("non-existent-note")
+		// Assert
+		assert.Equal(t, obsidian.NoteDoesNotExistError, err.Error(), "Expected error while deleting non-existent note")
+
+	})
+}
+func TestNote_GetContents(t *testing.T) {
+	tests := []struct {
+		testName           string
+		noteToCreate       string
+		noteNameToRetrieve string
+	}{
+		{"Get contents of note", "note.md", "note.md"},
+		{"Get contents of note without md", "note.md", "note"},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Arrange
+			tempDir := t.TempDir()
+			vaultPath := "vault-folder"
+			notePath := filepath.Join(tempDir, vaultPath, test.noteToCreate)
+			fileContents := "Example file contents here"
+
+			err := os.MkdirAll(filepath.Join(tempDir, vaultPath), 0755)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = os.WriteFile(notePath, []byte(fileContents), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Act
+			noteManager := obsidian.Note{}
+			content, err := noteManager.GetContents(filepath.Join(tempDir, vaultPath), test.noteNameToRetrieve)
+
+			// Assert
+			assert.Equal(t, nil, err, "Expected no error while retrieving note contents")
+			assert.Equal(t, fileContents, content, "Expected contents to match the file contents")
+		})
+	}
+
+	t.Run("Get contents by full path", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		subDir := "02 Personal/Hobbies/Cooking"
+		noteName := "Cookies.md"
+		fullNotePath := filepath.Join(subDir, noteName)
+		actualNotePath := filepath.Join(tempDir, vaultPath, fullNotePath)
+		fileContents := "Cookie recipe content here"
+
+		err := os.MkdirAll(filepath.Dir(actualNotePath), 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = os.WriteFile(actualNotePath, []byte(fileContents), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Act - test with full path
+		noteManager := obsidian.Note{}
+		content, err := noteManager.GetContents(filepath.Join(tempDir, vaultPath), fullNotePath)
+
+		// Assert
+		assert.Equal(t, nil, err, "Expected no error while retrieving note contents by full path")
+		assert.Equal(t, fileContents, content, "Expected contents to match the file contents")
+
+		// Act - test with just filename (should still work for backward compatibility)
+		content2, err2 := noteManager.GetContents(filepath.Join(tempDir, vaultPath), "Cookies")
+
+		// Assert
+		assert.Equal(t, nil, err2, "Expected no error while retrieving note contents by filename")
+		assert.Equal(t, fileContents, content2, "Expected contents to match the file contents")
+	})
+
+	t.Run("Get contents of non-existent note", func(t *testing.T) {
+		// Arrange
+		noteManager := obsidian.Note{}
+		// Act
+		contents, err := noteManager.GetContents("path", "non-existent-note")
+		// Assert
+		assert.Equal(t, obsidian.NoteDoesNotExistError, err.Error(), "Expected error while deleting non-existent note")
+		assert.Equal(t, contents, "")
+
+	})
+}
+
+func TestMoveNote(t *testing.T) {
+	originalContent := "This is the original content."
+
+	tests := []struct {
+		testName                 string
+		existingNotePathToCreate string
+		originalNotePath         string
+		newNotePath              string
+		expectedNotePath         string
+	}{
+		{"Original path with .md", "original.md", "original.md", "newName", "newName.md"},
+		{"Original without .md", "original.md", "original", "newName", "newName.md"},
+		{"New note with .md", "original.md", "original", "newName.md", "newName.md"},
+		{"New Note without .md", "original.md", "original", "newName", "newName.md"},
+		{"Both with .md", "original.md", "original.md", "newName.md", "newName.md"},
+		{"Both without .md", "original.md", "original", "newName", "newName.md"},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Arrange
+			tempDir := t.TempDir()
+			existingNoteFullPathToCreate := filepath.Join(tempDir, test.existingNotePathToCreate)
+			expectedNewPath := filepath.Join(tempDir, test.expectedNotePath)
+
+			err := os.WriteFile(existingNoteFullPathToCreate, []byte(originalContent), 0644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			fullOriginalNotePath := filepath.Join(tempDir, test.originalNotePath)
+			fullNewNotePath := filepath.Join(tempDir, test.newNotePath)
+
+			noteManager := obsidian.Note{}
+
+			// Act
+			err = noteManager.Move(fullOriginalNotePath, fullNewNotePath)
+
+			// Assert
+			assert.NoError(t, err, "Expected no error while moving note")
+
+			// Check if the original file has been moved to the new path
+			_, err = os.Stat(existingNoteFullPathToCreate)
+			assert.True(t, os.IsNotExist(err), "Original file still exists at %s, expected it to be moved", existingNoteFullPathToCreate)
+
+			// Check if the new file exists
+			_, err = os.Stat(expectedNewPath)
+			assert.False(t, os.IsNotExist(err), "New file does not exist at %s, expected it to be created", expectedNewPath)
+
+			// Read the content of the new file and compare it with the original content
+			newContent, err := os.ReadFile(expectedNewPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			assert.Equal(t, string(newContent), originalContent, "New file content is %q, expected %q", string(newContent), originalContent)
+
+		})
+	}
+
+	t.Run("Error when moving file", func(t *testing.T) {
+		// Arrange
+		noteManager := obsidian.Note{}
+		// Act
+		err := noteManager.Move("filepath/that/does/not/exist", "newNote")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.NoteDoesNotExistError)
+	})
+}
+
+func createTmpDirAndFiles(t *testing.T, perm os.FileMode, files []string, content []byte) string {
+	t.Helper()
+	// Create a temporary test directory
+	tmpDir := t.TempDir()
+	for _, file := range files {
+		err := os.WriteFile(filepath.Join(tmpDir, file), content, perm)
+		if err != nil {
+			t.Fatalf("Failed to create test file: %v", err)
+		}
+	}
+	// create other non markdown files
+	err := os.WriteFile(filepath.Join(tmpDir, "file4.txt"), []byte("This is a test file"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+	// create hidden directory
+	err = os.Mkdir(filepath.Join(tmpDir, ".hidden"), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create hidden directory: %v", err)
+	}
+	return tmpDir
+}
+func TestUpdateNoteLinks(t *testing.T) {
+	oldNoteName := "oldNote"
+	newNoteName := "newNote"
+	content := []byte(fmt.Sprintf("This is a test file with [[%s]] [[%s#section]] [[%s#section|text]]", oldNoteName, oldNoteName, oldNoteName))
+	testFiles := []string{"file1.md", "file2.md", "file3.md"}
+
+	t.Run("Update note links successfully", func(t *testing.T) {
+		// Arrange
+		tmpDir := createTmpDirAndFiles(t, 0644, testFiles, content)
+
+		noteManager := obsidian.Note{}
+
+		// Act
+		err := noteManager.UpdateLinks(tmpDir, oldNoteName, newNoteName)
+		assert.Equal(t, nil, err)
+
+		// Assert
+		for _, file := range testFiles {
+			newContent, err := os.ReadFile(filepath.Join(tmpDir, file))
+			if err != nil {
+				t.Fatalf("Failed to read test file: %v", err)
+			}
+			expectedContent := fmt.Sprintf("This is a test file with [[%s]] [[%s#section]] [[%s#section|text]]", newNoteName, newNoteName, newNoteName)
+			assert.Equal(t, expectedContent, string(newContent))
+
+		}
+	})
+
+	t.Run("Error on incorrect vault", func(t *testing.T) {
+		// Arrange
+		noteManager := obsidian.Note{}
+		// Act
+		err := noteManager.UpdateLinks("", "oldNote", "newNote")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.VaultAccessError)
+	})
+
+	t.Run("Error reading files in vault", func(t *testing.T) {
+		// Arrange
+		tmpDir := createTmpDirAndFiles(t, 0000, testFiles, content)
+		noteManager := obsidian.Note{}
+		// Act
+		err := noteManager.UpdateLinks(tmpDir, "oldNote", "newNote")
+		// Assert
+		if err == nil {
+
+			t.Fatalf("expected an error, got nil")
+		}
+		// Depending on the OS/filesystem, permissions may surface as read or write errors
+		if err.Error() != obsidian.VaultReadError && err.Error() != obsidian.VaultWriteError {
+			t.Fatalf("expected read or write error, got: %v", err)
+		}
+	})
+
+	t.Run("Error on writing to files in vault", func(t *testing.T) {
+		// Arrange
+		tmpDir := createTmpDirAndFiles(t, 0444, testFiles, content)
+		noteManager := obsidian.Note{}
+		// Act
+		err := noteManager.UpdateLinks(tmpDir, "oldNote", "newNote")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.VaultWriteError)
+	})
+}
+
+func TestUpdateLinks_PreservesTimestamps(t *testing.T) {
+	t.Run("Only writes files with actual link changes", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		oldTime := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+
+		// Create files with different content
+		fileWithLinks := filepath.Join(tmpDir, "with_links.md")
+		fileWithoutLinks := filepath.Join(tmpDir, "without_links.md")
+		fileWithOtherLinks := filepath.Join(tmpDir, "other_links.md")
+
+		// File that contains the old note name - should be updated
+		err := os.WriteFile(fileWithLinks, []byte("Content with [[OldNote]] reference"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// File with no relevant links - should NOT be updated
+		err = os.WriteFile(fileWithoutLinks, []byte("Content with no links"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// File with other links - should NOT be updated
+		err = os.WriteFile(fileWithOtherLinks, []byte("Content with [[SomeOtherNote]] reference"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Set all files to old timestamp
+		for _, file := range []string{fileWithLinks, fileWithoutLinks, fileWithOtherLinks} {
+			err = os.Chtimes(file, oldTime, oldTime)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Record original timestamps
+		getModTime := func(path string) time.Time {
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return info.ModTime()
+		}
+
+		originalWithLinks := getModTime(fileWithLinks)
+		originalWithoutLinks := getModTime(fileWithoutLinks)
+		originalOtherLinks := getModTime(fileWithOtherLinks)
+
+		// Act
+		noteManager := obsidian.Note{}
+		err = noteManager.UpdateLinks(tmpDir, "OldNote", "newnote")
+		assert.NoError(t, err)
+
+		// Assert timestamps
+		newWithLinks := getModTime(fileWithLinks)
+		newWithoutLinks := getModTime(fileWithoutLinks)
+		newOtherLinks := getModTime(fileWithOtherLinks)
+
+		// File with links should have new timestamp
+		assert.True(t, newWithLinks.After(originalWithLinks), "File with links should have updated timestamp")
+
+		// Files without relevant links should preserve timestamps
+		assert.Equal(t, originalWithoutLinks, newWithoutLinks, "File without links should preserve timestamp")
+		assert.Equal(t, originalOtherLinks, newOtherLinks, "File with other links should preserve timestamp")
+
+		// Verify content was actually updated in the changed file
+		content, err := os.ReadFile(fileWithLinks)
+		assert.NoError(t, err)
+		assert.Contains(t, string(content), "[[newnote]]", "Links should be updated in changed file")
+	})
+}
+
+func TestNote_GetNotesList(t *testing.T) {
+	t.Run("Retrieve list of notes successfully", func(t *testing.T) {
+		// Arrange
+		testFiles := []string{"file1.md", "file2.md", "file3.md"}
+		content := []byte("This is a test note")
+		tmpDir := createTmpDirAndFiles(t, 0644, testFiles, content)
+
+		noteManager := obsidian.Note{}
+
+		// Act
+		notes, err := noteManager.GetNotesList(tmpDir)
+
+		// Assert
+		assert.NoError(t, err, "Expected no error while retrieving notes list")
+		assert.ElementsMatch(t, testFiles, notes, "Expected notes list to match the created files")
+	})
+
+	t.Run("Empty vault directory", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		noteManager := obsidian.Note{}
+
+		// Act
+		notes, err := noteManager.GetNotesList(tmpDir)
+
+		// Assert
+		assert.NoError(t, err, "Expected no error for empty vault directory")
+		assert.Empty(t, notes, "Expected empty notes list for empty vault directory")
+	})
+
+	t.Run("Vault directory with non-Markdown files", func(t *testing.T) {
+		// Arrange
+		tmpDir := createTmpDirAndFiles(t, 0644, []string{"file1.txt", "file2.jpg"}, []byte("Non-markdown content"))
+		noteManager := obsidian.Note{}
+
+		// Act
+		notes, err := noteManager.GetNotesList(tmpDir)
+
+		// Assert
+		assert.NoError(t, err, "Expected no error when non-Markdown files are present")
+		assert.Empty(t, notes, "Expected empty notes list when no Markdown files are present")
+	})
+}
+
+func TestSearchNotesWithSnippets(t *testing.T) {
+	t.Run("Search notes with content matches", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		fullVaultPath := filepath.Join(tempDir, vaultPath)
+
+		err := os.MkdirAll(fullVaultPath, 0755)
+		assert.NoError(t, err)
+
+		// Create test files
+		testFiles := map[string]string{
+			"note1.md":   "This is a test file\nwith some content\nand more lines",
+			"note2.md":   "Another test document\nwith different content",
+			"readme.txt": "This should be ignored",
+		}
+
+		for filename, content := range testFiles {
+			err = os.WriteFile(filepath.Join(fullVaultPath, filename), []byte(content), 0644)
+			assert.NoError(t, err)
+		}
+
+		// Act
+		note := obsidian.Note{}
+		matches, err := note.SearchNotesWithSnippets(fullVaultPath, "test")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, matches, 2) // Should find 2 matches (one in each .md file)
+
+		// Check that matches contain expected data
+		foundFiles := make(map[string]bool)
+		for _, match := range matches {
+			foundFiles[match.FilePath] = true
+			assert.Greater(t, match.LineNumber, 0)
+			assert.Contains(t, match.MatchLine, "test")
+		}
+
+		assert.True(t, foundFiles["note1.md"])
+		assert.True(t, foundFiles["note2.md"])
+	})
+
+	t.Run("Search notes with filename matches", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		fullVaultPath := filepath.Join(tempDir, vaultPath)
+
+		err := os.MkdirAll(fullVaultPath, 0755)
+		assert.NoError(t, err)
+
+		err = os.WriteFile(filepath.Join(fullVaultPath, "test-note.md"), []byte("Some content"), 0644)
+		assert.NoError(t, err)
+
+		// Act
+		note := obsidian.Note{}
+		matches, err := note.SearchNotesWithSnippets(fullVaultPath, "test")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, matches, 1)
+		assert.Equal(t, "test-note.md", matches[0].FilePath)
+		assert.Equal(t, 0, matches[0].LineNumber) // 0 indicates filename match
+		assert.Contains(t, matches[0].MatchLine, "filename match")
+	})
+
+	t.Run("Search notes prioritizes content over filename matches", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		fullVaultPath := filepath.Join(tempDir, vaultPath)
+
+		err := os.MkdirAll(fullVaultPath, 0755)
+		assert.NoError(t, err)
+
+		// Create a file that matches both filename and content
+		err = os.WriteFile(filepath.Join(fullVaultPath, "test-note.md"), []byte("This contains test content\nAnother line"), 0644)
+		assert.NoError(t, err)
+
+		// Act
+		note := obsidian.Note{}
+		matches, err := note.SearchNotesWithSnippets(fullVaultPath, "test")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, matches, 1) // Should only have content match, not filename match
+		assert.Equal(t, "test-note.md", matches[0].FilePath)
+		assert.Equal(t, 1, matches[0].LineNumber) // Should be content match (line 1)
+		assert.Contains(t, matches[0].MatchLine, "test content")
+		assert.NotContains(t, matches[0].MatchLine, "filename match")
+	})
+
+	t.Run("Search with no matches", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		fullVaultPath := filepath.Join(tempDir, vaultPath)
+
+		err := os.MkdirAll(fullVaultPath, 0755)
+		assert.NoError(t, err)
+
+		err = os.WriteFile(filepath.Join(fullVaultPath, "note.md"), []byte("Some content"), 0644)
+		assert.NoError(t, err)
+
+		// Act
+		note := obsidian.Note{}
+		matches, err := note.SearchNotesWithSnippets(fullVaultPath, "nonexistent")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Empty(t, matches)
+	})
+
+	t.Run("Search with long lines gets truncated", func(t *testing.T) {
+		// Arrange
+		tempDir := t.TempDir()
+		vaultPath := "vault-folder"
+		fullVaultPath := filepath.Join(tempDir, vaultPath)
+
+		err := os.MkdirAll(fullVaultPath, 0755)
+		assert.NoError(t, err)
+
+		longLine := "This is a very long line that contains the word test and should be truncated because it exceeds the maximum length limit"
+		err = os.WriteFile(filepath.Join(fullVaultPath, "note.md"), []byte(longLine), 0644)
+		assert.NoError(t, err)
+
+		// Act
+		note := obsidian.Note{}
+		matches, err := note.SearchNotesWithSnippets(fullVaultPath, "test")
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, matches, 1)
+		assert.Less(t, len(matches[0].MatchLine), len(longLine))
+		assert.Contains(t, matches[0].MatchLine, "test")
+	})
+}
+-- pkg/obsidian/uri.go --
+package obsidian
+
+import (
+	"errors"
+	"github.com/skratchdot/open-golang/open"
+	"net/url"
+)
+
+type Uri struct {
+}
+
+type UriManager interface {
+	Construct(baseUri string, params map[string]string) string
+	Execute(uri string) error
+}
+
+func (u *Uri) Construct(baseUri string, params map[string]string) string {
+	uri := baseUri
+	for key, value := range params {
+		if value != "" && value != "false" {
+			if uri == baseUri {
+				uri += "?" + key + "=" + url.PathEscape(value)
+			} else {
+				uri += "&" + key + "=" + url.PathEscape(value)
+			}
+		}
+	}
+	return uri
+}
+
+var Run = open.Run
+
+func (u *Uri) Execute(uri string) error {
+	//fmt.Println("Opening URI: ", uri)
+	err := Run(uri)
+	if err != nil {
+		return errors.New(ExecuteUriError)
+
+	}
+	return nil
+}
+-- pkg/obsidian/uri_test.go --
+package obsidian_test
+
+import (
+	"errors"
+	"fmt"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestUriConstruct(t *testing.T) {
+	baseUri := "base-uri"
+	var tests = []struct {
+		testName string
+		in       map[string]string
+		want     string
+	}{
+		{"Empty map", map[string]string{}, baseUri},
+		{"One key", map[string]string{"key": "value"}, fmt.Sprintf("%s?key=value", baseUri)},
+		{"Two keys", map[string]string{"key1": "value1", "key2": "value2"}, fmt.Sprintf("%s?key1=value1&key2=value2", baseUri)},
+		{"Empty value", map[string]string{"key": ""}, baseUri},
+		{"Mix of empty and non-empty values", map[string]string{"key1": "value1", "key2": ""}, fmt.Sprintf("%s?key1=value1", baseUri)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			uriManager := obsidian.Uri{}
+			got := uriManager.Construct(baseUri, test.in)
+			// Assert
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestUriExecute(t *testing.T) {
+	// Temporarily override the Run function
+	originalOpenerFunc := obsidian.Run
+	defer func() { obsidian.Run = originalOpenerFunc }()
+
+	t.Run("Valid URI", func(t *testing.T) {
+		obsidian.Run = func(uri string) error {
+			return nil
+		}
+		// Arrange
+		uriManager := obsidian.Uri{}
+		// Act
+		err := uriManager.Execute("https://example.com")
+		// Assert
+		assert.Equal(t, nil, err)
+	})
+
+	t.Run("Invalid URI", func(t *testing.T) {
+		obsidian.Run = func(uri string) error {
+			return errors.New("mock error")
+		}
+		// Arrange
+		uriManager := obsidian.Uri{}
+		// Act
+		err := uriManager.Execute("foo")
+		// Assert
+		assert.Equal(t, obsidian.ExecuteUriError, err.Error())
+	})
+
+}
+-- pkg/obsidian/utils.go --
+package obsidian
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func AddMdSuffix(str string) string {
+	if !strings.HasSuffix(str, ".md") {
+		return str + ".md"
+	}
+	return str
+}
+
+func RemoveMdSuffix(str string) string {
+	if strings.HasSuffix(str, ".md") {
+		return strings.TrimSuffix(str, ".md")
+	}
+	return str
+}
+
+func GenerateNoteLinkTexts(noteName string) [3]string {
+	var noteLinkTexts [3]string
+	noteName = filepath.Base(noteName)
+	noteName = RemoveMdSuffix(noteName)
+	noteLinkTexts[0] = "[[" + noteName + "]]"
+	noteLinkTexts[1] = "[[" + noteName + "|"
+	noteLinkTexts[2] = "[[" + noteName + "#"
+	return noteLinkTexts
+}
+
+func ReplaceContent(content []byte, replacements map[string]string) []byte {
+	for o, n := range replacements {
+		content = bytes.ReplaceAll(content, []byte(o), []byte(n))
+	}
+	return content
+}
+
+func ShouldSkipDirectoryOrFile(info os.FileInfo) bool {
+	isDirectory := info.IsDir()
+	isHidden := info.Name()[0] == '.'
+	isNonMarkdownFile := filepath.Ext(info.Name()) != ".md"
+	if isDirectory || isHidden || isNonMarkdownFile {
+		return true
+	}
+	return false
+}
+-- pkg/obsidian/utils_test.go --
+package obsidian_test
+
+import (
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"testing"
+)
+
+func TestAddMdSuffix(t *testing.T) {
+	tests := []struct {
+		testName string
+		input    string
+		want     string
+	}{
+		{testName: "Without existing .md", input: "myNote", want: "myNote.md"},
+		{testName: "With existing .md", input: "myNote.md", want: "myNote.md"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			got := obsidian.AddMdSuffix(test.input)
+			// Assert
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestRemoveMdSuffix(t *testing.T) {
+	tests := []struct {
+		testName string
+		input    string
+		want     string
+	}{
+		{testName: "Without existing .md", input: "myNote", want: "myNote"},
+		{testName: "With existing .md", input: "myNote.md", want: "myNote"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			got := obsidian.RemoveMdSuffix(test.input)
+			// Assert
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestGenerateNoteLinkTexts(t *testing.T) {
+	var tests = []struct {
+		testName string
+		noteName string
+		want     [3]string
+	}{
+		{"Note with .md", "note.md", [3]string{"[[note]]", "[[note|", "[[note#"}},
+		{"Note without .md", "note", [3]string{"[[note]]", "[[note|", "[[note#"}},
+		{"Note with .md and path", "path/to/note.md", [3]string{"[[note]]", "[[note|", "[[note#"}},
+		{"Note without .md and path", "path/to/note", [3]string{"[[note]]", "[[note|", "[[note#"}},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			got := obsidian.GenerateNoteLinkTexts(test.noteName)
+			// Assert
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+func TestReplaceContent(t *testing.T) {
+	tests := []struct {
+		testName     string
+		content      []byte
+		replacements map[string]string
+		want         []byte
+	}{
+		{"No replacements", []byte("This is the original content"), map[string]string{}, []byte("This is the original content")},
+		{"Replace one word", []byte("This is the original content"), map[string]string{"original": "new"}, []byte("This is the new content")},
+		{"Replace multiple words", []byte("This is the original content"), map[string]string{"original": "new", "content": "text"}, []byte("This is the new text")},
+	}
+
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			got := obsidian.ReplaceContent(test.content, test.replacements)
+			// Assert
+			assert.Equal(t, string(test.want), string(got))
+		})
+	}
+
+}
+
+func TestShouldSkipDirectoryOrFile(t *testing.T) {
+	tests := []struct {
+		testName string
+		info     os.FileInfo
+		want     bool
+	}{
+		{testName: "markdown file", info: &mocks.MockFileInfo{FileName: "file.md"}},
+		{"text file", &mocks.MockFileInfo{FileName: "file.txt"}, true},
+		{"image file", &mocks.MockFileInfo{FileName: "file.jpg"}, true},
+		{"directory", &mocks.MockFileInfo{FileName: "directory", IsDirectory: true}, true},
+		{"hidden directory", &mocks.MockFileInfo{FileName: ".hidden_directory", IsDirectory: true}, true},
+		{"hidden file", &mocks.MockFileInfo{FileName: ".hidden_file"}, true},
+		{"file with no extension", &mocks.MockFileInfo{FileName: "file_with_no_extension"}, true},
+		{"file with dots", &mocks.MockFileInfo{FileName: "file.md.with.dots"}, true},
+		{"markdown file with dots", &mocks.MockFileInfo{FileName: "file.with.multiple.dots.md"}, false},
+	}
+	for _, test := range tests {
+		t.Run(test.testName, func(t *testing.T) {
+			// Act
+			got := obsidian.ShouldSkipDirectoryOrFile(test.info)
+			// Assert
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+-- pkg/obsidian/vault.go --
+package obsidian
+
+type CliConfig struct {
+	DefaultVaultName string `json:"default_vault_name"`
+}
+
+type ObsidianVaultConfig struct {
+	Vaults map[string]struct {
+		Path string `json:"path"`
+	} `json:"vaults"`
+}
+
+type VaultManager interface {
+	DefaultName() (string, error)
+	SetDefaultName(name string) error
+	Path() (string, error)
+}
+
+type Vault struct {
+	Name string
+}
+-- pkg/obsidian/vault_default_name.go --
+package obsidian
+
+import (
+	"encoding/json"
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/pkg/config"
+	"os"
+)
+
+var CliConfigPath = config.CliPath
+var JsonMarshal = json.Marshal
+
+func (v *Vault) DefaultName() (string, error) {
+	if v.Name != "" {
+		return v.Name, nil
+	}
+
+	// get cliConfig path
+	_, cliConfigFile, err := CliConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	// read file
+	content, err := os.ReadFile(cliConfigFile)
+	if err != nil {
+		return "", errors.New(ObsidianCLIConfigReadError)
+	}
+
+	// unmarshal json
+	cliConfig := CliConfig{}
+	err = json.Unmarshal(content, &cliConfig)
+
+	if err != nil {
+		return "", errors.New(ObsidianCLIConfigParseError)
+	}
+
+	if cliConfig.DefaultVaultName == "" {
+		return "", errors.New(ObsidianCLIConfigParseError)
+	}
+
+	v.Name = cliConfig.DefaultVaultName
+	return cliConfig.DefaultVaultName, nil
+}
+
+func (v *Vault) SetDefaultName(name string) error {
+	// marshal obsidian name to json
+	cliConfig := CliConfig{DefaultVaultName: name}
+	jsonContent, err := JsonMarshal(cliConfig)
+	if err != nil {
+		return errors.New(ObsidianCLIConfigGenerateJSONError)
+	}
+
+	// get cliConfig path
+	obsConfigDir, obsConfigFile, err := CliConfigPath()
+	if err != nil {
+		return err
+	}
+
+	// create directory
+	err = os.MkdirAll(obsConfigDir, os.ModePerm)
+	if err != nil {
+		return errors.New(ObsidianCLIConfigDirWriteEror)
+	}
+
+	// create and write file
+	err = os.WriteFile(obsConfigFile, jsonContent, 0644)
+	if err != nil {
+		return errors.New(ObsidianCLIConfigWriteError)
+	}
+
+	v.Name = name
+
+	return nil
+}
+-- pkg/obsidian/vault_default_name_test.go --
+package obsidian_test
+
+import (
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"testing"
+)
+
+func TestVaultDefaultName(t *testing.T) {
+	// Temporarily override the CliConfigPath function
+	originalCliConfigPath := obsidian.CliConfigPath
+	defer func() { obsidian.CliConfigPath = originalCliConfigPath }()
+	t.Run("Get vault name successfully without errors", func(t *testing.T) {
+		t.Run("Get vault name from struct", func(t *testing.T) {
+			// Arrange
+			vault := obsidian.Vault{Name: "my-vault"}
+			// Act
+			vaultName, err := vault.DefaultName()
+			// Assert
+			assert.Equal(t, nil, err)
+			assert.Equal(t, "my-vault", vaultName)
+		})
+
+		t.Run("Get vault name from config file", func(t *testing.T) {
+			// Arrange
+			mockCliConfigDir, mockCliConfigFile := mocks.CreateMockCliConfigDirectories(t)
+			obsidian.CliConfigPath = func() (string, string, error) {
+				return mockCliConfigDir, mockCliConfigFile, nil
+			}
+			err := os.WriteFile(mockCliConfigFile, []byte(`{"default_vault_name":"example-obsidian"}`), 0644)
+			vault := obsidian.Vault{}
+			// Act
+			vaultName, err := vault.DefaultName()
+			// Assert
+			assert.Equal(t, nil, err)
+			assert.Equal(t, "example-obsidian", vaultName)
+		})
+	})
+
+	t.Run("Could not get vault name", func(t *testing.T) {
+
+		t.Run("Error in config.CliPath", func(t *testing.T) {
+			// Arrange
+			obsidian.CliConfigPath = func() (string, string, error) {
+				return "", "", os.ErrNotExist
+			}
+			vault := obsidian.Vault{}
+			// Act
+			_, err := vault.DefaultName()
+			// Assert
+			assert.Equal(t, os.ErrNotExist, err)
+		})
+
+		t.Run("Error in reading default vault config file", func(t *testing.T) {
+			// Arrange
+			mockCliConfigDir, mockCliConfigFile := mocks.CreateMockCliConfigDirectories(t)
+			obsidian.CliConfigPath = func() (string, string, error) {
+				return mockCliConfigDir, mockCliConfigFile, nil
+			}
+			vault := obsidian.Vault{}
+			// Act
+			_, err := vault.DefaultName()
+			// Assert
+			assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigReadError)
+		})
+
+		t.Run("Error in unmarshalling default vault config file", func(t *testing.T) {
+			// Arrange
+			mockCliConfigDir, mockCliConfigFile := mocks.CreateMockCliConfigDirectories(t)
+			obsidian.CliConfigPath = func() (string, string, error) {
+				return mockCliConfigDir, mockCliConfigFile, nil
+			}
+			err := os.WriteFile(mockCliConfigFile, []byte(`{"default_vault_name""example-obsidian`), 0644)
+			vault := obsidian.Vault{}
+			// Act
+			_, err = vault.DefaultName()
+			// Assert
+			assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigParseError)
+		})
+
+		t.Run("Error DefaultVaultName empty", func(t *testing.T) {
+			// Arrange
+			mockCliConfigDir, mockCliConfigFile := mocks.CreateMockCliConfigDirectories(t)
+			obsidian.CliConfigPath = func() (string, string, error) {
+				return mockCliConfigDir, mockCliConfigFile, nil
+			}
+			err := os.WriteFile(mockCliConfigFile, []byte(`{"default_vault_name":""}`), 0644)
+			vault := obsidian.Vault{}
+			// Act
+			_, err = vault.DefaultName()
+			// Assert
+			assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigParseError)
+		})
+	})
+}
+
+func TestVaultSetDefaultName(t *testing.T) {
+	// Temporarily override the CliConfigPath function
+	originalCliConfigPath := obsidian.CliConfigPath
+	defer func() { obsidian.CliConfigPath = originalCliConfigPath }()
+
+	t.Run("Default vault name successfully set without errors", func(t *testing.T) {
+		// Arrange
+		mockCliConfigDir, mockCliConfigFile := mocks.CreateMockCliConfigDirectories(t)
+		obsidian.CliConfigPath = func() (string, string, error) {
+			return mockCliConfigDir, mockCliConfigFile, nil
+		}
+		vault := obsidian.Vault{}
+		// Act
+		err := vault.SetDefaultName("vault-name")
+
+		// Assert
+		assert.Equal(t, nil, err)
+		content, err := os.ReadFile(mockCliConfigFile)
+		assert.Equal(t, nil, err)
+		assert.Equal(t, `{"default_vault_name":"vault-name"}`, string(content))
+	})
+
+	t.Run("Error in config.CliPath", func(t *testing.T) {
+		// Arrange
+		obsidian.CliConfigPath = func() (string, string, error) {
+			return "", "", os.ErrNotExist
+		}
+		vault := obsidian.Vault{}
+		// Act
+		err := vault.SetDefaultName("vault-name")
+		// Assert
+		assert.Equal(t, os.ErrNotExist, err)
+	})
+
+	t.Run("Error in json marshal", func(t *testing.T) {
+		// Temporarily override the JsonMarshal function
+		originalJsonMarshal := obsidian.JsonMarshal
+		defer func() { obsidian.JsonMarshal = originalJsonMarshal }()
+		obsidian.JsonMarshal = func(v interface{}) ([]byte, error) {
+			return nil, errors.New("json marshal error")
+		}
+		// Arrange
+		vault := obsidian.Vault{}
+		// Act
+		err := vault.SetDefaultName("invalid json")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigGenerateJSONError)
+	})
+
+	t.Run("Error in creating default vault config directory", func(t *testing.T) {
+		// Arrange
+		obsidian.CliConfigPath = func() (string, string, error) {
+			return "", "" + "/preferences.json", nil
+		}
+		vault := obsidian.Vault{}
+		// Act
+		err := vault.SetDefaultName("vault-name")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigDirWriteEror)
+	})
+
+	t.Run("Error in writing to default vault config file", func(t *testing.T) {
+		// Arrange
+		mockCliConfigDir, _ := mocks.CreateMockCliConfigDirectories(t)
+		obsidian.CliConfigPath = func() (string, string, error) {
+			return mockCliConfigDir + "/unwrittable", mockCliConfigDir + "unwrittable/preferences.json", nil
+		}
+		err := os.Mkdir(mockCliConfigDir+"/unwrittable", 0444)
+		vault := obsidian.Vault{}
+		// Act
+		err = vault.SetDefaultName("vault-name")
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.ObsidianCLIConfigWriteError)
+	})
+
+}
+-- pkg/obsidian/vault_path.go --
+package obsidian
+
+import (
+	"encoding/json"
+	"errors"
+	"github.com/Yakitrak/obsidian-cli/pkg/config"
+	"os"
+	"strings"
+)
+
+var ObsidianConfigFile = config.ObsidianFile
+
+func (v *Vault) Path() (string, error) {
+	obsidianConfigFile, err := ObsidianConfigFile()
+	if err != nil {
+		return "", err
+	}
+
+	content, err := os.ReadFile(obsidianConfigFile)
+
+	if err != nil {
+		return "", errors.New(ObsidianConfigReadError)
+	}
+
+	vaultsContent := ObsidianVaultConfig{}
+	err = json.Unmarshal(content, &vaultsContent)
+
+	if err != nil {
+		return "", errors.New(ObsidianConfigParseError)
+	}
+
+	for _, element := range vaultsContent.Vaults {
+		if strings.HasSuffix(element.Path, v.Name) {
+			return element.Path, nil
+		}
+	}
+
+	return "", errors.New(ObsidianConfigVaultNotFoundError)
+}
+-- pkg/obsidian/vault_path_test.go --
+package obsidian_test
+
+import (
+	"github.com/Yakitrak/obsidian-cli/mocks"
+	"github.com/Yakitrak/obsidian-cli/pkg/obsidian"
+	"github.com/stretchr/testify/assert"
+	"os"
+	"testing"
+)
+
+func TestVaultPath(t *testing.T) {
+	// Temporarily override the ObsidianConfigFile function
+	originalObsidianConfigFile := obsidian.ObsidianConfigFile
+	defer func() { obsidian.ObsidianConfigFile = originalObsidianConfigFile }()
+
+	obsidianConfig := `{
+		"vaults": {
+			"random1": {
+				"path": "/path/to/vault1"
+			},
+			"random2": {
+				"path": "/path/to/vault2"
+			}
+		}
+	}`
+	mockObsidianConfigFile := mocks.CreateMockObsidianConfigFile(t)
+	obsidian.ObsidianConfigFile = func() (string, error) {
+		return mockObsidianConfigFile, nil
+	}
+	err := os.WriteFile(mockObsidianConfigFile, []byte(obsidianConfig), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create obsidian.json file: %v", err)
+	}
+
+	t.Run("Gets vault path successfully from vault name without errors", func(t *testing.T) {
+		// Arrange
+		vault := obsidian.Vault{Name: "vault1"}
+		// Act
+		vaultPath, err := vault.Path()
+		// Assert
+		assert.Equal(t, nil, err)
+		assert.Equal(t, "/path/to/vault1", vaultPath)
+	})
+
+	t.Run("Error in getting obsidian config file ", func(t *testing.T) {
+		// Arrange
+		obsidian.ObsidianConfigFile = func() (string, error) {
+			return "", os.ErrNotExist
+		}
+		vault := obsidian.Vault{Name: "vault1"}
+		// Act
+		_, err := vault.Path()
+		// Assert
+		assert.Equal(t, os.ErrNotExist, err)
+	})
+
+	t.Run("Error in reading obsidian config file", func(t *testing.T) {
+		// Arrange
+		mockObsidianConfigFile := mocks.CreateMockObsidianConfigFile(t)
+		obsidian.ObsidianConfigFile = func() (string, error) {
+			return mockObsidianConfigFile, nil
+		}
+		err := os.WriteFile(mockObsidianConfigFile, []byte(``), 0000)
+		if err != nil {
+			t.Fatalf("Failed to create obsidian.json file: %v", err)
+		}
+		vault := obsidian.Vault{Name: "vault1"}
+		// Act
+		_, err = vault.Path()
+		// Assert
+		if err == nil {
+			t.Fatalf("expected an error, got nil")
+		}
+		// Depending on the OS/filesystem, this may manifest as a read or parse error
+		if err.Error() != obsidian.ObsidianConfigReadError && err.Error() != obsidian.ObsidianConfigParseError {
+			t.Fatalf("expected read or parse error, got: %v", err)
+		}
+
+	})
+
+	t.Run("Error in unmarshalling obsidian config file", func(t *testing.T) {
+		// Arrange
+		obsidian.ObsidianConfigFile = func() (string, error) {
+			return mockObsidianConfigFile, nil
+		}
+
+		err := os.WriteFile(mockObsidianConfigFile, []byte(`abc`), 0644)
+		if err != nil {
+			t.Fatalf("Failed to create obsidian.json file: %v", err)
+		}
+		vault := obsidian.Vault{Name: "vault1"}
+		// Act
+		_, err = vault.Path()
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.ObsidianConfigParseError)
+
+	})
+
+	t.Run("No vault found with given name", func(t *testing.T) {
+		// Arrange
+		obsidian.ObsidianConfigFile = func() (string, error) {
+			return mockObsidianConfigFile, nil
+		}
+		err := os.WriteFile(mockObsidianConfigFile, []byte(`{"vaults":{}}`), 0644)
+		vault := obsidian.Vault{Name: "vault3"}
+		// Act
+		_, err = vault.Path()
+		// Assert
+		assert.Equal(t, err.Error(), obsidian.ObsidianConfigVaultNotFoundError)
+	})
+}

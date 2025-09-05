@@ -1,0 +1,1534 @@
+-- README.md --
+# goldmark-frontmatter
+
+[![Go Reference](https://pkg.go.dev/badge/go.abhg.dev/goldmark/frontmatter.svg)](https://pkg.go.dev/go.abhg.dev/goldmark/frontmatter)
+[![CI](https://github.com/abhinav/goldmark-frontmatter/actions/workflows/ci.yml/badge.svg)](https://github.com/abhinav/goldmark-frontmatter/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/abhinav/goldmark-frontmatter/branch/main/graph/badge.svg?token=Q47RX5AA3O)](https://codecov.io/gh/abhinav/goldmark-frontmatter)
+
+goldmark-frontmatter is an extension for the [goldmark] Markdown parser
+that adds support for parsing YAML and TOML front matter from Markdown documents.
+
+  [goldmark]: http://github.com/yuin/goldmark
+
+## Features
+
+- Parses YAML and TOML front matter out of the box
+- Allows defining your own front matter formats
+- Exposes front matter in via a types-safe API
+
+#### Comparison to goldmark-meta
+
+[yuin/goldmark-meta](https://github.com/yuin/goldmark-meta)
+is another extension for goldmark that provides support for frontmatter.
+Here's a quick comparison of the two extensions:
+
+| Feature                  | goldmark-frontmatter | goldmark-meta |
+| ------------------------ | -------------------- | ------------- |
+| YAML support (`---`)     | ✅                   | ✅            |
+| TOML support (`+++`)     | ✅                   | ❌            |
+| Custom formats           | ✅                   | ❌            |
+| Decode `map[string]any`  | ✅                   | ✅            |
+| Decode type-safe structs | ✅                   | ❌            |
+| Render as table          | ❌                   | ✅            |
+
+### Demo
+
+A web-based demonstration of the extension is available at
+<https://abhinav.github.io/goldmark-frontmatter/demo/>.
+
+## Installation
+
+```bash
+go get go.abhg.dev/goldmark/frontmatter@latest
+```
+
+## Usage
+
+To use goldmark-frontmatter, import the `frontmatter` package.
+
+```go
+import "go.abhg.dev/goldmark/frontmatter"
+```
+
+Then include the `frontmatter.Extender` in the list of extensions
+when constructing your [`goldmark.Markdown`].
+
+  [`goldmark.Markdown`]: https://pkg.go.dev/github.com/yuin/goldmark#Markdown
+
+```go
+goldmark.New(
+  goldmark.WithExtensions(
+    // ...
+    &frontmatter.Extender{},
+  ),
+).Convert(src, out)
+```
+
+By default, this won't have any effect except stripping the front matter
+from the document.
+See [Accessing front matter](#accessing-front-matter) on how to read it.
+
+### Syntax
+
+Front matter starts with three or more instances of a delimiter,
+and must be the first line of the document.
+
+The supported delimiters are:
+
+- YAML: `-`
+
+    For example:
+
+    ```markdown
+    ---
+    title: goldmark-frontmatter
+    tags: [markdown, goldmark]
+    description: |
+      Adds support for parsing YAML front matter.
+    ---
+
+    # Heading 1
+    ```
+
+- TOML: `+`
+
+    For example:
+
+    ```markdown
+    +++
+    title = "goldmark-frontmatter"
+    tags = ["markdown", "goldmark"]
+    description = """\
+      Adds support for parsing YAML front matter.\
+      """
+    +++
+
+    # Heading 1
+    ```
+
+The front matter block ends with the same number of instances of the delimiter.
+So if the opening line used 10 occurrences, so must the closing.
+
+    ---------------------------
+    title: goldmark-frontmatter
+    tags: [markdown, goldmark]
+    ---------------------------
+
+### Accessing front matter
+
+You can use one of two ways to access front matter
+parsed by goldmark-frontmatter:
+
+* [Decode it into a struct with `frontmatter.Data`](#decode-a-struct)
+* [Read from document metadata](#read-from-document-metadata)
+
+#### Decode a struct
+
+To decode front matter into a struct,
+you must pass in a `parser.Context`
+when you call `Markdown.Convert` or `Parser.Parse`.
+
+```go
+md := goldmark.New(
+  goldmark.WithExtensions(&frontmatter.Extender{}),
+  // ...
+)
+
+ctx := parser.NewContext()
+md.Convert(src, out, parser.WithContext(ctx))
+```
+
+Following that, use `frontmatter.Get` to access a `frontmatter.Data` object.
+Use `Data.Decode` to unmarshal your front matter into a data structure.
+
+```go
+d := frontmatter.Get(ctx)
+
+var meta struct {
+  Title string   `yaml:"title"`
+  Tags  []string `yaml:"tags"`
+  Desc  string   `yaml:"description"`
+}
+if err := d.Decode(&meta); err != nil {
+  // ...
+}
+```
+
+You're not limited to structs here.
+You can also decode into `map[string]any` to access all fields.
+
+
+```go
+var meta map[string]any
+if err := fm.Decode(&meta); err != nil {
+  // ...
+}
+```
+
+However, if you need that, it's easier to
+[read it from the document metadata](#read-from-document-metadata).
+
+
+#### Read from document metadata
+
+You can install the extension with `frontmatter.SetMetadata` mode:
+
+```go
+md := goldmark.New(
+  goldmark.WithExtensions(&frontmatter.Extender{
+    Mode: frontmatter.SetMetadata,
+  }),
+  // ...
+)
+```
+
+In this mode, the extension will decode the front matter
+into a `map[string]any`,
+and set it on the [Document](https://pkg.go.dev/github.com/yuin/goldmark/ast#Document).
+You can access it with the [Document.Meta method](https://pkg.go.dev/github.com/yuin/goldmark/ast#Document.Meta).
+
+```go
+root := md.Parser().Parse(text.NewReader(src))
+doc := root.OwnerDocument()
+meta := doc.Meta()
+```
+
+## License
+
+This software is made available under the BSD3 license.
+-- data.go --
+package frontmatter
+
+import "github.com/yuin/goldmark/parser"
+
+// _dataKey is the ContextKey under which the frontmatter data is stored
+// in the [parser.Context].
+var _dataKey = parser.NewContextKey()
+
+// Data holds the front matter data.
+// Use [Get] to retrieve the data from the [parser.Context].
+type Data struct {
+	raw    []byte
+	format Format
+}
+
+// Get retrieves the front matter data from the [parser.Context].
+// If the data is not present, it returns nil.
+func Get(ctx parser.Context) *Data {
+	d, _ := ctx.Get(_dataKey).(*Data)
+	return d
+}
+
+// Decode decodes the front matter data into the provided value.
+// The value must be a pointer to a struct or a map.
+//
+//	data := frontmatter.Get(ctx)
+//	if data == nil {
+//		return errors.New("no front matter")
+//	}
+//
+//	var metadata struct {
+//		Title string
+//		Tags []string
+//	}
+//	if err := data.Decode(&metadata); err != nil {
+//		return err
+//	}
+func (d *Data) Decode(dst any) error {
+	return d.format.Unmarshal(d.raw, dst)
+}
+
+// set stores front matter data in the [parser.Context].
+func (d *Data) set(ctx parser.Context) {
+	ctx.Set(_dataKey, d)
+}
+-- demo/Makefile --
+OUT = static
+
+.PHONY: all
+all: $(OUT)/wasm_exec.js $(OUT)/main.wasm
+
+$(OUT)/wasm_exec.js:
+	@mkdir -p $(OUT)
+	cp "$(shell go env GOROOT)/lib/wasm/wasm_exec.js" $@
+
+$(OUT)/main.wasm: $(wildcard *.go)
+	@mkdir -p $(OUT)
+	GOOS=js GOARCH=wasm go build -o $@
+-- demo/go.mod --
+module go.abhg.dev/goldmark/frontmatter/demo
+
+go 1.23.0
+
+toolchain go1.25.0
+
+replace go.abhg.dev/goldmark/frontmatter => ../
+
+require (
+	github.com/yuin/goldmark v1.7.13
+	go.abhg.dev/goldmark/frontmatter v0.2.0
+)
+
+require (
+	github.com/BurntSushi/toml v1.5.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+-- demo/main.go --
+// demo implements a WASM module that can be used to format markdown
+// with the goldmark-frontmatter extension.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"syscall/js"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"go.abhg.dev/goldmark/frontmatter"
+)
+
+func main() {
+	js.Global().Set("formatMarkdown",
+		js.FuncOf(func(this js.Value, args []js.Value) any {
+			var req request
+			req.Decode(args[0])
+
+			res, err := run(&req)
+			if err != nil {
+				res = &response{Error: err.Error()}
+			}
+			return res.Encode()
+		}))
+	select {}
+}
+
+type request struct {
+	Markdown string
+	YAML     bool
+	TOML     bool
+}
+
+func (r *request) Decode(v js.Value) {
+	r.Markdown = v.Get("markdown").String()
+	r.YAML = v.Get("yaml").Bool()
+	r.TOML = v.Get("toml").Bool()
+}
+
+type response struct {
+	HTML        string
+	Frontmatter string
+	Error       string
+}
+
+func (r *response) Encode() js.Value {
+	return js.ValueOf(map[string]any{
+		"html":        r.HTML,
+		"frontmatter": r.Frontmatter,
+		"error":       r.Error,
+	})
+}
+
+func run(req *request) (*response, error) {
+	var formats []frontmatter.Format
+	if req.YAML {
+		formats = append(formats, frontmatter.YAML)
+	}
+	if req.TOML {
+		formats = append(formats, frontmatter.TOML)
+	}
+	if len(formats) == 0 {
+		// frontmatter.Extender will use a default set of formats
+		// if none are specified.
+		// We don't want the demo to do that.
+		// Introduce a placeholder format to force an error.
+		formats = []frontmatter.Format{
+			{
+				Name:  "placeholder",
+				Delim: 0, // invalid delimiter
+			},
+		}
+	}
+
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			&frontmatter.Extender{
+				Formats: formats,
+			},
+		),
+	)
+
+	ctx := parser.NewContext()
+	var buf bytes.Buffer
+	if err := md.Convert([]byte(req.Markdown), &buf, parser.WithContext(ctx)); err != nil {
+		return nil, fmt.Errorf("convert markdown: %w", err)
+	}
+
+	var fm string
+	if data := frontmatter.Get(ctx); data != nil {
+		var meta map[string]any
+		if err := data.Decode(&meta); err != nil {
+			return nil, fmt.Errorf("decode frontmatter: %w", err)
+		}
+
+		formatted, err := json.MarshalIndent(meta, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("format frontmatter: %w", err)
+		}
+
+		fm = string(formatted)
+	}
+
+	return &response{
+		HTML:        buf.String(),
+		Frontmatter: fm,
+	}, nil
+}
+-- demo/static/index.html --
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>goldmark-frontmatter</title>
+    <script src="wasm_exec.js"></script>
+    <script>
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+        go.run(result.instance);
+      });
+    </script>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      .container {
+        max-width: 100%;
+        margin: 0 auto;
+        position: relative;
+      }
+      .input-container {
+        border: 1px solid #ccc;
+        padding: 1em;
+        top: 0;
+        left: 0;
+        width: 45%;
+        position: absolute;
+      }
+      .output-container {
+        border: 1px solid #ccc;
+        padding: 1em;
+        top: 0;
+        left: 50%;
+        width: 45%;
+        position: absolute;
+      }
+
+      #input {
+        width: 100%;
+        height: 60vh;
+      }
+
+      a.frontmatter { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <center>
+      <h1><a href="https://github.com/abhinav/goldmark-frontmatter">goldmark-frontmatter</a></h1>
+    </center>
+
+    <div class="container">
+      <div class="input-container">
+        <h2>Input</h2>
+        <textarea id="input" rows="10" cols="80"></textarea>
+
+        <p>
+          <strong>Formats</strong>:
+          <label for="yaml">YAML</label>
+          <input type="checkbox" id="yaml" checked>
+
+          <label for="toml">TOML</label>
+          <input type="checkbox" id="toml" checked>
+        </p>
+      </div>
+
+      <div class="output-container">
+        <h2>Output</h2>
+        <div id="output"></div>
+
+        <h3>Frontmatter</h3>
+        <pre><code id="frontmatter"></code></pre>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    const input = document.getElementById("input");
+    const yaml = document.getElementById("yaml");
+    const toml = document.getElementById("toml");
+
+    const output = document.getElementById("output");
+    const frontmatter = document.getElementById("frontmatter");
+
+    input.addEventListener("input", refresh);
+    yaml.addEventListener("change", refresh);
+    toml.addEventListener("change", refresh);
+
+    function refresh() {
+      const res = formatMarkdown({
+        markdown: input.value,
+        yaml: yaml.checked,
+        toml: toml.checked,
+      });
+      if (res.error) {
+        output.innerText = "ERROR: " + res.error;
+        frontmatter.innerText = "";
+      } else {
+        output.innerHTML = res.html;
+        frontmatter.innerText = res.frontmatter;
+      }
+    }
+  </script>
+</html>
+-- doc.go --
+// Package frontmatter adds support for parsing front matter
+// in Markdown documents.
+//
+// It supports YAML and TOML front matter out of the box,
+// and can be extended to support other formats.
+package frontmatter
+-- example_test.go --
+package frontmatter_test
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"go.abhg.dev/goldmark/frontmatter"
+)
+
+func ExampleData_Decode() {
+	const src = `---
+title: Foo
+tags: [bar, baz]
+---
+
+This page is about foo.
+`
+
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			&frontmatter.Extender{},
+		),
+	)
+
+	ctx := parser.NewContext()
+	if err := md.Convert([]byte(src), os.Stdout, parser.WithContext(ctx)); err != nil {
+		log.Fatal(err)
+	}
+
+	fm := frontmatter.Get(ctx)
+	if fm == nil {
+		log.Fatal("no frontmatter found")
+	}
+
+	var data struct {
+		Title string   `yaml:"title"`
+		Tags  []string `yaml:"tags"`
+	}
+	if err := fm.Decode(&data); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("---")
+	fmt.Println("Title: ", data.Title)
+	fmt.Println("Tags: ", data.Tags)
+
+	// Output:
+	// <p>This page is about foo.</p>
+	// ---
+	// Title:  Foo
+	// Tags:  [bar baz]
+}
+
+func ExampleMode_setMetadata() {
+	const src = `+++
+title = "Foo"
+tags = ["bar", "baz"]
++++
+
+This page is about foo.
+`
+
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			&frontmatter.Extender{
+				Mode: frontmatter.SetMetadata,
+			},
+		),
+	)
+
+	doc := md.Parser().Parse(text.NewReader([]byte(src)))
+	meta := doc.OwnerDocument().Meta()
+
+	fmt.Println("Title: ", meta["title"])
+	fmt.Println("Tags: ", meta["tags"])
+
+	// Output:
+	// Title:  Foo
+	// Tags:  [bar baz]
+}
+-- extend.go --
+package frontmatter
+
+import (
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/util"
+)
+
+// Mode specifies the mode in which the Extender operates.
+// By default, the extender extracts the front matter from the document,
+// but does not render it or do anything else with it.
+//
+// Change the mode by setting the Mode field of the Extender object.
+type Mode int
+
+//go:generate stringer -type Mode
+
+const (
+	// SetMetadata instructs the extender to convert the front matter
+	// into a map[string]interface{} and set it as the metadata
+	// of the document.
+	//
+	// This may be accessed by calling the Document.Meta() method.
+	SetMetadata Mode = 1 << iota
+)
+
+// Extender adds support for front matter to a Goldmark Markdown parser.
+//
+// Use it by installing it into the [goldmark.Markdown] object upon creation.
+// For example:
+//
+//	goldmark.New(
+//		// ...
+//		goldmark.WithExtensions(
+//			// ...
+//			&frontmatter.Extender{},
+//		),
+//	)
+type Extender struct {
+	// Formats lists the front matter formats
+	// that are supported by the extender.
+	//
+	// If empty, DefaultFormats is used.
+	Formats []Format
+
+	// Mode specifies the mode in which the extender operates.
+	// See documentation of the Mode type for more information.
+	Mode Mode
+}
+
+var _ goldmark.Extender = (*Extender)(nil)
+
+// Extend extends the provided Goldmark Markdown.
+func (e *Extender) Extend(md goldmark.Markdown) {
+	md.Parser().AddOptions(
+		parser.WithBlockParsers(
+			util.Prioritized(&Parser{
+				Formats: e.Formats,
+			}, 0),
+		),
+	)
+
+	if e.Mode&SetMetadata != 0 {
+		md.Parser().AddOptions(
+			parser.WithASTTransformers(
+				util.Prioritized(&MetaTransformer{}, 0),
+			),
+		)
+	}
+}
+-- format.go --
+package frontmatter
+
+import (
+	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v3"
+)
+
+// DefaultFormats is the list of frontmatter formats
+// that are recognized by default.
+var DefaultFormats = []Format{TOML, YAML}
+
+// TOML provides support for frontmatter in the TOML format.
+// Front matter in this format is expected to be delimited
+// by three or more '+' characters.
+//
+//	+++
+//	title = "Hello, world!"
+//	tags = ["foo", "bar"]
+//	+++
+var TOML = Format{
+	Name:      "TOML",
+	Delim:     '+',
+	Unmarshal: toml.Unmarshal,
+}
+
+// YAML provides support for frontmatter in the YAML format.
+// Front matter in this format is expected to be delimited
+// by three or more '-' characters.
+//
+//	---
+//	title: Hello, world!
+//	tags:
+//	  - foo
+//	  - bar
+//	---
+var YAML = Format{
+	Name:      "YAML",
+	Delim:     '-',
+	Unmarshal: yaml.Unmarshal,
+}
+
+// Format defines a front matter format recognized by this package.
+type Format struct {
+	// Name is a human-readable name for the format.
+	//
+	// It may be used in error messages.
+	Name string
+
+	// Delim specifies the delimiter that marks front matter
+	// in this format.
+	//
+	// There must be at least three of these in a row
+	// for the front matter to be recognized.
+	Delim byte
+
+	// Unmarshal unmarshals the front matter data into the provided value.
+	Unmarshal func([]byte, any) error
+}
+-- go.mod --
+module go.abhg.dev/goldmark/frontmatter
+
+go 1.23.0
+
+toolchain go1.25.0
+
+require (
+	github.com/BurntSushi/toml v1.5.0
+	github.com/stretchr/testify v1.11.1
+	github.com/yuin/goldmark v1.7.13
+	gopkg.in/yaml.v3 v3.0.1
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
+)
+
+tool golang.org/x/tools/cmd/stringer
+-- integration_test.go --
+package frontmatter_test
+
+import (
+	"bytes"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"go.abhg.dev/goldmark/frontmatter"
+	"gopkg.in/yaml.v3"
+)
+
+func TestIntegration(t *testing.T) {
+	t.Parallel()
+
+	testdata, err := os.ReadFile("testdata/integration.yaml")
+	require.NoError(t, err)
+
+	var tests []struct {
+		Desc string         `yaml:"desc"`
+		Give string         `yaml:"give"`
+		Want string         `yaml:"want"`
+		Data map[string]any `yaml:"data"`
+	}
+	require.NoError(t, yaml.Unmarshal(testdata, &tests))
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.Desc, func(t *testing.T) {
+			t.Parallel()
+
+			md := goldmark.New(
+				goldmark.WithExtensions(&frontmatter.Extender{
+					Mode: frontmatter.SetMetadata,
+				}),
+			)
+
+			src := []byte(tt.Give)
+
+			t.Run("Data.Decode", func(t *testing.T) {
+				t.Parallel()
+
+				ctx := parser.NewContext()
+				var got bytes.Buffer
+				require.NoError(t,
+					md.Convert(src, &got, parser.WithContext(ctx)))
+				assert.Equal(t,
+					strings.TrimSuffix(tt.Want, "\n"),
+					strings.TrimSuffix(got.String(), "\n"),
+				)
+
+				meta := frontmatter.Get(ctx)
+				require.NotNil(t, meta)
+
+				var gotData map[string]any
+				require.NoError(t, meta.Decode(&gotData))
+				assert.Equal(t, tt.Data, gotData)
+			})
+
+			t.Run("Document.Meta", func(t *testing.T) {
+				t.Parallel()
+
+				doc := md.Parser().Parse(text.NewReader(src)).OwnerDocument()
+				assert.Equal(t, tt.Data, doc.Meta())
+			})
+		})
+	}
+}
+-- mise.lock --
+[tools."aqua:golangci/golangci-lint"]
+version = "2.4.0"
+backend = "aqua:golangci/golangci-lint"
+
+[tools."aqua:golangci/golangci-lint".platforms.macos-arm64]
+checksum = "sha256:cd4dd53fa09b6646baff5fd22b8c64d91db02c21c7496df27992d75d34feec59"
+size = 13542526
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.4.0/golangci-lint-2.4.0-darwin-arm64.tar.gz"
+
+[tools.go]
+version = "1.25.0"
+backend = "core:go"
+
+[tools.go.platforms.macos-arm64]
+checksum = "sha256:544932844156d8172f7a28f77f2ac9c15a23046698b6243f633b0a0b00c0749c"
+size = 57906112
+url = "https://dl.google.com/go/go1.25.0.darwin-arm64.tar.gz"
+
+[tools.gofumpt]
+version = "0.8.0"
+backend = "ubi:mvdan/gofumpt"
+
+[tools."ubi:abhinav/doc2go"]
+version = "0.9.1"
+backend = "ubi:abhinav/doc2go"
+
+[tools."ubi:abhinav/doc2go".platforms.macos-arm64-doc2go]
+checksum = "blake3:cc38468677cc6797302514898311280d5e21df72976d6139342e6b531b58d0b5"
+
+[tools."ubi:miniscruff/changie"]
+version = "1.22.1"
+backend = "ubi:miniscruff/changie"
+
+[tools."ubi:miniscruff/changie".platforms.macos-arm64-changie]
+checksum = "blake3:b9d26f9ad98ed08be15d87af8db62965e693d5cdd21e46f0fa9edf2de435c5e8"
+-- mise.oldstable.toml --
+# Run with 'MISE_ENV=oldstable' to run with the oldstable environment.
+[tools]
+go = "1.24"
+-- mise.toml --
+[env]
+GOBIN = "{{ config_root }}/bin"
+_.path = ["bin"]
+
+[tools]
+go = "latest"
+"aqua:golangci/golangci-lint" = "latest"
+"ubi:miniscruff/changie" = "latest"
+"ubi:abhinav/doc2go" = "latest"
+gofumpt = "latest"
+
+[tasks.all]
+description = "Build, lint and test the code."
+depends = ["build", "lint", "test"]
+
+[tasks.build]
+run = "go build ./..."
+description = "Build the project"
+
+[tasks.lint]
+description = "Run all linters"
+depends = ["lint:*"]
+
+[tasks.test]
+description = "Run tests"
+run = "go test -race ./..."
+
+[tasks.generate]
+description = "Run all code generators"
+depends = ["tools"]
+run = "go generate ./..."
+
+[tasks.tools]
+run = "go install tool"
+
+[tasks.cover]
+description = "Run tests with coverage"
+run = [
+    "go test -race -coverprofile=cover.out -coverpkg=./... ./...",
+    "go tool cover -html=cover.out -o cover.html"
+]
+
+[tasks."lint:tidy"]
+description = "Ensure go.mod is tidy"
+run = "go mod tidy -diff"
+
+[tasks."lint:golangci"]
+description = "Run golangci-lint"
+run = "golangci-lint run"
+
+[tasks."lint:generate"]
+description = "Verify generated code is up-to-date"
+depends = ["generate"]
+run = "git diff --exit-code"
+
+[tasks."changes:new"]
+description = "Add a changelog entry"
+run = "changie new"
+
+[tasks."changes:prepare"]
+description = "Prepare the changelog for release"
+run = 'changie batch {{arg(name="version")}} && changie merge'
+-- mode_string.go --
+// Code generated by "stringer -type Mode"; DO NOT EDIT.
+
+package frontmatter
+
+import "strconv"
+
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[SetMetadata-1]
+}
+
+const _Mode_name = "SetMetadata"
+
+var _Mode_index = [...]uint8{0, 11}
+
+func (i Mode) String() string {
+	i -= 1
+	if i < 0 || i >= Mode(len(_Mode_index)-1) {
+		return "Mode(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	}
+	return _Mode_name[_Mode_index[i]:_Mode_index[i+1]]
+}
+-- mode_string_test.go --
+package frontmatter
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestMode_String(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		desc string
+		give Mode
+		want string
+	}{
+		{
+			desc: "SetMetadata",
+			give: SetMetadata,
+			want: "SetMetadata",
+		},
+		{
+			desc: "unknown",
+			give: 0,
+			want: "Mode(0)",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, tt.give.String())
+		})
+	}
+}
+-- parse.go --
+package frontmatter
+
+import (
+	"bytes"
+	"sync"
+
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+)
+
+// Parser parses front matter from a Markdown document.
+type Parser struct {
+	// Formats specifies the front matter formats
+	// supported by the parser.
+	//
+	// If Formats is empty, DefaultFormats is used.
+	Formats []Format
+
+	once         sync.Once
+	triggers     []byte          // list of open delimiters
+	formatByOpen map[byte]Format // open delim => format
+}
+
+var _ parser.BlockParser = (*Parser)(nil)
+
+func (p *Parser) init() {
+	p.once.Do(func() {
+		formats := p.Formats
+		if len(formats) == 0 {
+			formats = DefaultFormats
+		}
+
+		p.formatByOpen = make(map[byte]Format, len(formats))
+		for _, format := range formats {
+			p.triggers = append(p.triggers, format.Delim)
+			p.formatByOpen[format.Delim] = format
+		}
+	})
+}
+
+// Trigger returns bytes that can trigger this parser.
+//
+// This implements [parser.BlockParser].
+func (p *Parser) Trigger() []byte {
+	p.init()
+
+	return p.triggers
+}
+
+// Open begins parsing a frontmatter block,
+// returning nil if a frontmatter block is not found.
+//
+// This implements [parser.BlockParser].
+func (p *Parser) Open(_ ast.Node, reader text.Reader, _ parser.Context) (ast.Node, parser.State) {
+	p.init()
+
+	// Front matter must be at the beginning of the document.
+	if lineno, _ := reader.Position(); lineno > 1 {
+		return nil, parser.NoChildren
+	}
+
+	line, seg := reader.PeekLine()
+	delim, delimCount := lineDelim(line)
+	if delim == 0 {
+		return nil, parser.NoChildren
+	}
+
+	format, ok := p.formatByOpen[delim]
+	if !ok {
+		return nil, parser.NoChildren
+	}
+
+	return &frontmatterNode{
+		Format:     format,
+		DelimCount: delimCount,
+		Segment: text.Segment{
+			Start: seg.Stop,
+			Stop:  seg.Stop,
+		},
+	}, parser.NoChildren
+}
+
+// Continue continues parsing the following lines of a frontmatter block,
+// transitioning to Close when the block is finished.
+//
+// This implements [parser.BlockParser].
+func (p *Parser) Continue(node ast.Node, reader text.Reader, _ parser.Context) parser.State {
+	p.init()
+
+	n := node.(*frontmatterNode)
+	line, seg := reader.PeekLine()
+
+	if delim, count := lineDelim(line); delim != 0 {
+		if delim == n.Format.Delim && count == n.DelimCount {
+			reader.Advance(seg.Len())
+			return parser.Close
+		}
+	}
+	n.Segment.Stop = seg.Stop
+	return parser.Continue | parser.NoChildren
+}
+
+// Close cleans up after parsing a frontmatter block.
+//
+// This implements [parser.BlockParser].
+func (p *Parser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
+	p.init()
+
+	n := node.(*frontmatterNode)
+	raw := n.Segment.Value(reader.Source())
+
+	(&Data{
+		format: n.Format,
+		raw:    raw,
+	}).set(pc)
+
+	parent := node.Parent()
+	parent.RemoveChild(parent, node)
+}
+
+// CanInterruptParagraph reports that a frontmatter block cannot interrupt a paragraph.
+//
+// This implements [parser.BlockParser].
+func (*Parser) CanInterruptParagraph() bool {
+	return false
+}
+
+// CanAcceptIndentedLine reports that a frontmatter block cannot be indented.
+//
+// This implements [parser.BlockParser].
+func (*Parser) CanAcceptIndentedLine() bool {
+	return false
+}
+
+var _kind = ast.NewNodeKind("frontmatter")
+
+// Hidden node to store information about the parse state
+// before the front matter is placed in the parser context.
+type frontmatterNode struct {
+	ast.BaseBlock
+
+	// Format holds the front matter format we matched.
+	Format Format
+
+	// Number of times the delimiter was repeated
+	// in the opening line.
+	DelimCount int
+
+	// Segment holds the text range over which the front matter spans.
+	Segment text.Segment
+}
+
+var _ ast.Node = (*frontmatterNode)(nil)
+
+func (n *frontmatterNode) Dump(source []byte, level int) {
+	ast.DumpHelper(n, source, level, map[string]string{
+		"Format": n.Format.Name,
+		"Data":   string(n.Segment.Value(source)),
+	}, nil)
+}
+
+func (n *frontmatterNode) Kind() ast.NodeKind {
+	return _kind
+}
+
+var (
+	_cr = []byte("\r")
+	_lf = []byte("\n")
+)
+
+// lineDelim interprets the line as a frontmatter delimiting line.
+// If the line is a delimiting line, it returns the delimiter
+// and the number of times it was repeated.
+// Otherwise, it returns 0.
+func lineDelim(line []byte) (delim byte, count int) {
+	// CR and LF stripped separately
+	// to handle both, CRLF and just LF.
+	line = bytes.TrimSuffix(line, _lf)
+	line = bytes.TrimSuffix(line, _cr)
+	if len(line) < 3 {
+		return 0, 0
+	}
+
+	delim = line[0]
+	for _, c := range line[1:] {
+		if c != delim {
+			return 0, 0
+		}
+	}
+	return delim, len(line)
+}
+-- parse_test.go --
+package frontmatter
+
+import (
+	"errors"
+	"io"
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
+	"gopkg.in/yaml.v3"
+)
+
+func TestParser(t *testing.T) {
+	t.Parallel()
+
+	testdata, err := os.ReadFile("testdata/parser.yaml")
+	require.NoError(t, err)
+
+	var tests []struct {
+		Desc    string `yaml:"desc"`
+		Give    string `yaml:"give"`
+		Formats []struct {
+			Name  string `yaml:"name"`
+			Delim string `yaml:"delim"`
+		} `yaml:"formats"`
+
+		WantFormat string `yaml:"wantFormat"`
+		WantRaw    string `yaml:"wantRaw"`
+	}
+	require.NoError(t, yaml.Unmarshal(testdata, &tests))
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.Desc, func(t *testing.T) {
+			t.Parallel()
+
+			var formats []Format
+			for _, f := range tt.Formats {
+				require.Len(t, f.Delim, 1,
+					"bad format %q: delim must be a single character", f.Name)
+				delim := []byte(f.Delim)[0]
+				formats = append(formats, Format{
+					Name:  f.Name,
+					Delim: delim,
+					Unmarshal: func([]byte, interface{}) error {
+						t.Fatalf("unexpected call to %v.Unmarshal", f.Name)
+						return errors.New("unreachable")
+					},
+				})
+			}
+
+			rdr := text.NewReader([]byte(tt.Give))
+			ctx := parser.NewContext()
+			p := parser.NewParser(
+				parser.WithBlockParsers(
+					util.Prioritized(&Parser{
+						Formats: formats,
+					}, 500),
+				),
+			)
+
+			p.Parse(rdr, parser.WithContext(ctx))
+
+			data := Get(ctx)
+			if tt.WantFormat == "" {
+				assert.Nil(t, data)
+				return
+			}
+
+			assert.Equal(t, tt.WantFormat, data.format.Name)
+			assert.Equal(t, tt.WantRaw, string(data.raw))
+		})
+	}
+}
+
+func TestFrontmatterNode_Dump(t *testing.T) {
+	oldStdout := os.Stdout
+	defer func() { os.Stdout = oldStdout }()
+
+	stdoutr, stdoutw, err := os.Pipe()
+	require.NoError(t, err)
+
+	src := []byte("title: Hello World")
+	node := frontmatterNode{
+		Format:  YAML,
+		Segment: text.NewSegment(0, len(src)),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+
+		os.Stdout = stdoutw
+		node.Dump(src, 0)
+		os.Stdout = oldStdout
+		assert.NoError(t, stdoutw.Close())
+	}()
+	<-done
+
+	stdout, err := io.ReadAll(stdoutr)
+	require.NoError(t, err)
+	assert.NoError(t, stdoutr.Close())
+
+	assert.Contains(t, string(stdout), "Format: YAML\n")
+	assert.Contains(t, string(stdout), "Data: title: Hello World\n")
+}
+
+func TestLineDelim(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		desc  string
+		give  string
+		want  byte
+		count int
+	}{
+		{desc: "empty"},
+		{desc: "no delim", give: "foo"},
+		{desc: "too short", give: "--"},
+		{desc: "mismatch", give: "---_-"},
+		{
+			desc:  "trailing crlf",
+			give:  "---\r\n",
+			want:  '-',
+			count: 3,
+		},
+		{
+			desc:  "trailing lf",
+			give:  "---\n",
+			want:  '-',
+			count: 3,
+		},
+		{
+			desc:  "three",
+			give:  "---",
+			want:  '-',
+			count: 3,
+		},
+		{
+			desc:  "many",
+			give:  "-------",
+			want:  '-',
+			count: 7,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.desc, func(t *testing.T) {
+			t.Parallel()
+
+			delim, count := lineDelim([]byte(tt.give))
+			assert.Equal(t, tt.want, delim)
+			assert.Equal(t, tt.count, count)
+		})
+	}
+}
+-- renovate.json --
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "local>abhinav/renovate-config"
+  ]
+}
+-- testdata/integration.yaml --
+- desc: simple/YAML
+  give: |
+    ---
+    title: foo
+    tags:
+      - a
+      - b
+      - c
+    ---
+
+    Hello
+  want: |
+    <p>Hello</p>
+  data:
+    title: foo
+    tags: [a, b, c]
+
+- desc: simple/TOML
+  give: |
+    +++
+    title = "foo"
+    tags = ["a", "b", "c"]
+    +++
+
+    Hello
+  want: |
+    <p>Hello</p>
+  data:
+    title: foo
+    tags: [a, b, c]
+-- testdata/parser.yaml --
+- desc: yaml
+  give: |
+    ---
+    title: Foo bar
+    tags: [a, b, c]
+    ---
+
+    # foo
+  wantFormat: YAML
+  wantRaw: |
+    title: Foo bar
+    tags: [a, b, c]
+
+- desc: toml
+  give: |
+    +++
+    title = "Foo bar"
+    tags = ["a", "b", "c"]
+    +++
+
+    # foo
+  wantFormat: TOML
+  wantRaw: |
+    title = "Foo bar"
+    tags = ["a", "b", "c"]
+
+- desc: long separator line
+  give: |
+    ------------------------
+    title: Foo bar
+    ---
+    tags: [a, b, c]
+    ------------------------
+
+    # foo
+  wantFormat: YAML
+  wantRaw: |
+    title: Foo bar
+    ---
+    tags: [a, b, c]
+
+- desc: custom format
+  formats:
+    - name: docstring
+      delim: '"'
+  give: |
+    """
+    Test message.
+    Foo bar.
+    Baz.
+    """
+
+    # Stuff
+  wantFormat: docstring
+  wantRaw: |
+    Test message.
+    Foo bar.
+    Baz.
+
+- desc: middle of a paragraph
+  give: |
+    Foo bar
+    ----
+    title: Foo bar
+    tags: [a, b, c]
+    ----
+    baz qux
+-- transform.go --
+package frontmatter
+
+import (
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+)
+
+// MetaTransformer is an AST transformer
+// that converts the front matter of a document into a map[string]interface{}
+// and stores it on the document as metadata.
+//
+// Access the metadata by calling the [ast.Document.Meta] method.
+type MetaTransformer struct{}
+
+var _ parser.ASTTransformer = (*MetaTransformer)(nil)
+
+// Transform fetches the front matter from the parser context
+// and sets it as the metadata of the document.
+//
+// This is a no-op if the front matter is not present in the context
+// or it cannot be decoded.
+func (t *MetaTransformer) Transform(node *ast.Document, _ text.Reader, pc parser.Context) {
+	fm := Get(pc)
+	if fm == nil {
+		return
+	}
+
+	var data map[string]any
+	if err := fm.Decode(&data); err != nil {
+		return
+	}
+
+	node.SetMeta(data)
+}
+-- transform_test.go --
+package frontmatter
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+)
+
+func TestMetaTransformer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty context", func(t *testing.T) {
+		t.Parallel()
+
+		doc := ast.NewDocument()
+		ctx := parser.NewContext()
+
+		(&MetaTransformer{}).Transform(doc, nil, ctx)
+
+		assert.Empty(t, doc.Meta())
+	})
+
+	t.Run("decode error", func(t *testing.T) {
+		t.Parallel()
+
+		doc := ast.NewDocument()
+		ctx := parser.NewContext()
+
+		(&Data{
+			raw:    []byte("invalid"),
+			format: YAML,
+		}).set(ctx)
+
+		(&MetaTransformer{}).Transform(doc, nil, ctx)
+
+		assert.Empty(t, doc.Meta())
+	})
+
+	t.Run("", func(t *testing.T) {
+		t.Parallel()
+
+		doc := ast.NewDocument()
+		ctx := parser.NewContext()
+
+		(&Data{
+			raw:    []byte("foo: bar"),
+			format: YAML,
+		}).set(ctx)
+
+		(&MetaTransformer{}).Transform(doc, nil, ctx)
+
+		assert.Equal(t, map[string]any{
+			"foo": "bar",
+		}, doc.Meta())
+	})
+}
