@@ -1,0 +1,4564 @@
+-- README.md --
+# testscript - end-to-end testing of Go commands
+
+The `go` tool uses an internal DSL for testing. It works really well and we
+want it for our own commands, so we've factored it out here.
+-- cmd.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testscript
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/rogpeppe/testscript/internal/textutil"
+	"github.com/rogpeppe/testscript/txtar"
+)
+
+// scriptCmds are the script command implementations.
+// Keep list and the implementations below sorted by name.
+//
+// NOTE: If you make changes here, update doc.go.
+//
+var scriptCmds = map[string]func(*TestScript, bool, []string){
+	"cd":      (*TestScript).cmdCd,
+	"chmod":   (*TestScript).cmdChmod,
+	"cmp":     (*TestScript).cmdCmp,
+	"cmpenv":  (*TestScript).cmdCmpenv,
+	"cp":      (*TestScript).cmdCp,
+	"env":     (*TestScript).cmdEnv,
+	"exec":    (*TestScript).cmdExec,
+	"exists":  (*TestScript).cmdExists,
+	"grep":    (*TestScript).cmdGrep,
+	"mkdir":   (*TestScript).cmdMkdir,
+	"rm":      (*TestScript).cmdRm,
+	"unquote": (*TestScript).cmdUnquote,
+	"skip":    (*TestScript).cmdSkip,
+	"stdin":   (*TestScript).cmdStdin,
+	"stderr":  (*TestScript).cmdStderr,
+	"stdout":  (*TestScript).cmdStdout,
+	"stop":    (*TestScript).cmdStop,
+	"symlink": (*TestScript).cmdSymlink,
+	"wait":    (*TestScript).cmdWait,
+}
+
+// cd changes to a different directory.
+func (ts *TestScript) cmdCd(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! cd")
+	}
+	if len(args) != 1 {
+		ts.Fatalf("usage: cd dir")
+	}
+
+	dir := args[0]
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(ts.cd, dir)
+	}
+	info, err := os.Stat(dir)
+	if os.IsNotExist(err) {
+		ts.Fatalf("directory %s does not exist", dir)
+	}
+	ts.Check(err)
+	if !info.IsDir() {
+		ts.Fatalf("%s is not a directory", dir)
+	}
+	ts.cd = dir
+	ts.Logf("%s\n", ts.cd)
+}
+
+func (ts *TestScript) cmdChmod(neg bool, args []string) {
+	if len(args) != 2 {
+		ts.Fatalf("usage: chmod mode file")
+	}
+	mode, err := strconv.ParseInt(args[0], 8, 32)
+	if err != nil {
+		ts.Fatalf("bad file mode %q: %v", args[0], err)
+	}
+	if mode > 0777 {
+		ts.Fatalf("unsupported file mode %.3o", mode)
+	}
+	err = os.Chmod(ts.MkAbs(args[1]), os.FileMode(mode))
+	if neg {
+		if err == nil {
+			ts.Fatalf("unexpected chmod success")
+		}
+		return
+	}
+	if err != nil {
+		ts.Fatalf("unexpected chmod failure: %v", err)
+	}
+}
+
+// cmp compares two files.
+func (ts *TestScript) cmdCmp(neg bool, args []string) {
+	if neg {
+		// It would be strange to say "this file can have any content except this precise byte sequence".
+		ts.Fatalf("unsupported: ! cmp")
+	}
+	if len(args) != 2 {
+		ts.Fatalf("usage: cmp file1 file2")
+	}
+
+	ts.doCmdCmp(args, false)
+}
+
+// cmpenv compares two files with environment variable substitution.
+func (ts *TestScript) cmdCmpenv(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! cmpenv")
+	}
+	if len(args) != 2 {
+		ts.Fatalf("usage: cmpenv file1 file2")
+	}
+	ts.doCmdCmp(args, true)
+}
+
+func (ts *TestScript) doCmdCmp(args []string, env bool) {
+	name1, name2 := args[0], args[1]
+	text1 := ts.ReadFile(name1)
+
+	absName2 := ts.MkAbs(name2)
+	data, err := ioutil.ReadFile(absName2)
+	ts.Check(err)
+	text2 := string(data)
+	if env {
+		text2 = ts.expand(text2)
+	}
+	if text1 == text2 {
+		return
+	}
+	if ts.params.UpdateScripts && !env && (args[0] == "stdout" || args[0] == "stderr") {
+		if scriptFile, ok := ts.scriptFiles[absName2]; ok {
+			ts.scriptUpdates[scriptFile] = text1
+			return
+		}
+		// The file being compared against isn't in the txtar archive, so don't
+		// update the script.
+	}
+
+	ts.Logf("[diff -%s +%s]\n%s\n", name1, name2, textutil.Diff(text1, text2))
+	ts.Fatalf("%s and %s differ", name1, name2)
+}
+
+// cp copies files, maybe eventually directories.
+func (ts *TestScript) cmdCp(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! cp")
+	}
+	if len(args) < 2 {
+		ts.Fatalf("usage: cp src... dst")
+	}
+
+	dst := ts.MkAbs(args[len(args)-1])
+	info, err := os.Stat(dst)
+	dstDir := err == nil && info.IsDir()
+	if len(args) > 2 && !dstDir {
+		ts.Fatalf("cp: destination %s is not a directory", dst)
+	}
+
+	for _, arg := range args[:len(args)-1] {
+		var (
+			src  string
+			data []byte
+			mode os.FileMode
+		)
+		switch arg {
+		case "stdout":
+			src = arg
+			data = []byte(ts.stdout)
+			mode = 0666
+		case "stderr":
+			src = arg
+			data = []byte(ts.stderr)
+			mode = 0666
+		default:
+			src = ts.MkAbs(arg)
+			info, err := os.Stat(src)
+			ts.Check(err)
+			mode = info.Mode() & 0777
+			data, err = ioutil.ReadFile(src)
+			ts.Check(err)
+		}
+		targ := dst
+		if dstDir {
+			targ = filepath.Join(dst, filepath.Base(src))
+		}
+		ts.Check(ioutil.WriteFile(targ, data, mode))
+	}
+}
+
+// env displays or adds to the environment.
+func (ts *TestScript) cmdEnv(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! env")
+	}
+	if len(args) == 0 {
+		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
+		for _, kv := range ts.env {
+			k := envvarname(kv[:strings.Index(kv, "=")])
+			if !printed[k] {
+				printed[k] = true
+				ts.Logf("%s=%s\n", k, ts.envMap[k])
+			}
+		}
+		return
+	}
+	for _, env := range args {
+		i := strings.Index(env, "=")
+		if i < 0 {
+			// Display value instead of setting it.
+			ts.Logf("%s=%s\n", env, ts.Getenv(env))
+			continue
+		}
+		ts.Setenv(env[:i], env[i+1:])
+	}
+}
+
+// exec runs the given command.
+func (ts *TestScript) cmdExec(neg bool, args []string) {
+	if len(args) < 1 || (len(args) == 1 && args[0] == "&") {
+		ts.Fatalf("usage: exec program [args...] [&]")
+	}
+
+	var err error
+	if len(args) > 0 && args[len(args)-1] == "&" {
+		var cmd *exec.Cmd
+		cmd, err = ts.execBackground(args[0], args[1:len(args)-1]...)
+		if err == nil {
+			wait := make(chan struct{})
+			go func() {
+				ctxWait(ts.ctxt, cmd)
+				close(wait)
+			}()
+			ts.background = append(ts.background, backgroundCmd{cmd, wait, neg})
+		}
+		ts.stdout, ts.stderr = "", ""
+	} else {
+		ts.stdout, ts.stderr, err = ts.exec(args[0], args[1:]...)
+		if ts.stdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", ts.stdout)
+		}
+		if ts.stderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", ts.stderr)
+		}
+		if err == nil && neg {
+			ts.Fatalf("unexpected command success")
+		}
+	}
+
+	if err != nil {
+		fmt.Fprintf(&ts.log, "[%v]\n", err)
+		if ts.ctxt.Err() != nil {
+			ts.Fatalf("test timed out while running command")
+		} else if !neg {
+			ts.Fatalf("unexpected command failure")
+		}
+	}
+}
+
+// exists checks that the list of files exists.
+func (ts *TestScript) cmdExists(neg bool, args []string) {
+	var readonly bool
+	if len(args) > 0 && args[0] == "-readonly" {
+		readonly = true
+		args = args[1:]
+	}
+	if len(args) == 0 {
+		ts.Fatalf("usage: exists [-readonly] file...")
+	}
+
+	for _, file := range args {
+		file = ts.MkAbs(file)
+		info, err := os.Stat(file)
+		if err == nil && neg {
+			what := "file"
+			if info.IsDir() {
+				what = "directory"
+			}
+			ts.Fatalf("%s %s unexpectedly exists", what, file)
+		}
+		if err != nil && !neg {
+			ts.Fatalf("%s does not exist", file)
+		}
+		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
+			ts.Fatalf("%s exists but is writable", file)
+		}
+	}
+}
+
+// mkdir creates directories.
+func (ts *TestScript) cmdMkdir(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! mkdir")
+	}
+	if len(args) < 1 {
+		ts.Fatalf("usage: mkdir dir...")
+	}
+	for _, arg := range args {
+		ts.Check(os.MkdirAll(ts.MkAbs(arg), 0777))
+	}
+}
+
+// unquote unquotes files.
+func (ts *TestScript) cmdUnquote(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! unquote")
+	}
+	for _, arg := range args {
+		file := ts.MkAbs(arg)
+		data, err := ioutil.ReadFile(file)
+		ts.Check(err)
+		data, err = txtar.Unquote(data)
+		ts.Check(err)
+		err = ioutil.WriteFile(file, data, 0666)
+		ts.Check(err)
+	}
+}
+
+// rm removes files or directories.
+func (ts *TestScript) cmdRm(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! rm")
+	}
+	if len(args) < 1 {
+		ts.Fatalf("usage: rm file...")
+	}
+	for _, arg := range args {
+		file := ts.MkAbs(arg)
+		removeAll(file)              // does chmod and then attempts rm
+		ts.Check(os.RemoveAll(file)) // report error
+	}
+}
+
+// skip marks the test skipped.
+func (ts *TestScript) cmdSkip(neg bool, args []string) {
+	if len(args) > 1 {
+		ts.Fatalf("usage: skip [msg]")
+	}
+	if neg {
+		ts.Fatalf("unsupported: ! skip")
+	}
+
+	// Before we mark the test as skipped, shut down any background processes and
+	// make sure they have returned the correct status.
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
+
+	if len(args) == 1 {
+		ts.t.Skip(args[0])
+	}
+	ts.t.Skip()
+}
+
+func (ts *TestScript) cmdStdin(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! stdin")
+	}
+	if len(args) != 1 {
+		ts.Fatalf("usage: stdin filename")
+	}
+	data, err := ioutil.ReadFile(ts.MkAbs(args[0]))
+	ts.Check(err)
+	ts.stdin = string(data)
+}
+
+// stdout checks that the last go command standard output matches a regexp.
+func (ts *TestScript) cmdStdout(neg bool, args []string) {
+	scriptMatch(ts, neg, args, ts.stdout, "stdout")
+}
+
+// stderr checks that the last go command standard output matches a regexp.
+func (ts *TestScript) cmdStderr(neg bool, args []string) {
+	scriptMatch(ts, neg, args, ts.stderr, "stderr")
+}
+
+// grep checks that file content matches a regexp.
+// Like stdout/stderr and unlike Unix grep, it accepts Go regexp syntax.
+func (ts *TestScript) cmdGrep(neg bool, args []string) {
+	scriptMatch(ts, neg, args, "", "grep")
+}
+
+// stop stops execution of the test (marking it passed).
+func (ts *TestScript) cmdStop(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! stop")
+	}
+	if len(args) > 1 {
+		ts.Fatalf("usage: stop [msg]")
+	}
+	if len(args) == 1 {
+		ts.Logf("stop: %s\n", args[0])
+	} else {
+		ts.Logf("stop\n")
+	}
+	ts.stopped = true
+}
+
+// symlink creates a symbolic link.
+func (ts *TestScript) cmdSymlink(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! symlink")
+	}
+	if len(args) != 3 || args[1] != "->" {
+		ts.Fatalf("usage: symlink file -> target")
+	}
+	// Note that the link target args[2] is not interpreted with MkAbs:
+	// it will be interpreted relative to the directory file is in.
+	ts.Check(os.Symlink(args[2], ts.MkAbs(args[0])))
+}
+
+// Tait waits for background commands to exit, setting stderr and stdout to their result.
+func (ts *TestScript) cmdWait(neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! wait")
+	}
+	if len(args) > 0 {
+		ts.Fatalf("usage: wait")
+	}
+
+	var stdouts, stderrs []string
+	for _, bg := range ts.background {
+		<-bg.wait
+
+		args := append([]string{filepath.Base(bg.cmd.Args[0])}, bg.cmd.Args[1:]...)
+		fmt.Fprintf(&ts.log, "[background] %s: %v\n", strings.Join(args, " "), bg.cmd.ProcessState)
+
+		cmdStdout := bg.cmd.Stdout.(*strings.Builder).String()
+		if cmdStdout != "" {
+			fmt.Fprintf(&ts.log, "[stdout]\n%s", cmdStdout)
+			stdouts = append(stdouts, cmdStdout)
+		}
+
+		cmdStderr := bg.cmd.Stderr.(*strings.Builder).String()
+		if cmdStderr != "" {
+			fmt.Fprintf(&ts.log, "[stderr]\n%s", cmdStderr)
+			stderrs = append(stderrs, cmdStderr)
+		}
+
+		if bg.cmd.ProcessState.Success() {
+			if bg.neg {
+				ts.Fatalf("unexpected command success")
+			}
+		} else {
+			if ts.ctxt.Err() != nil {
+				ts.Fatalf("test timed out while running command")
+			} else if !bg.neg {
+				ts.Fatalf("unexpected command failure")
+			}
+		}
+	}
+
+	ts.stdout = strings.Join(stdouts, "")
+	ts.stderr = strings.Join(stderrs, "")
+	ts.background = nil
+}
+
+// scriptMatch implements both stdout and stderr.
+func scriptMatch(ts *TestScript, neg bool, args []string, text, name string) {
+	n := 0
+	if len(args) >= 1 && strings.HasPrefix(args[0], "-count=") {
+		if neg {
+			ts.Fatalf("cannot use -count= with negated match")
+		}
+		var err error
+		n, err = strconv.Atoi(args[0][len("-count="):])
+		if err != nil {
+			ts.Fatalf("bad -count=: %v", err)
+		}
+		if n < 1 {
+			ts.Fatalf("bad -count=: must be at least 1")
+		}
+		args = args[1:]
+	}
+
+	extraUsage := ""
+	want := 1
+	if name == "grep" {
+		extraUsage = " file"
+		want = 2
+	}
+	if len(args) != want {
+		ts.Fatalf("usage: %s [-count=N] 'pattern'%s", name, extraUsage)
+	}
+
+	pattern := args[0]
+	re, err := regexp.Compile(`(?m)` + pattern)
+	ts.Check(err)
+
+	isGrep := name == "grep"
+	if isGrep {
+		name = args[1] // for error messages
+		data, err := ioutil.ReadFile(ts.MkAbs(args[1]))
+		ts.Check(err)
+		text = string(data)
+	}
+
+	if neg {
+		if re.MatchString(text) {
+			if isGrep {
+				ts.Logf("[%s]\n%s\n", name, text)
+			}
+			ts.Fatalf("unexpected match for %#q found in %s: %s", pattern, name, re.FindString(text))
+		}
+	} else {
+		if !re.MatchString(text) {
+			if isGrep {
+				ts.Logf("[%s]\n%s\n", name, text)
+			}
+			ts.Fatalf("no match for %#q found in %s", pattern, name)
+		}
+		if n > 0 {
+			count := len(re.FindAllString(text, -1))
+			if count != n {
+				if isGrep {
+					ts.Logf("[%s]\n%s\n", name, text)
+				}
+				ts.Fatalf("have %d matches for %#q, want %d", count, pattern, n)
+			}
+		}
+	}
+}
+-- cover.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testscript
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"gopkg.in/errgo.v2/fmt/errors"
+)
+
+// mergeCoverProfile merges the coverage information in f into
+// cover. It assumes that the coverage information in f is
+// always produced from the same binary for every call.
+func mergeCoverProfile(cover *testing.Cover, r io.Reader) error {
+	scanner, err := newProfileScanner(r)
+	if err != nil {
+		return errors.Wrap(err)
+	}
+	if scanner.Mode() != testing.CoverMode() {
+		return errors.Newf("unexpected coverage mode in subcommand")
+	}
+	if cover.Mode == "" {
+		cover.Mode = scanner.Mode()
+	}
+	isCount := cover.Mode == "count"
+	if cover.Counters == nil {
+		cover.Counters = make(map[string][]uint32)
+		cover.Blocks = make(map[string][]testing.CoverBlock)
+	}
+
+	// Note that we rely on the fact that the coverage is written
+	// out file-by-file, with all blocks for a file in sequence.
+	var (
+		filename string
+		blockId  uint32
+		counters []uint32
+		blocks   []testing.CoverBlock
+	)
+	flush := func() {
+		if len(counters) > 0 {
+			cover.Counters[filename] = counters
+			cover.Blocks[filename] = blocks
+		}
+	}
+	for scanner.Scan() {
+		block := scanner.Block()
+		if scanner.Filename() != filename {
+			flush()
+			filename = scanner.Filename()
+			counters = cover.Counters[filename]
+			blocks = cover.Blocks[filename]
+			blockId = 0
+		} else {
+			blockId++
+		}
+		if int(blockId) >= len(counters) {
+			counters = append(counters, block.Count)
+			blocks = append(blocks, block.CoverBlock)
+			continue
+		}
+		// TODO check that block.CoverBlock == blocks[blockId] ?
+		if isCount {
+			counters[blockId] += block.Count
+		} else {
+			counters[blockId] |= block.Count
+		}
+	}
+	flush()
+	if scanner.Err() != nil {
+		return errors.Notef(err, nil, "error scanning profile")
+	}
+	return nil
+}
+
+var (
+	coverChan chan *os.File
+	coverDone chan testing.Cover
+)
+
+func goCoverProfileMerge() {
+	if coverChan != nil {
+		panic("RunMain called twice!")
+	}
+	coverChan = make(chan *os.File)
+	coverDone = make(chan testing.Cover)
+	go mergeCoverProfiles()
+}
+
+func mergeCoverProfiles() {
+	var cover testing.Cover
+	for f := range coverChan {
+		if err := mergeCoverProfile(&cover, f); err != nil {
+			log.Printf("cannot merge coverage profile from %v: %v", f.Name(), err)
+		}
+		f.Close()
+		os.Remove(f.Name())
+	}
+	coverDone <- cover
+}
+
+func finalizeCoverProfile() error {
+	cprof := coverProfile()
+	if cprof == "" {
+		return nil
+	}
+	f, err := os.Open(cprof)
+	if err != nil {
+		return errors.Notef(err, nil, "cannot open existing cover profile")
+	}
+	coverChan <- f
+	close(coverChan)
+	cover := <-coverDone
+	f, err = os.Create(cprof)
+	if err != nil {
+		return errors.Notef(err, nil, "cannot create cover profile")
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	if err := writeCoverProfile1(w, cover); err != nil {
+		return errors.Wrap(err)
+	}
+	if err := w.Flush(); err != nil {
+		return errors.Wrap(err)
+	}
+	if err := f.Close(); err != nil {
+		return errors.Wrap(err)
+	}
+	return nil
+}
+
+func writeCoverProfile1(w io.Writer, cover testing.Cover) error {
+	fmt.Fprintf(w, "mode: %s\n", cover.Mode)
+	var active, total int64
+	var count uint32
+	for name, counts := range cover.Counters {
+		blocks := cover.Blocks[name]
+		for i := range counts {
+			stmts := int64(blocks[i].Stmts)
+			total += stmts
+			count = atomic.LoadUint32(&counts[i]) // For -mode=atomic.
+			if count > 0 {
+				active += stmts
+			}
+			_, err := fmt.Fprintf(w, "%s:%d.%d,%d.%d %d %d\n", name,
+				blocks[i].Line0, blocks[i].Col0,
+				blocks[i].Line1, blocks[i].Col1,
+				stmts,
+				count,
+			)
+			if err != nil {
+				return errors.Wrap(err)
+			}
+		}
+	}
+	if total == 0 {
+		total = 1
+	}
+	fmt.Printf("total coverage: %.1f%% of statements%s\n", 100*float64(active)/float64(total), cover.CoveredPackages)
+	return nil
+}
+
+type profileScanner struct {
+	mode     string
+	err      error
+	scanner  *bufio.Scanner
+	filename string
+	block    coverBlock
+}
+
+type coverBlock struct {
+	testing.CoverBlock
+	Count uint32
+}
+
+var profileLineRe = regexp.MustCompile(`^(.+):([0-9]+)\.([0-9]+),([0-9]+)\.([0-9]+) ([0-9]+) ([0-9]+)$`)
+
+func toInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		panic(err)
+	}
+	return i
+}
+
+func newProfileScanner(r io.Reader) (*profileScanner, error) {
+	s := &profileScanner{
+		scanner: bufio.NewScanner(r),
+	}
+	// First line is "mode: foo", where foo is "set", "count", or "atomic".
+	// Rest of file is in the format
+	//	encoding/base64/base64.go:34.44,37.40 3 1
+	// where the fields are: name.go:line.column,line.column numberOfStatements count
+	if !s.scanner.Scan() {
+		return nil, errors.Newf("no lines found in profile: %v", s.Err())
+	}
+	line := s.scanner.Text()
+	mode := strings.TrimPrefix(line, "mode: ")
+	if len(mode) == len(line) {
+		return nil, fmt.Errorf("bad mode line %q", line)
+	}
+	s.mode = mode
+	return s, nil
+}
+
+// Mode returns the profile's coverage mode (one of "atomic", "count:
+// or "set").
+func (s *profileScanner) Mode() string {
+	return s.mode
+}
+
+// Err returns any error encountered when scanning a profile.
+func (s *profileScanner) Err() error {
+	if s.err == io.EOF {
+		return nil
+	}
+	return s.err
+}
+
+// Block returns the most recently scanned profile block, or the zero
+// block if Scan has not been called or has returned false.
+func (s *profileScanner) Block() coverBlock {
+	if s.err == nil {
+		return s.block
+	}
+	return coverBlock{}
+}
+
+// Filename returns the filename of the most recently scanned profile
+// block, or the empty string if Scan has not been called or has
+// returned false.
+func (s *profileScanner) Filename() string {
+	if s.err == nil {
+		return s.filename
+	}
+	return ""
+}
+
+// Scan scans the next line in a coverage profile and reports whether
+// a line was found.
+func (s *profileScanner) Scan() bool {
+	if s.err != nil {
+		return false
+	}
+	if !s.scanner.Scan() {
+		s.err = io.EOF
+		return false
+	}
+	m := profileLineRe.FindStringSubmatch(s.scanner.Text())
+	if m == nil {
+		s.err = errors.Newf("line %q doesn't match expected format %v", m, profileLineRe)
+		return false
+	}
+	s.filename = m[1]
+	s.block = coverBlock{
+		CoverBlock: testing.CoverBlock{
+			Line0: uint32(toInt(m[2])),
+			Col0:  uint16(toInt(m[3])),
+			Line1: uint32(toInt(m[4])),
+			Col1:  uint16(toInt(m[5])),
+			Stmts: uint16(toInt(m[6])),
+		},
+		Count: uint32(toInt(m[7])),
+	}
+	return true
+}
+-- doc.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+/*
+Package testscript provides support for defining filesystem-based tests by
+creating scripts in a directory.
+
+To invoke the tests, call testscript.Run. For example:
+
+	func TestFoo(t *testing.T) {
+		testscript.Run(t, testscript.Params{
+			Dir: "testdata",
+		})
+	}
+
+A testscript directory holds test scripts *.txt run during 'go test'.
+Each script defines a subtest; the exact set of allowable commands in a
+script are defined by the parameters passed to the Run function.
+To run a specific script foo.txt
+
+	go test cmd/go -run=TestName/^foo$
+
+where TestName is the name of the test that Run is called from.
+
+To define an executable command (or several) that can be run as part of the script,
+call RunMain with the functions that implement the command's functionality.
+The command functions will be called in a separate process, so are
+free to mutate global variables without polluting the top level test binary.
+
+	func TestMain(m *testing.M) {
+		os.Exit(testscript.RunMain(m, map[string] func() int{
+			"testscript": testscriptMain,
+		}))
+	}
+
+In general script files should have short names: a few words, not whole sentences.
+The first word should be the general category of behavior being tested,
+often the name of a subcommand to be tested or a concept (vendor, pattern).
+
+Each script is a text archive (go doc github.com/rogpeppe/testscript//txtar).
+The script begins with an actual command script to run
+followed by the content of zero or more supporting files to
+create in the script's temporary file system before it starts executing.
+
+As an example:
+
+	# hello world
+	exec cat hello.text
+	stdout 'hello world\n'
+	! stderr .
+
+	-- hello.text --
+	hello world
+
+Each script runs in a fresh temporary work directory tree, available to scripts as $WORK.
+Scripts also have access to these other environment variables:
+
+	HOME=/no-home
+	PATH=<actual PATH>
+	TMPDIR=$WORK/tmp
+	devnull=<value of os.DevNull>
+	goversion=<current Go version; for example, 1.12>
+
+The environment variable $exe (lowercase) is an empty string on most
+systems, ".exe" on Windows.
+
+The script's supporting files are unpacked relative to $WORK
+and then the script begins execution in that
+directory as well. Thus the example above runs in $WORK
+with $WORK/hello.txt containing the listed contents.
+
+The lines at the top of the script are a sequence of commands to be
+executed by a small script engine in the testscript package (not the system
+shell).  The script stops and the overall test fails if any particular
+command fails.
+
+Each line is parsed into a sequence of space-separated command words,
+with environment variable expansion and # marking an end-of-line comment.
+Adding single quotes around text keeps spaces in that text from being
+treated as word separators and also disables environment variable
+expansion.  Inside a single-quoted block of text, a repeated single
+quote indicates a literal single quote, as in:
+
+	'Don''t communicate by sharing memory.'
+
+A line beginning with # is a comment and conventionally explains what is
+being done or tested at the start of a new phase in the script.
+
+A special form of environment variable syntax can be used to quote
+regexp metacharacters inside environment variables. The "@R" suffix
+is special, and indicates that the variable should be quoted.
+
+	${VAR@R}
+
+The command prefix ! indicates that the command on the rest of the line
+(typically go or a matching predicate) must fail, not succeed. Only certain
+commands support this prefix. They are indicated below by [!] in the synopsis.
+
+The command prefix [cond] indicates that the command on the rest of the line
+should only run when the condition is satisfied. The predefined conditions are:
+
+ - [short] for testing.Short()
+ - [net] for whether the external network can be used
+ - [link] for whether the OS has hard link support
+ - [symlink] for whether the OS has symbolic link support
+ - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+
+A condition can be negated: [!short] means to run the rest of the line
+when testing.Short() is false.
+
+Additional conditions can be added by passing a function to Params.Condition.
+
+The predefined commands are:
+
+- cd dir
+  Change to the given directory for future commands.
+
+- chmod mode file
+
+  Change the permissions of file or directory to the given octal mode (000 to 777).
+
+- cmp file1 file2
+  Check that the named files have the same content.
+  By convention, file1 is the actual data and file2 the expected data.
+  File1 can be "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or wait command.
+  (If the files have differing content, the failure prints a diff.)
+
+- cmpenv file1 file2
+  Like cmp, but environment variables in file2 are substituted before the
+  comparison. For example, $GOOS is replaced by the target GOOS.
+
+- cp src... dst
+  Copy the listed files to the target file or existing directory.
+  src can include "stdout" or "stderr" to use the standard output or standard error
+  from the most recent exec or go command.
+
+- env [key=value...]
+  With no arguments, print the environment (useful for debugging).
+  Otherwise add the listed key=value pairs to the environment.
+
+- [!] exec program [args...] [&]
+  Run the given executable program with the arguments.
+  It must (or must not) succeed.
+  Note that 'exec' does not terminate the script (unlike in Unix shells).
+
+  If the last token is '&', the program executes in the background. The standard
+  output and standard error of the previous command is cleared, but the output
+  of the background process is buffered — and checking of its exit status is
+  delayed — until the next call to 'wait', 'skip', or 'stop' or the end of the
+  test. At the end of the test, any remaining background processes are
+  terminated using os.Interrupt (if supported) or os.Kill.
+
+  Standard input can be provided using the stdin command; this will be
+  cleared after exec has been called.
+
+- [!] exists [-readonly] file...
+  Each of the listed files or directories must (or must not) exist.
+  If -readonly is given, the files or directories must be unwritable.
+
+- [!] grep [-count=N] pattern file
+  The file's content must (or must not) match the regular expression pattern.
+  For positive matches, -count=N specifies an exact number of matches to require.
+
+- mkdir path...
+  Create the listed directories, if they do not already exists.
+
+- unquote file...
+  Rewrite each file by replacing any leading ">" characters from
+  each line. This enables a file to contain substrings that look like
+  txtar file markers.
+  See also https://godoc.org/github.com/rogpeppe/testscript//txtar#Unquote
+
+- rm file...
+  Remove the listed files or directories.
+
+- skip [message]
+  Mark the test skipped, including the message if given.
+
+- stdin file
+  Set the standard input for the next exec command to the contents of the given file.
+
+- [!] stderr [-count=N] pattern
+  Apply the grep command (see above) to the standard error
+  from the most recent exec or wait command.
+
+- [!] stdout [-count=N] pattern
+  Apply the grep command (see above) to the standard output
+  from the most recent exec or wait command.
+
+- stop [message]
+  Stop the test early (marking it as passing), including the message if given.
+
+- symlink file -> target
+  Create file as a symlink to target. The -> (like in ls -l output) is required.
+
+- wait
+  Wait for all 'exec' and 'go' commands started in the background (with the '&'
+  token) to exit, and display success or failure status for them.
+  After a call to wait, the 'stderr' and 'stdout' commands will apply to the
+  concatenation of the corresponding streams of the background commands,
+  in the order in which those commands were started.
+
+When TestScript runs a script and the script fails, by default TestScript shows
+the execution of the most recent phase of the script (since the last # comment)
+and only shows the # comments for earlier phases. For example, here is a
+multi-phase script with a bug in it (TODO: make this example less go-command
+specific):
+
+	# GOPATH with p1 in d2, p2 in d2
+	env GOPATH=$WORK/d1${:}$WORK/d2
+
+	# build & install p1
+	env
+	go install -i p1
+	! stale p1
+	! stale p2
+
+	# modify p2 - p1 should appear stale
+	cp $WORK/p2x.go $WORK/d2/src/p2/p2.go
+	stale p1 p2
+
+	# build & install p1 again
+	go install -i p11
+	! stale p1
+	! stale p2
+
+	-- $WORK/d1/src/p1/p1.go --
+	package p1
+	import "p2"
+	func F() { p2.F() }
+	-- $WORK/d2/src/p2/p2.go --
+	package p2
+	func F() {}
+	-- $WORK/p2x.go --
+	package p2
+	func F() {}
+	func G() {}
+
+The bug is that the final phase installs p11 instead of p1. The test failure looks like:
+
+	$ go test -run=Script
+	--- FAIL: TestScript (3.75s)
+	    --- FAIL: TestScript/install_rebuild_gopath (0.16s)
+	        script_test.go:223:
+	            # GOPATH with p1 in d2, p2 in d2 (0.000s)
+	            # build & install p1 (0.087s)
+	            # modify p2 - p1 should appear stale (0.029s)
+	            # build & install p1 again (0.022s)
+	            > go install -i p11
+	            [stderr]
+	            can't load package: package p11: cannot find package "p11" in any of:
+	            	/Users/rsc/go/src/p11 (from $GOROOT)
+	            	$WORK/d1/src/p11 (from $GOPATH)
+	            	$WORK/d2/src/p11
+	            [exit status 1]
+	            FAIL: unexpected go command failure
+
+	        script_test.go:73: failed at testdata/script/install_rebuild_gopath.txt:15 in $WORK/gopath/src
+
+	FAIL
+	exit status 1
+	FAIL	cmd/go	4.875s
+	$
+
+Note that the commands in earlier phases have been hidden, so that the relevant
+commands are more easily found, and the elapsed time for a completed phase
+is shown next to the phase heading. To see the entire execution, use "go test -v",
+which also adds an initial environment dump to the beginning of the log.
+
+Note also that in reported output, the actual name of the per-script temporary directory
+has been consistently replaced with the literal string $WORK.
+
+If Params.TestWork is true, it causes each test to log the name of its $WORK directory and other
+environment variable settings and also to leave that directory behind when it exits,
+for manual debugging of failing tests:
+
+	$ go test -run=Script -work
+	--- FAIL: TestScript (3.75s)
+	    --- FAIL: TestScript/install_rebuild_gopath (0.16s)
+	        script_test.go:223:
+	            WORK=/tmp/cmd-go-test-745953508/script-install_rebuild_gopath
+	            GOARCH=
+	            GOCACHE=/Users/rsc/Library/Caches/go-build
+	            GOOS=
+	            GOPATH=$WORK/gopath
+	            GOROOT=/Users/rsc/go
+	            HOME=/no-home
+	            TMPDIR=$WORK/tmp
+	            exe=
+
+	            # GOPATH with p1 in d2, p2 in d2 (0.000s)
+	            # build & install p1 (0.085s)
+	            # modify p2 - p1 should appear stale (0.030s)
+	            # build & install p1 again (0.019s)
+	            > go install -i p11
+	            [stderr]
+	            can't load package: package p11: cannot find package "p11" in any of:
+	            	/Users/rsc/go/src/p11 (from $GOROOT)
+	            	$WORK/d1/src/p11 (from $GOPATH)
+	            	$WORK/d2/src/p11
+	            [exit status 1]
+	            FAIL: unexpected go command failure
+
+	        script_test.go:73: failed at testdata/script/install_rebuild_gopath.txt:15 in $WORK/gopath/src
+
+	FAIL
+	exit status 1
+	FAIL	cmd/go	4.875s
+	$
+
+	$ WORK=/tmp/cmd-go-test-745953508/script-install_rebuild_gopath
+	$ cd $WORK/d1/src/p1
+	$ cat p1.go
+	package p1
+	import "p2"
+	func F() { p2.F() }
+	$
+*/
+package testscript
+-- envvarname.go --
+// +build !windows
+
+package testscript
+
+func envvarname(k string) string {
+	return k
+}
+-- envvarname_windows.go --
+package testscript
+
+import "strings"
+
+func envvarname(k string) string {
+	return strings.ToLower(k)
+}
+-- exe.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testscript
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"sync/atomic"
+	"testing"
+)
+
+var profileId int32 = 0
+
+// TestingM is implemented by *testing.M. It's defined as an interface
+// to allow testscript to co-exist with other testing frameworks
+// that might also wish to call M.Run.
+type TestingM interface {
+	Run() int
+}
+
+var ignoreMissedCoverage = false
+
+// IgnoreMissedCoverage causes any missed coverage information
+// (for example when a function passed to RunMain
+// calls os.Exit, for example) to be ignored.
+// This function should be called before calling RunMain.
+func IgnoreMissedCoverage() {
+	ignoreMissedCoverage = true
+}
+
+// RunMain should be called within a TestMain function to allow
+// subcommands to be run in the testscript context.
+//
+// The commands map holds the set of command names, each
+// with an associated run function which should return the
+// code to pass to os.Exit. It's OK for a command function to
+// exit itself, but this may result in loss of coverage information.
+//
+// When Run is called, these commands will be available as
+// testscript commands; note that these commands behave like
+// commands run with the "exec" command: they set stdout
+// and stderr, and can be run in the background by passing "&"
+// as a final argument.
+//
+// This function returns an exit code to pass to os.Exit, after calling m.Run.
+func RunMain(m TestingM, commands map[string]func() int) (exitCode int) {
+	goCoverProfileMerge()
+	cmdName := os.Getenv("TESTSCRIPT_COMMAND")
+	if cmdName == "" {
+		defer func() {
+			if err := finalizeCoverProfile(); err != nil {
+				log.Printf("cannot merge cover profiles: %v", err)
+				exitCode = 2
+			}
+		}()
+		// We're not in a subcommand.
+		for name := range commands {
+			name := name
+			scriptCmds[name] = func(ts *TestScript, neg bool, args []string) {
+				path, err := os.Executable()
+				if err != nil {
+					ts.Fatalf("cannot determine path to test binary: %v", err)
+				}
+				id := atomic.AddInt32(&profileId, 1) - 1
+				oldEnvLen := len(ts.env)
+				cprof := coverFilename(id)
+				ts.env = append(ts.env,
+					"TESTSCRIPT_COMMAND="+name,
+					"TESTSCRIPT_COVERPROFILE="+cprof,
+				)
+				ts.cmdExec(neg, append([]string{path}, args...))
+				ts.env = ts.env[0:oldEnvLen]
+				if cprof == "" {
+					return
+				}
+				f, err := os.Open(cprof)
+				if err != nil {
+					if ignoreMissedCoverage {
+						return
+					}
+					ts.Fatalf("command %s (args %q) failed to generate coverage information", name, args)
+					return
+				}
+				coverChan <- f
+			}
+		}
+		return m.Run()
+	}
+	mainf := commands[cmdName]
+	if mainf == nil {
+		log.Printf("unknown command name %q", cmdName)
+		return 2
+	}
+	// The command being registered is being invoked, so run it, then exit.
+	os.Args[0] = cmdName
+	cprof := os.Getenv("TESTSCRIPT_COVERPROFILE")
+	if cprof == "" {
+		// No coverage, act as normal.
+		return mainf()
+	}
+	return runCoverSubcommand(cprof, mainf)
+}
+
+// runCoverSubcommand runs the given function, then writes any generated
+// coverage information to the cprof file.
+// This is called inside a separately run executable.
+func runCoverSubcommand(cprof string, mainf func() int) (exitCode int) {
+	// Change the error handling mode to PanicOnError
+	// so that in the common case of calling flag.Parse in main we'll
+	// be able to catch the panic instead of just exiting.
+	flag.CommandLine.Init(flag.CommandLine.Name(), flag.PanicOnError)
+	defer func() {
+		panicErr := recover()
+		if _, ok := panicErr.(error); ok {
+			// The flag package will already have printed this error, assuming,
+			// that is, that the error was created in the flag package.
+			// TODO check the stack to be sure it was actually raised by the flag package.
+			exitCode = 2
+			panicErr = nil
+		}
+		// Set os.Args so that flag.Parse will tell testing the correct
+		// coverprofile setting. Unfortunately this isn't sufficient because
+		// the testing oackage explicitly avoids calling flag.Parse again
+		// if flag.Parsed returns true, so we the coverprofile value directly
+		// too.
+		os.Args = []string{os.Args[0], "-test.coverprofile=" + cprof}
+		setCoverProfile(cprof)
+
+		// Suppress the chatty coverage and test report.
+		devNull, err := os.Open(os.DevNull)
+		if err != nil {
+			panic(err)
+		}
+		os.Stdout = devNull
+		os.Stderr = devNull
+
+		// Run MainStart (recursively, but it we should be ok) with no tests
+		// so that it writes the coverage profile.
+		m := testing.MainStart(nopTestDeps{}, nil, nil, nil)
+		if code := m.Run(); code != 0 && exitCode == 0 {
+			exitCode = code
+		}
+		if _, err := os.Stat(cprof); err != nil {
+			log.Printf("failed to write coverage profile %q", cprof)
+		}
+		if panicErr != nil {
+			// The error didn't originate from the flag package (we know that
+			// flag.PanicOnError causes an error value that implements error),
+			// so carry on panicking.
+			panic(panicErr)
+		}
+	}()
+	return mainf()
+}
+
+func coverFilename(id int32) string {
+	if cprof := coverProfile(); cprof != "" {
+		return fmt.Sprintf("%s_%d", cprof, id)
+	}
+	return ""
+}
+
+func coverProfileFlag() flag.Getter {
+	f := flag.CommandLine.Lookup("test.coverprofile")
+	if f == nil {
+		// We've imported testing so it definitely should be there.
+		panic("cannot find test.coverprofile flag")
+	}
+	return f.Value.(flag.Getter)
+}
+
+func coverProfile() string {
+	return coverProfileFlag().Get().(string)
+}
+
+func setCoverProfile(cprof string) {
+	coverProfileFlag().Set(cprof)
+}
+
+type nopTestDeps struct{}
+
+func (nopTestDeps) MatchString(pat, str string) (result bool, err error) {
+	return false, nil
+}
+
+func (nopTestDeps) StartCPUProfile(w io.Writer) error {
+	return nil
+}
+
+func (nopTestDeps) StopCPUProfile() {}
+
+func (nopTestDeps) WriteProfileTo(name string, w io.Writer, debug int) error {
+	return nil
+}
+func (nopTestDeps) ImportPath() string {
+	return ""
+}
+func (nopTestDeps) StartTestLog(w io.Writer) {}
+
+func (nopTestDeps) StopTestLog() error {
+	return nil
+}
+
+// Note: WriteHeapProfile is needed for Go 1.10 but not Go 1.11.
+func (nopTestDeps) WriteHeapProfile(io.Writer) error {
+	// Not needed for Go 1.10.
+	return nil
+}
+-- go.mod --
+module github.com/rogpeppe/testscript
+
+go 1.13
+
+require gopkg.in/errgo.v2 v2.1.0
+-- internal/imports/build.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Copied from Go distribution src/go/build/build.go, syslist.go
+
+package imports
+
+import (
+	"bytes"
+	"strings"
+	"unicode"
+)
+
+var slashslash = []byte("//")
+
+// ShouldBuild reports whether it is okay to use this file,
+// The rule is that in the file's leading run of // comments
+// and blank lines, which must be followed by a blank line
+// (to avoid including a Go package clause doc comment),
+// lines beginning with '// +build' are taken as build directives.
+//
+// The file is accepted only if each such line lists something
+// matching the file. For example:
+//
+//	// +build windows linux
+//
+// marks the file as applicable only on Windows and Linux.
+//
+// If tags["*"] is true, then ShouldBuild will consider every
+// build tag except "ignore" to be both true and false for
+// the purpose of satisfying build tags, in order to estimate
+// (conservatively) whether a file could ever possibly be used
+// in any build.
+//
+func ShouldBuild(content []byte, tags map[string]bool) bool {
+	// Pass 1. Identify leading run of // comments and blank lines,
+	// which must be followed by a blank line.
+	end := 0
+	p := content
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 { // Blank line
+			end = len(content) - len(p)
+			continue
+		}
+		if !bytes.HasPrefix(line, slashslash) { // Not comment line
+			break
+		}
+	}
+	content = content[:end]
+
+	// Pass 2.  Process each line in the run.
+	p = content
+	allok := true
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, slashslash) {
+			continue
+		}
+		line = bytes.TrimSpace(line[len(slashslash):])
+		if len(line) > 0 && line[0] == '+' {
+			// Looks like a comment +line.
+			f := strings.Fields(string(line))
+			if f[0] == "+build" {
+				ok := false
+				for _, tok := range f[1:] {
+					if matchTags(tok, tags) {
+						ok = true
+					}
+				}
+				if !ok {
+					allok = false
+				}
+			}
+		}
+	}
+
+	return allok
+}
+
+// matchTags reports whether the name is one of:
+//
+//	tag (if tags[tag] is true)
+//	!tag (if tags[tag] is false)
+//	a comma-separated list of any of these
+//
+func matchTags(name string, tags map[string]bool) bool {
+	if name == "" {
+		return false
+	}
+	if i := strings.Index(name, ","); i >= 0 {
+		// comma-separated list
+		ok1 := matchTags(name[:i], tags)
+		ok2 := matchTags(name[i+1:], tags)
+		return ok1 && ok2
+	}
+	if strings.HasPrefix(name, "!!") { // bad syntax, reject always
+		return false
+	}
+	if strings.HasPrefix(name, "!") { // negation
+		return len(name) > 1 && matchTag(name[1:], tags, false)
+	}
+	return matchTag(name, tags, true)
+}
+
+// matchTag reports whether the tag name is valid and satisfied by tags[name]==want.
+func matchTag(name string, tags map[string]bool, want bool) bool {
+	// Tags must be letters, digits, underscores or dots.
+	// Unlike in Go identifiers, all digits are fine (e.g., "386").
+	for _, c := range name {
+		if !unicode.IsLetter(c) && !unicode.IsDigit(c) && c != '_' && c != '.' {
+			return false
+		}
+	}
+
+	if tags["*"] && name != "" && name != "ignore" {
+		// Special case for gathering all possible imports:
+		// if we put * in the tags map then all tags
+		// except "ignore" are considered both present and not
+		// (so we return true no matter how 'want' is set).
+		return true
+	}
+
+	have := tags[name]
+	if name == "linux" {
+		have = have || tags["android"]
+	}
+	return have == want
+}
+
+// MatchFile returns false if the name contains a $GOOS or $GOARCH
+// suffix which does not match the current system.
+// The recognized name formats are:
+//
+//     name_$(GOOS).*
+//     name_$(GOARCH).*
+//     name_$(GOOS)_$(GOARCH).*
+//     name_$(GOOS)_test.*
+//     name_$(GOARCH)_test.*
+//     name_$(GOOS)_$(GOARCH)_test.*
+//
+// An exception: if GOOS=android, then files with GOOS=linux are also matched.
+//
+// If tags["*"] is true, then MatchFile will consider all possible
+// GOOS and GOARCH to be available and will consequently
+// always return true.
+func MatchFile(name string, tags map[string]bool) bool {
+	if tags["*"] {
+		return true
+	}
+	if dot := strings.Index(name, "."); dot != -1 {
+		name = name[:dot]
+	}
+
+	// Before Go 1.4, a file called "linux.go" would be equivalent to having a
+	// build tag "linux" in that file. For Go 1.4 and beyond, we require this
+	// auto-tagging to apply only to files with a non-empty prefix, so
+	// "foo_linux.go" is tagged but "linux.go" is not. This allows new operating
+	// systems, such as android, to arrive without breaking existing code with
+	// innocuous source code in "android.go". The easiest fix: cut everything
+	// in the name before the initial _.
+	i := strings.Index(name, "_")
+	if i < 0 {
+		return true
+	}
+	name = name[i:] // ignore everything before first _
+
+	l := strings.Split(name, "_")
+	if n := len(l); n > 0 && l[n-1] == "test" {
+		l = l[:n-1]
+	}
+	n := len(l)
+	if n >= 2 && KnownOS[l[n-2]] && KnownArch[l[n-1]] {
+		return tags[l[n-2]] && tags[l[n-1]]
+	}
+	if n >= 1 && KnownOS[l[n-1]] {
+		return tags[l[n-1]]
+	}
+	if n >= 1 && KnownArch[l[n-1]] {
+		return tags[l[n-1]]
+	}
+	return true
+}
+
+var KnownOS = make(map[string]bool)
+var KnownArch = make(map[string]bool)
+
+func init() {
+	for _, v := range strings.Fields(goosList) {
+		KnownOS[v] = true
+	}
+	for _, v := range strings.Fields(goarchList) {
+		KnownArch[v] = true
+	}
+}
+
+const goosList = "android darwin dragonfly freebsd js linux nacl netbsd openbsd plan9 solaris windows zos "
+const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc riscv riscv64 s390 s390x sparc sparc64 wasm "
+-- internal/imports/read.go --
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Copied from Go distribution src/go/build/read.go.
+
+package imports
+
+import (
+	"bufio"
+	"errors"
+	"io"
+	"unicode/utf8"
+)
+
+type importReader struct {
+	b    *bufio.Reader
+	buf  []byte
+	peek byte
+	err  error
+	eof  bool
+	nerr int
+}
+
+func isIdent(c byte) bool {
+	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= utf8.RuneSelf
+}
+
+var (
+	errSyntax = errors.New("syntax error")
+	errNUL    = errors.New("unexpected NUL in input")
+)
+
+// syntaxError records a syntax error, but only if an I/O error has not already been recorded.
+func (r *importReader) syntaxError() {
+	if r.err == nil {
+		r.err = errSyntax
+	}
+}
+
+// readByte reads the next byte from the input, saves it in buf, and returns it.
+// If an error occurs, readByte records the error in r.err and returns 0.
+func (r *importReader) readByte() byte {
+	c, err := r.b.ReadByte()
+	if err == nil {
+		r.buf = append(r.buf, c)
+		if c == 0 {
+			err = errNUL
+		}
+	}
+	if err != nil {
+		if err == io.EOF {
+			r.eof = true
+		} else if r.err == nil {
+			r.err = err
+		}
+		c = 0
+	}
+	return c
+}
+
+// peekByte returns the next byte from the input reader but does not advance beyond it.
+// If skipSpace is set, peekByte skips leading spaces and comments.
+func (r *importReader) peekByte(skipSpace bool) byte {
+	if r.err != nil {
+		if r.nerr++; r.nerr > 10000 {
+			panic("go/build: import reader looping")
+		}
+		return 0
+	}
+
+	// Use r.peek as first input byte.
+	// Don't just return r.peek here: it might have been left by peekByte(false)
+	// and this might be peekByte(true).
+	c := r.peek
+	if c == 0 {
+		c = r.readByte()
+	}
+	for r.err == nil && !r.eof {
+		if skipSpace {
+			// For the purposes of this reader, semicolons are never necessary to
+			// understand the input and are treated as spaces.
+			switch c {
+			case ' ', '\f', '\t', '\r', '\n', ';':
+				c = r.readByte()
+				continue
+
+			case '/':
+				c = r.readByte()
+				if c == '/' {
+					for c != '\n' && r.err == nil && !r.eof {
+						c = r.readByte()
+					}
+				} else if c == '*' {
+					var c1 byte
+					for (c != '*' || c1 != '/') && r.err == nil {
+						if r.eof {
+							r.syntaxError()
+						}
+						c, c1 = c1, r.readByte()
+					}
+				} else {
+					r.syntaxError()
+				}
+				c = r.readByte()
+				continue
+			}
+		}
+		break
+	}
+	r.peek = c
+	return r.peek
+}
+
+// nextByte is like peekByte but advances beyond the returned byte.
+func (r *importReader) nextByte(skipSpace bool) byte {
+	c := r.peekByte(skipSpace)
+	r.peek = 0
+	return c
+}
+
+// readKeyword reads the given keyword from the input.
+// If the keyword is not present, readKeyword records a syntax error.
+func (r *importReader) readKeyword(kw string) {
+	r.peekByte(true)
+	for i := 0; i < len(kw); i++ {
+		if r.nextByte(false) != kw[i] {
+			r.syntaxError()
+			return
+		}
+	}
+	if isIdent(r.peekByte(false)) {
+		r.syntaxError()
+	}
+}
+
+// readIdent reads an identifier from the input.
+// If an identifier is not present, readIdent records a syntax error.
+func (r *importReader) readIdent() {
+	c := r.peekByte(true)
+	if !isIdent(c) {
+		r.syntaxError()
+		return
+	}
+	for isIdent(r.peekByte(false)) {
+		r.peek = 0
+	}
+}
+
+// readString reads a quoted string literal from the input.
+// If an identifier is not present, readString records a syntax error.
+func (r *importReader) readString(save *[]string) {
+	switch r.nextByte(true) {
+	case '`':
+		start := len(r.buf) - 1
+		for r.err == nil {
+			if r.nextByte(false) == '`' {
+				if save != nil {
+					*save = append(*save, string(r.buf[start:]))
+				}
+				break
+			}
+			if r.eof {
+				r.syntaxError()
+			}
+		}
+	case '"':
+		start := len(r.buf) - 1
+		for r.err == nil {
+			c := r.nextByte(false)
+			if c == '"' {
+				if save != nil {
+					*save = append(*save, string(r.buf[start:]))
+				}
+				break
+			}
+			if r.eof || c == '\n' {
+				r.syntaxError()
+			}
+			if c == '\\' {
+				r.nextByte(false)
+			}
+		}
+	default:
+		r.syntaxError()
+	}
+}
+
+// readImport reads an import clause - optional identifier followed by quoted string -
+// from the input.
+func (r *importReader) readImport(imports *[]string) {
+	c := r.peekByte(true)
+	if c == '.' {
+		r.peek = 0
+	} else if isIdent(c) {
+		r.readIdent()
+	}
+	r.readString(imports)
+}
+
+// ReadComments is like ioutil.ReadAll, except that it only reads the leading
+// block of comments in the file.
+func ReadComments(f io.Reader) ([]byte, error) {
+	r := &importReader{b: bufio.NewReader(f)}
+	r.peekByte(true)
+	if r.err == nil && !r.eof {
+		// Didn't reach EOF, so must have found a non-space byte. Remove it.
+		r.buf = r.buf[:len(r.buf)-1]
+	}
+	return r.buf, r.err
+}
+
+// ReadImports is like ioutil.ReadAll, except that it expects a Go file as input
+// and stops reading the input once the imports have completed.
+func ReadImports(f io.Reader, reportSyntaxError bool, imports *[]string) ([]byte, error) {
+	r := &importReader{b: bufio.NewReader(f)}
+
+	r.readKeyword("package")
+	r.readIdent()
+	for r.peekByte(true) == 'i' {
+		r.readKeyword("import")
+		if r.peekByte(true) == '(' {
+			r.nextByte(false)
+			for r.peekByte(true) != ')' && r.err == nil {
+				r.readImport(imports)
+			}
+			r.nextByte(false)
+		} else {
+			r.readImport(imports)
+		}
+	}
+
+	// If we stopped successfully before EOF, we read a byte that told us we were done.
+	// Return all but that last byte, which would cause a syntax error if we let it through.
+	if r.err == nil && !r.eof {
+		return r.buf[:len(r.buf)-1], nil
+	}
+
+	// If we stopped for a syntax error, consume the whole file so that
+	// we are sure we don't change the errors that go/parser returns.
+	if r.err == errSyntax && !reportSyntaxError {
+		r.err = nil
+		for r.err == nil && !r.eof {
+			r.readByte()
+		}
+	}
+
+	return r.buf, r.err
+}
+-- internal/imports/read_test.go --
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Copied from Go distribution src/go/build/read.go.
+
+package imports
+
+import (
+	"io"
+	"strings"
+	"testing"
+)
+
+const quote = "`"
+
+type readTest struct {
+	// Test input contains ℙ where readImports should stop.
+	in  string
+	err string
+}
+
+var readImportsTests = []readTest{
+	{
+		`package p`,
+		"",
+	},
+	{
+		`package p; import "x"`,
+		"",
+	},
+	{
+		`package p; import . "x"`,
+		"",
+	},
+	{
+		`package p; import "x";ℙvar x = 1`,
+		"",
+	},
+	{
+		`package p
+		
+		// comment
+		
+		import "x"
+		import _ "x"
+		import a "x"
+		
+		/* comment */
+		
+		import (
+			"x" /* comment */
+			_ "x"
+			a "x" // comment
+			` + quote + `x` + quote + `
+			_ /*comment*/ ` + quote + `x` + quote + `
+			a ` + quote + `x` + quote + `
+		)
+		import (
+		)
+		import ()
+		import()import()import()
+		import();import();import()
+		
+		ℙvar x = 1
+		`,
+		"",
+	},
+}
+
+var readCommentsTests = []readTest{
+	{
+		`ℙpackage p`,
+		"",
+	},
+	{
+		`ℙpackage p; import "x"`,
+		"",
+	},
+	{
+		`ℙpackage p; import . "x"`,
+		"",
+	},
+	{
+		`// foo
+
+		/* bar */
+
+		/* quux */ // baz
+		
+		/*/ zot */
+
+		// asdf
+		ℙHello, world`,
+		"",
+	},
+}
+
+func testRead(t *testing.T, tests []readTest, read func(io.Reader) ([]byte, error)) {
+	for i, tt := range tests {
+		var in, testOut string
+		j := strings.Index(tt.in, "ℙ")
+		if j < 0 {
+			in = tt.in
+			testOut = tt.in
+		} else {
+			in = tt.in[:j] + tt.in[j+len("ℙ"):]
+			testOut = tt.in[:j]
+		}
+		r := strings.NewReader(in)
+		buf, err := read(r)
+		if err != nil {
+			if tt.err == "" {
+				t.Errorf("#%d: err=%q, expected success (%q)", i, err, string(buf))
+				continue
+			}
+			if !strings.Contains(err.Error(), tt.err) {
+				t.Errorf("#%d: err=%q, expected %q", i, err, tt.err)
+				continue
+			}
+			continue
+		}
+		if err == nil && tt.err != "" {
+			t.Errorf("#%d: success, expected %q", i, tt.err)
+			continue
+		}
+
+		out := string(buf)
+		if out != testOut {
+			t.Errorf("#%d: wrong output:\nhave %q\nwant %q\n", i, out, testOut)
+		}
+	}
+}
+
+func TestReadImports(t *testing.T) {
+	testRead(t, readImportsTests, func(r io.Reader) ([]byte, error) { return ReadImports(r, true, nil) })
+}
+
+func TestReadComments(t *testing.T) {
+	testRead(t, readCommentsTests, ReadComments)
+}
+
+var readFailuresTests = []readTest{
+	{
+		`package`,
+		"syntax error",
+	},
+	{
+		"package p\n\x00\nimport `math`\n",
+		"unexpected NUL in input",
+	},
+	{
+		`package p; import`,
+		"syntax error",
+	},
+	{
+		`package p; import "`,
+		"syntax error",
+	},
+	{
+		"package p; import ` \n\n",
+		"syntax error",
+	},
+	{
+		`package p; import "x`,
+		"syntax error",
+	},
+	{
+		`package p; import _`,
+		"syntax error",
+	},
+	{
+		`package p; import _ "`,
+		"syntax error",
+	},
+	{
+		`package p; import _ "x`,
+		"syntax error",
+	},
+	{
+		`package p; import .`,
+		"syntax error",
+	},
+	{
+		`package p; import . "`,
+		"syntax error",
+	},
+	{
+		`package p; import . "x`,
+		"syntax error",
+	},
+	{
+		`package p; import (`,
+		"syntax error",
+	},
+	{
+		`package p; import ("`,
+		"syntax error",
+	},
+	{
+		`package p; import ("x`,
+		"syntax error",
+	},
+	{
+		`package p; import ("x"`,
+		"syntax error",
+	},
+}
+
+func TestReadFailures(t *testing.T) {
+	// Errors should be reported (true arg to readImports).
+	testRead(t, readFailuresTests, func(r io.Reader) ([]byte, error) { return ReadImports(r, true, nil) })
+}
+
+func TestReadFailuresIgnored(t *testing.T) {
+	// Syntax errors should not be reported (false arg to readImports).
+	// Instead, entire file should be the output and no error.
+	// Convert tests not to return syntax errors.
+	tests := make([]readTest, len(readFailuresTests))
+	copy(tests, readFailuresTests)
+	for i := range tests {
+		tt := &tests[i]
+		if !strings.Contains(tt.err, "NUL") {
+			tt.err = ""
+		}
+	}
+	testRead(t, tests, func(r io.Reader) ([]byte, error) { return ReadImports(r, false, nil) })
+}
+-- internal/imports/scan.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package imports
+
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func ScanDir(dir string, tags map[string]bool) ([]string, []string, error) {
+	infos, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, nil, err
+	}
+	var files []string
+	for _, info := range infos {
+		name := info.Name()
+		if info.Mode().IsRegular() && !strings.HasPrefix(name, "_") && strings.HasSuffix(name, ".go") && MatchFile(name, tags) {
+			files = append(files, filepath.Join(dir, name))
+		}
+	}
+	return scanFiles(files, tags, false)
+}
+
+func ScanFiles(files []string, tags map[string]bool) ([]string, []string, error) {
+	return scanFiles(files, tags, true)
+}
+
+func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]string, []string, error) {
+	imports := make(map[string]bool)
+	testImports := make(map[string]bool)
+	numFiles := 0
+Files:
+	for _, name := range files {
+		r, err := os.Open(name)
+		if err != nil {
+			return nil, nil, err
+		}
+		var list []string
+		data, err := ReadImports(r, false, &list)
+		r.Close()
+		if err != nil {
+			return nil, nil, fmt.Errorf("reading %s: %v", name, err)
+		}
+
+		// import "C" is implicit requirement of cgo tag.
+		// When listing files on the command line (explicitFiles=true)
+		// we do not apply build tag filtering but we still do apply
+		// cgo filtering, so no explicitFiles check here.
+		// Why? Because we always have, and it's not worth breaking
+		// that behavior now.
+		for _, path := range list {
+			if path == `"C"` && !tags["cgo"] && !tags["*"] {
+				continue Files
+			}
+		}
+
+		if !explicitFiles && !ShouldBuild(data, tags) {
+			continue
+		}
+		numFiles++
+		m := imports
+		if strings.HasSuffix(name, "_test.go") {
+			m = testImports
+		}
+		for _, p := range list {
+			q, err := strconv.Unquote(p)
+			if err != nil {
+				continue
+			}
+			m[q] = true
+		}
+	}
+	if numFiles == 0 {
+		return nil, nil, ErrNoGo
+	}
+	return keys(imports), keys(testImports), nil
+}
+
+var ErrNoGo = fmt.Errorf("no Go source files")
+
+func keys(m map[string]bool) []string {
+	var list []string
+	for k := range m {
+		list = append(list, k)
+	}
+	sort.Strings(list)
+	return list
+}
+-- internal/imports/scan_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package imports
+
+import (
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"testing"
+
+	"github.com/rogpeppe/testscript/internal/testenv"
+)
+
+func TestScan(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	imports, testImports, err := ScanDir(filepath.Join(runtime.GOROOT(), "src/encoding/json"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundBase64 := false
+	for _, p := range imports {
+		if p == "encoding/base64" {
+			foundBase64 = true
+		}
+		if p == "encoding/binary" {
+			// A dependency but not an import
+			t.Errorf("json reported as importing encoding/binary but does not")
+		}
+		if p == "net/http" {
+			// A test import but not an import
+			t.Errorf("json reported as importing encoding/binary but does not")
+		}
+	}
+	if !foundBase64 {
+		t.Errorf("json missing import encoding/base64 (%q)", imports)
+	}
+
+	foundHTTP := false
+	for _, p := range testImports {
+		if p == "net/http" {
+			foundHTTP = true
+		}
+		if p == "unicode/utf16" {
+			// A package import but not a test import
+			t.Errorf("json reported as test-importing unicode/utf16  but does not")
+		}
+	}
+	if !foundHTTP {
+		t.Errorf("json missing test import net/http (%q)", testImports)
+	}
+}
+
+func TestScanStar(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	imports, _, err := ScanDir("testdata/import1", map[string]bool{"*": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"import1", "import2", "import3", "import4"}
+	if !reflect.DeepEqual(imports, want) {
+		t.Errorf("ScanDir testdata/import1:\nhave %v\nwant %v", imports, want)
+	}
+}
+-- internal/imports/testdata/import1/x.go --
+package x
+
+import "import1"
+-- internal/imports/testdata/import1/x1.go --
+// +build blahblh
+// +build linux
+// +build !linux
+// +build windows
+// +build darwin
+
+package x
+
+import "import4"
+-- internal/imports/testdata/import1/x_darwin.go --
+package xxxx
+
+import "import3"
+-- internal/imports/testdata/import1/x_windows.go --
+package x
+
+import "import2"
+-- internal/os/execpath/exec.go --
+package execpath
+
+import "os/exec"
+
+type Error = exec.Error
+
+// ErrNotFound is the error resulting if a path search failed to find an executable file.
+var ErrNotFound = exec.ErrNotFound
+-- internal/os/execpath/lp_js.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build js,wasm
+
+package execpath
+
+// Look searches for an executable named file, using getenv to look up
+// environment variables. If getenv is nil, os.Getenv will be used. If file
+// contains a slash, it is tried directly and getenv will not be called.  The
+// result may be an absolute path or a path relative to the current directory.
+func Look(file string, getenv func(string) string) (string, error) {
+	// Wasm can not execute processes, so act as if there are no executables at all.
+	return "", &Error{file, ErrNotFound}
+}
+-- internal/os/execpath/lp_plan9.go --
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package execpath
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
+}
+
+// Look searches for an executable named file, using getenv to look up
+// environment variables. If getenv is nil, os.Getenv will be used. If file
+// contains a slash, it is tried directly and getenv will not be called.  The
+// result may be an absolute path or a path relative to the current directory.
+func Look(file string, getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+
+	// skip the path lookup for these prefixes
+	skip := []string{"/", "#", "./", "../"}
+
+	for _, p := range skip {
+		if strings.HasPrefix(file, p) {
+			err := findExecutable(file)
+			if err == nil {
+				return file, nil
+			}
+			return "", &Error{file, err}
+		}
+	}
+
+	path := getenv("path")
+	for _, dir := range filepath.SplitList(path) {
+		path := filepath.Join(dir, file)
+		if err := findExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", &Error{file, ErrNotFound}
+}
+-- internal/os/execpath/lp_unix.go --
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+
+package execpath
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func findExecutable(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		return nil
+	}
+	return os.ErrPermission
+}
+
+// Look searches for an executable named file, using getenv to look up
+// environment variables. If getenv is nil, os.Getenv will be used. If file
+// contains a slash, it is tried directly and getenv will not be called.  The
+// result may be an absolute path or a path relative to the current directory.
+func Look(file string, getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+
+	// NOTE(rsc): I wish we could use the Plan 9 behavior here
+	// (only bypass the path if file begins with / or ./ or ../)
+	// but that would not match all the Unix shells.
+
+	if strings.Contains(file, "/") {
+		err := findExecutable(file)
+		if err == nil {
+			return file, nil
+		}
+		return "", &Error{file, err}
+	}
+	path := getenv("PATH")
+	for _, dir := range filepath.SplitList(path) {
+		if dir == "" {
+			// Unix shell semantics: path element "" means "."
+			dir = "."
+		}
+		path := filepath.Join(dir, file)
+		if err := findExecutable(path); err == nil {
+			return path, nil
+		}
+	}
+	return "", &Error{file, ErrNotFound}
+}
+-- internal/os/execpath/lp_windows.go --
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package execpath
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func chkStat(file string) error {
+	d, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+	if d.IsDir() {
+		return os.ErrPermission
+	}
+	return nil
+}
+
+func hasExt(file string) bool {
+	i := strings.LastIndex(file, ".")
+	if i < 0 {
+		return false
+	}
+	return strings.LastIndexAny(file, `:\/`) < i
+}
+
+func findExecutable(file string, exts []string) (string, error) {
+	if len(exts) == 0 {
+		return file, chkStat(file)
+	}
+	if hasExt(file) {
+		if chkStat(file) == nil {
+			return file, nil
+		}
+	}
+	for _, e := range exts {
+		if f := file + e; chkStat(f) == nil {
+			return f, nil
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+// Look searches for an executable named file, using getenv to look up
+// environment variables. If getenv is nil, os.Getenv will be used. If file
+// contains a slash, it is tried directly and getenv will not be called. The
+// result may be an absolute path or a path relative to the current directory.
+// Look also uses PATHEXT environment variable to match
+// a suitable candidate.
+func Look(file string, getenv func(string) string) (string, error) {
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	var exts []string
+	x := getenv(`PATHEXT`)
+	if x != "" {
+		for _, e := range strings.Split(strings.ToLower(x), `;`) {
+			if e == "" {
+				continue
+			}
+			if e[0] != '.' {
+				e = "." + e
+			}
+			exts = append(exts, e)
+		}
+	} else {
+		exts = []string{".com", ".exe", ".bat", ".cmd"}
+	}
+
+	if strings.ContainsAny(file, `:\/`) {
+		if f, err := findExecutable(file, exts); err == nil {
+			return f, nil
+		} else {
+			return "", &Error{file, err}
+		}
+	}
+	if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+		return f, nil
+	}
+	path := getenv("path")
+	for _, dir := range filepath.SplitList(path) {
+		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
+			return f, nil
+		}
+	}
+	return "", &Error{file, ErrNotFound}
+}
+-- internal/par/work.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package par implements parallel execution helpers.
+package par
+
+import (
+	"math/rand"
+	"sync"
+	"sync/atomic"
+)
+
+// Work manages a set of work items to be executed in parallel, at most once each.
+// The items in the set must all be valid map keys.
+type Work struct {
+	f       func(interface{}) // function to run for each item
+	running int               // total number of runners
+
+	mu      sync.Mutex
+	added   map[interface{}]bool // items added to set
+	todo    []interface{}        // items yet to be run
+	wait    sync.Cond            // wait when todo is empty
+	waiting int                  // number of runners waiting for todo
+}
+
+func (w *Work) init() {
+	if w.added == nil {
+		w.added = make(map[interface{}]bool)
+	}
+}
+
+// Add adds item to the work set, if it hasn't already been added.
+func (w *Work) Add(item interface{}) {
+	w.mu.Lock()
+	w.init()
+	if !w.added[item] {
+		w.added[item] = true
+		w.todo = append(w.todo, item)
+		if w.waiting > 0 {
+			w.wait.Signal()
+		}
+	}
+	w.mu.Unlock()
+}
+
+// Do runs f in parallel on items from the work set,
+// with at most n invocations of f running at a time.
+// It returns when everything added to the work set has been processed.
+// At least one item should have been added to the work set
+// before calling Do (or else Do returns immediately),
+// but it is allowed for f(item) to add new items to the set.
+// Do should only be used once on a given Work.
+func (w *Work) Do(n int, f func(item interface{})) {
+	if n < 1 {
+		panic("par.Work.Do: n < 1")
+	}
+	if w.running >= 1 {
+		panic("par.Work.Do: already called Do")
+	}
+
+	w.running = n
+	w.f = f
+	w.wait.L = &w.mu
+
+	for i := 0; i < n-1; i++ {
+		go w.runner()
+	}
+	w.runner()
+}
+
+// runner executes work in w until both nothing is left to do
+// and all the runners are waiting for work.
+// (Then all the runners return.)
+func (w *Work) runner() {
+	for {
+		// Wait for something to do.
+		w.mu.Lock()
+		for len(w.todo) == 0 {
+			w.waiting++
+			if w.waiting == w.running {
+				// All done.
+				w.wait.Broadcast()
+				w.mu.Unlock()
+				return
+			}
+			w.wait.Wait()
+			w.waiting--
+		}
+
+		// Pick something to do at random,
+		// to eliminate pathological contention
+		// in case items added at about the same time
+		// are most likely to contend.
+		i := rand.Intn(len(w.todo))
+		item := w.todo[i]
+		w.todo[i] = w.todo[len(w.todo)-1]
+		w.todo = w.todo[:len(w.todo)-1]
+		w.mu.Unlock()
+
+		w.f(item)
+	}
+}
+
+// Cache runs an action once per key and caches the result.
+type Cache struct {
+	m sync.Map
+}
+
+type cacheEntry struct {
+	done   uint32
+	mu     sync.Mutex
+	result interface{}
+}
+
+// Do calls the function f if and only if Do is being called for the first time with this key.
+// No call to Do with a given key returns until the one call to f returns.
+// Do returns the value returned by the one call to f.
+func (c *Cache) Do(key interface{}, f func() interface{}) interface{} {
+	entryIface, ok := c.m.Load(key)
+	if !ok {
+		entryIface, _ = c.m.LoadOrStore(key, new(cacheEntry))
+	}
+	e := entryIface.(*cacheEntry)
+	if atomic.LoadUint32(&e.done) == 0 {
+		e.mu.Lock()
+		if atomic.LoadUint32(&e.done) == 0 {
+			e.result = f()
+			atomic.StoreUint32(&e.done, 1)
+		}
+		e.mu.Unlock()
+	}
+	return e.result
+}
+
+// Get returns the cached result associated with key.
+// It returns nil if there is no such result.
+// If the result for key is being computed, Get does not wait for the computation to finish.
+func (c *Cache) Get(key interface{}) interface{} {
+	entryIface, ok := c.m.Load(key)
+	if !ok {
+		return nil
+	}
+	e := entryIface.(*cacheEntry)
+	if atomic.LoadUint32(&e.done) == 0 {
+		return nil
+	}
+	return e.result
+}
+-- internal/par/work_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package par
+
+import (
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+func TestWork(t *testing.T) {
+	var w Work
+
+	const N = 10000
+	n := int32(0)
+	w.Add(N)
+	w.Do(100, func(x interface{}) {
+		atomic.AddInt32(&n, 1)
+		i := x.(int)
+		if i >= 2 {
+			w.Add(i - 1)
+			w.Add(i - 2)
+		}
+		w.Add(i >> 1)
+		w.Add((i >> 1) ^ 1)
+	})
+	if n != N+1 {
+		t.Fatalf("ran %d items, expected %d", n, N+1)
+	}
+}
+
+func TestWorkParallel(t *testing.T) {
+	for tries := 0; tries < 10; tries++ {
+		var w Work
+		const N = 100
+		for i := 0; i < N; i++ {
+			w.Add(i)
+		}
+		start := time.Now()
+		var n int32
+		w.Do(N, func(x interface{}) {
+			time.Sleep(1 * time.Millisecond)
+			atomic.AddInt32(&n, +1)
+		})
+		if n != N {
+			t.Fatalf("par.Work.Do did not do all the work")
+		}
+		if time.Since(start) < N/2*time.Millisecond {
+			return
+		}
+	}
+	t.Fatalf("par.Work.Do does not seem to be parallel")
+}
+
+func TestCache(t *testing.T) {
+	var cache Cache
+
+	n := 1
+	v := cache.Do(1, func() interface{} { n++; return n })
+	if v != 2 {
+		t.Fatalf("cache.Do(1) did not run f")
+	}
+	v = cache.Do(1, func() interface{} { n++; return n })
+	if v != 2 {
+		t.Fatalf("cache.Do(1) ran f again!")
+	}
+	v = cache.Do(2, func() interface{} { n++; return n })
+	if v != 3 {
+		t.Fatalf("cache.Do(2) did not run f")
+	}
+	v = cache.Do(1, func() interface{} { n++; return n })
+	if v != 2 {
+		t.Fatalf("cache.Do(1) did not returned saved value from original cache.Do(1)")
+	}
+}
+-- internal/testenv/testenv.go --
+// Copyright 2015 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package testenv provides information about what functionality
+// is available in different testing environments run by the Go team.
+//
+// It is an internal package because these details are specific
+// to the Go team's test setup (on build.golang.org) and not
+// fundamental to tests in general.
+package testenv
+
+import (
+	"errors"
+	"flag"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+// Builder reports the name of the builder running this test
+// (for example, "linux-amd64" or "windows-386-gce").
+// If the test is not running on the build infrastructure,
+// Builder returns the empty string.
+func Builder() string {
+	return os.Getenv("GO_BUILDER_NAME")
+}
+
+// HasGoBuild reports whether the current system can build programs with ``go build''
+// and then run them with os.StartProcess or exec.Command.
+func HasGoBuild() bool {
+	if os.Getenv("GO_GCFLAGS") != "" {
+		// It's too much work to require every caller of the go command
+		// to pass along "-gcflags="+os.Getenv("GO_GCFLAGS").
+		// For now, if $GO_GCFLAGS is set, report that we simply can't
+		// run go build.
+		return false
+	}
+	switch runtime.GOOS {
+	case "android", "nacl", "js":
+		return false
+	case "darwin":
+		if strings.HasPrefix(runtime.GOARCH, "arm") {
+			return false
+		}
+	}
+	return true
+}
+
+// MustHaveGoBuild checks that the current system can build programs with ``go build''
+// and then run them with os.StartProcess or exec.Command.
+// If not, MustHaveGoBuild calls t.Skip with an explanation.
+func MustHaveGoBuild(t testing.TB) {
+	if os.Getenv("GO_GCFLAGS") != "" {
+		t.Skipf("skipping test: 'go build' not compatible with setting $GO_GCFLAGS")
+	}
+	if !HasGoBuild() {
+		t.Skipf("skipping test: 'go build' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// HasGoRun reports whether the current system can run programs with ``go run.''
+func HasGoRun() bool {
+	// For now, having go run and having go build are the same.
+	return HasGoBuild()
+}
+
+// MustHaveGoRun checks that the current system can run programs with ``go run.''
+// If not, MustHaveGoRun calls t.Skip with an explanation.
+func MustHaveGoRun(t testing.TB) {
+	if !HasGoRun() {
+		t.Skipf("skipping test: 'go run' not available on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// GoToolPath reports the path to the Go tool.
+// It is a convenience wrapper around GoTool.
+// If the tool is unavailable GoToolPath calls t.Skip.
+// If the tool should be available and isn't, GoToolPath calls t.Fatal.
+func GoToolPath(t testing.TB) string {
+	MustHaveGoBuild(t)
+	path, err := GoTool()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// GoTool reports the path to the Go tool.
+func GoTool() (string, error) {
+	if !HasGoBuild() {
+		return "", errors.New("platform cannot run go tool")
+	}
+	var exeSuffix string
+	if runtime.GOOS == "windows" {
+		exeSuffix = ".exe"
+	}
+	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	}
+	goBin, err := exec.LookPath("go" + exeSuffix)
+	if err != nil {
+		return "", errors.New("cannot find go tool: " + err.Error())
+	}
+	return goBin, nil
+}
+
+// HasExec reports whether the current system can start new processes
+// using os.StartProcess or (more commonly) exec.Command.
+func HasExec() bool {
+	switch runtime.GOOS {
+	case "nacl", "js":
+		return false
+	case "darwin":
+		if strings.HasPrefix(runtime.GOARCH, "arm") {
+			return false
+		}
+	}
+	return true
+}
+
+// HasSrc reports whether the entire source tree is available under GOROOT.
+func HasSrc() bool {
+	switch runtime.GOOS {
+	case "nacl":
+		return false
+	case "darwin":
+		if strings.HasPrefix(runtime.GOARCH, "arm") {
+			return false
+		}
+	}
+	return true
+}
+
+// MustHaveExec checks that the current system can start new processes
+// using os.StartProcess or (more commonly) exec.Command.
+// If not, MustHaveExec calls t.Skip with an explanation.
+func MustHaveExec(t testing.TB) {
+	if !HasExec() {
+		t.Skipf("skipping test: cannot exec subprocess on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+// HasExternalNetwork reports whether the current system can use
+// external (non-localhost) networks.
+func HasExternalNetwork() bool {
+	return !testing.Short() && runtime.GOOS != "nacl" && runtime.GOOS != "js"
+}
+
+// MustHaveExternalNetwork checks that the current system can use
+// external (non-localhost) networks.
+// If not, MustHaveExternalNetwork calls t.Skip with an explanation.
+func MustHaveExternalNetwork(t testing.TB) {
+	if runtime.GOOS == "nacl" || runtime.GOOS == "js" {
+		t.Skipf("skipping test: no external network on %s", runtime.GOOS)
+	}
+	if testing.Short() {
+		t.Skipf("skipping test: no external network in -short mode")
+	}
+}
+
+var haveCGO bool
+
+// HasCGO reports whether the current system can use cgo.
+func HasCGO() bool {
+	return haveCGO
+}
+
+// MustHaveCGO calls t.Skip if cgo is not available.
+func MustHaveCGO(t testing.TB) {
+	if !haveCGO {
+		t.Skipf("skipping test: no cgo")
+	}
+}
+
+// HasSymlink reports whether the current system can use os.Symlink.
+func HasSymlink() bool {
+	ok, _ := hasSymlink()
+	return ok
+}
+
+// MustHaveSymlink reports whether the current system can use os.Symlink.
+// If not, MustHaveSymlink calls t.Skip with an explanation.
+func MustHaveSymlink(t testing.TB) {
+	ok, reason := hasSymlink()
+	if !ok {
+		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
+	}
+}
+
+// HasLink reports whether the current system can use os.Link.
+func HasLink() bool {
+	// From Android release M (Marshmallow), hard linking files is blocked
+	// and an attempt to call link() on a file will return EACCES.
+	// - https://code.google.com/p/android-developer-preview/issues/detail?id=3150
+	return runtime.GOOS != "plan9" && runtime.GOOS != "android"
+}
+
+// MustHaveLink reports whether the current system can use os.Link.
+// If not, MustHaveLink calls t.Skip with an explanation.
+func MustHaveLink(t testing.TB) {
+	if !HasLink() {
+		t.Skipf("skipping test: hardlinks are not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+}
+
+var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+
+func SkipFlaky(t testing.TB, issue int) {
+	t.Helper()
+	if !*flaky {
+		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
+	}
+}
+
+func SkipFlakyNet(t testing.TB) {
+	t.Helper()
+	if v, _ := strconv.ParseBool(os.Getenv("GO_BUILDER_FLAKY_NET")); v {
+		t.Skip("skipping test on builder known to have frequent network failures")
+	}
+}
+
+// CleanCmdEnv will fill cmd.Env with the environment, excluding certain
+// variables that could modify the behavior of the Go tools such as
+// GODEBUG and GOTRACEBACK.
+func CleanCmdEnv(cmd *exec.Cmd) *exec.Cmd {
+	if cmd.Env != nil {
+		panic("environment already set")
+	}
+	for _, env := range os.Environ() {
+		// Exclude GODEBUG from the environment to prevent its output
+		// from breaking tests that are trying to parse other command output.
+		if strings.HasPrefix(env, "GODEBUG=") {
+			continue
+		}
+		// Exclude GOTRACEBACK for the same reason.
+		if strings.HasPrefix(env, "GOTRACEBACK=") {
+			continue
+		}
+		cmd.Env = append(cmd.Env, env)
+	}
+	return cmd
+}
+-- internal/testenv/testenv_cgo.go --
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build cgo
+
+package testenv
+
+func init() {
+	haveCGO = true
+}
+-- internal/testenv/testenv_notwin.go --
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build !windows
+
+package testenv
+
+import (
+	"runtime"
+)
+
+func hasSymlink() (ok bool, reason string) {
+	switch runtime.GOOS {
+	case "android", "nacl", "plan9":
+		return false, ""
+	}
+
+	return true, ""
+}
+-- internal/testenv/testenv_windows.go --
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testenv
+
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sync"
+	"syscall"
+)
+
+var symlinkOnce sync.Once
+var winSymlinkErr error
+
+func initWinHasSymlink() {
+	tmpdir, err := ioutil.TempDir("", "symtest")
+	if err != nil {
+		panic("failed to create temp directory: " + err.Error())
+	}
+	defer os.RemoveAll(tmpdir)
+
+	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
+	if err != nil {
+		err = err.(*os.LinkError).Err
+		switch err {
+		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
+			winSymlinkErr = err
+		}
+	}
+}
+
+func hasSymlink() (ok bool, reason string) {
+	symlinkOnce.Do(initWinHasSymlink)
+
+	switch winSymlinkErr {
+	case nil:
+		return true, ""
+	case syscall.EWINDOWS:
+		return false, ": symlinks are not supported on your version of Windows"
+	case syscall.ERROR_PRIVILEGE_NOT_HELD:
+		return false, ": you don't have enough privileges to create symlinks"
+	}
+
+	return false, ""
+}
+-- internal/textutil/diff.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package textutil
+
+import (
+	"fmt"
+	"strings"
+)
+
+// Diff returns a formatted diff of the two texts,
+// showing the entire text and the minimum line-level
+// additions and removals to turn text1 into text2.
+// (That is, lines only in text1 appear with a leading -,
+// and lines only in text2 appear with a leading +.)
+func Diff(text1, text2 string) string {
+	if text1 != "" && !strings.HasSuffix(text1, "\n") {
+		text1 += "(missing final newline)"
+	}
+	lines1 := strings.Split(text1, "\n")
+	lines1 = lines1[:len(lines1)-1] // remove empty string after final line
+	if text2 != "" && !strings.HasSuffix(text2, "\n") {
+		text2 += "(missing final newline)"
+	}
+	lines2 := strings.Split(text2, "\n")
+	lines2 = lines2[:len(lines2)-1] // remove empty string after final line
+
+	// Naive dynamic programming algorithm for edit distance.
+	// https://en.wikipedia.org/wiki/Wagner–Fischer_algorithm
+	// dist[i][j] = edit distance between lines1[:len(lines1)-i] and lines2[:len(lines2)-j]
+	// (The reversed indices make following the minimum cost path
+	// visit lines in the same order as in the text.)
+	dist := make([][]int, len(lines1)+1)
+	for i := range dist {
+		dist[i] = make([]int, len(lines2)+1)
+		if i == 0 {
+			for j := range dist[0] {
+				dist[0][j] = j
+			}
+			continue
+		}
+		for j := range dist[i] {
+			if j == 0 {
+				dist[i][0] = i
+				continue
+			}
+			cost := dist[i][j-1] + 1
+			if cost > dist[i-1][j]+1 {
+				cost = dist[i-1][j] + 1
+			}
+			if lines1[len(lines1)-i] == lines2[len(lines2)-j] {
+				if cost > dist[i-1][j-1] {
+					cost = dist[i-1][j-1]
+				}
+			}
+			dist[i][j] = cost
+		}
+	}
+
+	var buf strings.Builder
+	i, j := len(lines1), len(lines2)
+	for i > 0 || j > 0 {
+		cost := dist[i][j]
+		if i > 0 && j > 0 && cost == dist[i-1][j-1] && lines1[len(lines1)-i] == lines2[len(lines2)-j] {
+			fmt.Fprintf(&buf, " %s\n", lines1[len(lines1)-i])
+			i--
+			j--
+		} else if i > 0 && cost == dist[i-1][j]+1 {
+			fmt.Fprintf(&buf, "-%s\n", lines1[len(lines1)-i])
+			i--
+		} else {
+			fmt.Fprintf(&buf, "+%s\n", lines2[len(lines2)-j])
+			j--
+		}
+	}
+	return buf.String()
+}
+-- internal/textutil/diff_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package textutil_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/rogpeppe/testscript/internal/textutil"
+)
+
+var diffTests = []struct {
+	text1 string
+	text2 string
+	diff  string
+}{
+	{"a b c", "a b d e f", "a b -c +d +e +f"},
+	{"", "a b c", "+a +b +c"},
+	{"a b c", "", "-a -b -c"},
+	{"a b c", "d e f", "-a -b -c +d +e +f"},
+	{"a b c d e f", "a b d e f", "a b -c d e f"},
+	{"a b c e f", "a b c d e f", "a b c +d e f"},
+}
+
+func TestDiff(t *testing.T) {
+	for _, tt := range diffTests {
+		// Turn spaces into \n.
+		text1 := strings.Replace(tt.text1, " ", "\n", -1)
+		if text1 != "" {
+			text1 += "\n"
+		}
+		text2 := strings.Replace(tt.text2, " ", "\n", -1)
+		if text2 != "" {
+			text2 += "\n"
+		}
+		out := textutil.Diff(text1, text2)
+		// Cut final \n, cut spaces, turn remaining \n into spaces.
+		out = strings.Replace(strings.Replace(strings.TrimSuffix(out, "\n"), " ", "", -1), "\n", " ", -1)
+		if out != tt.diff {
+			t.Errorf("diff(%q, %q) = %q, want %q", text1, text2, out, tt.diff)
+		}
+	}
+}
+-- internal/textutil/doc.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// package textutil contains text processing utilities.
+//
+// This package came to life as a result of refactoring code common to
+// internal packages we have factored out of the Go repo.
+package textutil
+-- testdata/command.txt --
+printargs a b 'c d'
+stdout '\["printargs" "a" "b" "c d"\]\n'
+-- testdata/commandstatus.txt --
+! status 1
+! status 2
+status 0
+-- testdata/defer.txt --
+testdefer
+testdefer
+testdefer
+-- testdata/evalsymlink.txt --
+# If ioutil.TempDir returns a sym linked dir (default behaviour in macOS for example) the
+# matcher will have problems with external programs that uses the real path.
+# This script tests that $WORK is matched in a consistent way (also see #79).
+[windows] skip
+exec pwd
+stdout ^$WORK$
+exec pwd -P
+stdout ^$WORK$
+-- testdata/interrupt.txt --
+[windows] skip
+
+signalcatcher &
+waitfile catchsignal
+interrupt
+wait
+stdout 'caught interrupt'
+-- testdata/nothing.txt --
+# Intentionally blank file, used to test that -testwork doesn't remove the work directory 
+-- testdata/values.txt --
+test-values
+-- testdata/wait.txt --
+[!exec:echo] skip
+[!exec:false] skip
+
+exec echo foo
+stdout foo
+
+exec echo foo &
+exec echo bar &
+! exec false &
+
+# Starting a background process should clear previous output.
+! stdout foo
+
+# Wait should set the output to the concatenated outputs of the background
+# programs, in the order in which they were started.
+wait
+stdout 'foo\nbar'
+
+# The end of the test should interrupt or kill any remaining background
+# programs.
+[!exec:sleep] skip
+! exec sleep 86400 &
+-- testscript.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Script-driven tests.
+// See testdata/script/README for an overview.
+
+package testscript
+
+import (
+	"bytes"
+	"context"
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/rogpeppe/testscript/internal/imports"
+	"github.com/rogpeppe/testscript/internal/os/execpath"
+	"github.com/rogpeppe/testscript/internal/par"
+	"github.com/rogpeppe/testscript/internal/testenv"
+	"github.com/rogpeppe/testscript/txtar"
+)
+
+var execCache par.Cache
+
+// If -testwork is specified, the test prints the name of the temp directory
+// and does not remove it when done, so that a programmer can
+// poke at the test file tree afterward.
+var testWork = flag.Bool("testwork", false, "")
+
+// Env holds the environment to use at the start of a test script invocation.
+type Env struct {
+	// WorkDir holds the path to the root directory of the
+	// extracted files.
+	WorkDir string
+	// Vars holds the initial set environment variables that will be passed to the
+	// testscript commands.
+	Vars []string
+	// Cd holds the initial current working directory.
+	Cd string
+	// Values holds a map of arbitrary values for use by custom
+	// testscript commands. This enables Setup to pass arbitrary
+	// values (not just strings) through to custom commands.
+	Values map[interface{}]interface{}
+
+	ts *TestScript
+}
+
+// Value returns a value from Env.Values, or nil if no
+// value was set by Setup.
+func (ts *TestScript) Value(key interface{}) interface{} {
+	return ts.values[key]
+}
+
+// Defer arranges for f to be called at the end
+// of the test. If Defer is called multiple times, the
+// defers are executed in reverse order (similar
+// to Go's defer statement)
+func (e *Env) Defer(f func()) {
+	e.ts.Defer(f)
+}
+
+// Params holds parameters for a call to Run.
+type Params struct {
+	// Dir holds the name of the directory holding the scripts.
+	// All files in the directory with a .txt suffix will be considered
+	// as test scripts. By default the current directory is used.
+	// Dir is interpreted relative to the current test directory.
+	Dir string
+
+	// Setup is called, if not nil, to complete any setup required
+	// for a test. The WorkDir and Vars fields will have already
+	// been initialized and all the files extracted into WorkDir,
+	// and Cd will be the same as WorkDir.
+	// The Setup function may modify Vars and Cd as it wishes.
+	Setup func(*Env) error
+
+	// Condition is called, if not nil, to determine whether a particular
+	// condition is true. It's called only for conditions not in the
+	// standard set, and may be nil.
+	Condition func(cond string) (bool, error)
+
+	// Cmds holds a map of commands available to the script.
+	// It will only be consulted for commands not part of the standard set.
+	Cmds map[string]func(ts *TestScript, neg bool, args []string)
+
+	// TestWork specifies that working directories should be
+	// left intact for later inspection.
+	TestWork bool
+
+	// IgnoreMissedCoverage specifies that if coverage information
+	// is being generated (with the -test.coverprofile flag) and a subcommand
+	// function passed to RunMain fails to generate coverage information
+	// (for example because the function invoked os.Exit), then the
+	// error will be ignored.
+	IgnoreMissedCoverage bool
+
+	// UpdateScripts specifies that if a `cmp` command fails and
+	// its first argument is `stdout` or `stderr` and its second argument
+	// refers to a file inside the testscript file, the command will succeed
+	// and the testscript file will be updated to reflect the actual output.
+	//
+	// The content will be quoted with txtar.Quote if needed;
+	// a manual change will be needed if it is not unquoted in the
+	// script.
+	UpdateScripts bool
+}
+
+// RunDir runs the tests in the given directory. All files in dir with a ".txt"
+// are considered to be test files.
+func Run(t *testing.T, p Params) {
+	RunT(tshim{t}, p)
+}
+
+// T holds all the methods of the *testing.T type that
+// are used by testscript.
+type T interface {
+	Skip(...interface{})
+	Fatal(...interface{})
+	Parallel()
+	Log(...interface{})
+	FailNow()
+	Run(string, func(T))
+	// Verbose is usually implemented by the testing package
+	// directly rather than on the *testing.T type.
+	Verbose() bool
+}
+
+type tshim struct {
+	*testing.T
+}
+
+func (t tshim) Run(name string, f func(T)) {
+	t.T.Run(name, func(t *testing.T) {
+		f(tshim{t})
+	})
+}
+
+func (t tshim) Verbose() bool {
+	return testing.Verbose()
+}
+
+// RunT is like Run but uses an interface type instead of the concrete *testing.T
+// type to make it possible to use testscript functionality outside of go test.
+func RunT(t T, p Params) {
+	files, err := filepath.Glob(filepath.Join(p.Dir, "*.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	testTempDir, err := ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-test-script")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The temp dir returned by ioutil.TempDir might be a sym linked dir (default
+	// behaviour in macOS). That could mess up matching that includes $WORK if,
+	// for example, an external program outputs resolved paths. Evaluating the
+	// dir here will ensure consistency.
+	testTempDir, err = filepath.EvalSymlinks(testTempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refCount := int32(len(files))
+	for _, file := range files {
+		file := file
+		name := strings.TrimSuffix(filepath.Base(file), ".txt")
+		t.Run(name, func(t T) {
+			t.Parallel()
+			ts := &TestScript{
+				t:             t,
+				testTempDir:   testTempDir,
+				name:          name,
+				file:          file,
+				params:        p,
+				ctxt:          context.Background(),
+				deferred:      func() {},
+				scriptFiles:   make(map[string]string),
+				scriptUpdates: make(map[string]string),
+			}
+			defer func() {
+				if p.TestWork || *testWork {
+					return
+				}
+				removeAll(ts.workdir)
+				if atomic.AddInt32(&refCount, -1) == 0 {
+					// This is the last subtest to finish. Remove the
+					// parent directory too.
+					os.Remove(testTempDir)
+				}
+			}()
+			ts.run()
+		})
+	}
+}
+
+// A TestScript holds execution state for a single test script.
+type TestScript struct {
+	params        Params
+	t             T
+	testTempDir   string
+	workdir       string                      // temporary work dir ($WORK)
+	log           bytes.Buffer                // test execution log (printed at end of test)
+	mark          int                         // offset of next log truncation
+	cd            string                      // current directory during test execution; initially $WORK/gopath/src
+	name          string                      // short name of test ("foo")
+	file          string                      // full file name ("testdata/script/foo.txt")
+	lineno        int                         // line number currently executing
+	line          string                      // line currently executing
+	env           []string                    // environment list (for os/exec)
+	envMap        map[string]string           // environment mapping (matches env; on Windows keys are lowercase)
+	values        map[interface{}]interface{} // values for custom commands
+	stdin         string                      // standard input to next 'go' command; set by 'stdin' command.
+	stdout        string                      // standard output from last 'go' command; for 'stdout' command
+	stderr        string                      // standard error from last 'go' command; for 'stderr' command
+	stopped       bool                        // test wants to stop early
+	start         time.Time                   // time phase started
+	background    []backgroundCmd             // backgrounded 'exec' and 'go' commands
+	deferred      func()                      // deferred cleanup actions.
+	archive       *txtar.Archive              // the testscript being run.
+	scriptFiles   map[string]string           // files stored in the txtar archive (absolute paths -> path in script)
+	scriptUpdates map[string]string           // updates to testscript files via UpdateScripts.
+
+	ctxt context.Context // per TestScript context
+}
+
+type backgroundCmd struct {
+	cmd  *exec.Cmd
+	wait <-chan struct{}
+	neg  bool // if true, cmd should fail
+}
+
+// setup sets up the test execution temporary directory and environment.
+// It returns the comment section of the txtar archive.
+func (ts *TestScript) setup() string {
+	ts.workdir = filepath.Join(ts.testTempDir, "script-"+ts.name)
+	ts.Check(os.MkdirAll(filepath.Join(ts.workdir, "tmp"), 0777))
+	env := &Env{
+		Vars: []string{
+			"WORK=" + ts.workdir, // must be first for ts.abbrev
+			"PATH=" + os.Getenv("PATH"),
+			homeEnvName() + "=/no-home",
+			tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+			"devnull=" + os.DevNull,
+			":=" + string(os.PathListSeparator),
+		},
+		WorkDir: ts.workdir,
+		Values:  make(map[interface{}]interface{}),
+		Cd:      ts.workdir,
+		ts:      ts,
+	}
+	// Must preserve SYSTEMROOT on Windows: https://github.com/golang/go/issues/25513 et al
+	if runtime.GOOS == "windows" {
+		env.Vars = append(env.Vars,
+			"SYSTEMROOT="+os.Getenv("SYSTEMROOT"),
+			"exe=.exe",
+		)
+	} else {
+		env.Vars = append(env.Vars,
+			"exe=",
+		)
+	}
+	ts.cd = env.Cd
+	// Unpack archive.
+	a, err := txtar.ParseFile(ts.file)
+	ts.Check(err)
+	ts.archive = a
+	for _, f := range a.Files {
+		name := ts.MkAbs(ts.expand(f.Name))
+		ts.scriptFiles[name] = f.Name
+		ts.Check(os.MkdirAll(filepath.Dir(name), 0777))
+		ts.Check(ioutil.WriteFile(name, f.Data, 0666))
+	}
+	// Run any user-defined setup.
+	if ts.params.Setup != nil {
+		ts.Check(ts.params.Setup(env))
+	}
+	ts.cd = env.Cd
+	ts.env = env.Vars
+	ts.values = env.Values
+
+	ts.envMap = make(map[string]string)
+	for _, kv := range ts.env {
+		if i := strings.Index(kv, "="); i >= 0 {
+			ts.envMap[envvarname(kv[:i])] = kv[i+1:]
+		}
+	}
+	return string(a.Comment)
+}
+
+// run runs the test script.
+func (ts *TestScript) run() {
+	// Truncate log at end of last phase marker,
+	// discarding details of successful phase.
+	rewind := func() {
+		if !ts.t.Verbose() {
+			ts.log.Truncate(ts.mark)
+		}
+	}
+
+	// Insert elapsed time for phase at end of phase marker
+	markTime := func() {
+		if ts.mark > 0 && !ts.start.IsZero() {
+			afterMark := append([]byte{}, ts.log.Bytes()[ts.mark:]...)
+			ts.log.Truncate(ts.mark - 1) // cut \n and afterMark
+			fmt.Fprintf(&ts.log, " (%.3fs)\n", time.Since(ts.start).Seconds())
+			ts.log.Write(afterMark)
+		}
+		ts.start = time.Time{}
+	}
+
+	defer func() {
+		// On a normal exit from the test loop, background processes are cleaned up
+		// before we print PASS. If we return early (e.g., due to a test failure),
+		// don't print anything about the processes that were still running.
+		for _, bg := range ts.background {
+			interruptProcess(bg.cmd.Process)
+		}
+		for _, bg := range ts.background {
+			<-bg.wait
+		}
+		ts.background = nil
+
+		markTime()
+		// Flush testScript log to testing.T log.
+		ts.t.Log("\n" + ts.abbrev(ts.log.String()))
+	}()
+	defer func() {
+		ts.deferred()
+	}()
+	script := ts.setup()
+
+	// With -v or -testwork, start log with full environment.
+	if *testWork || ts.t.Verbose() {
+		// Display environment.
+		ts.cmdEnv(false, nil)
+		fmt.Fprintf(&ts.log, "\n")
+		ts.mark = ts.log.Len()
+	}
+	defer ts.applyScriptUpdates()
+
+	// Run script.
+	// See testdata/script/README for documentation of script form.
+Script:
+	for script != "" {
+		// Extract next line.
+		ts.lineno++
+		var line string
+		if i := strings.Index(script, "\n"); i >= 0 {
+			line, script = script[:i], script[i+1:]
+		} else {
+			line, script = script, ""
+		}
+
+		// # is a comment indicating the start of new phase.
+		if strings.HasPrefix(line, "#") {
+			// If there was a previous phase, it succeeded,
+			// so rewind the log to delete its details (unless -v is in use).
+			// If nothing has happened at all since the mark,
+			// rewinding is a no-op and adding elapsed time
+			// for doing nothing is meaningless, so don't.
+			if ts.log.Len() > ts.mark {
+				rewind()
+				markTime()
+			}
+			// Print phase heading and mark start of phase output.
+			fmt.Fprintf(&ts.log, "%s\n", line)
+			ts.mark = ts.log.Len()
+			ts.start = time.Now()
+			continue
+		}
+
+		// Parse input line. Ignore blanks entirely.
+		args := ts.parse(line)
+		if len(args) == 0 {
+			continue
+		}
+
+		// Echo command to log.
+		fmt.Fprintf(&ts.log, "> %s\n", line)
+
+		// Command prefix [cond] means only run this command if cond is satisfied.
+		for strings.HasPrefix(args[0], "[") && strings.HasSuffix(args[0], "]") {
+			cond := args[0]
+			cond = cond[1 : len(cond)-1]
+			cond = strings.TrimSpace(cond)
+			args = args[1:]
+			if len(args) == 0 {
+				ts.Fatalf("missing command after condition")
+			}
+			want := true
+			if strings.HasPrefix(cond, "!") {
+				want = false
+				cond = strings.TrimSpace(cond[1:])
+			}
+			ok, err := ts.condition(cond)
+			if err != nil {
+				ts.Fatalf("bad condition %q: %v", cond, err)
+			}
+			if ok != want {
+				// Don't run rest of line.
+				continue Script
+			}
+		}
+
+		// Command prefix ! means negate the expectations about this command:
+		// go command should fail, match should not be found, etc.
+		neg := false
+		if args[0] == "!" {
+			neg = true
+			args = args[1:]
+			if len(args) == 0 {
+				ts.Fatalf("! on line by itself")
+			}
+		}
+
+		// Run command.
+		cmd := scriptCmds[args[0]]
+		if cmd == nil {
+			cmd = ts.params.Cmds[args[0]]
+		}
+		if cmd == nil {
+			ts.Fatalf("unknown command %q", args[0])
+		}
+		cmd(ts, neg, args[1:])
+
+		// Command can ask script to stop early.
+		if ts.stopped {
+			// Break instead of returning, so that we check the status of any
+			// background processes and print PASS.
+			break
+		}
+	}
+
+	for _, bg := range ts.background {
+		interruptProcess(bg.cmd.Process)
+	}
+	ts.cmdWait(false, nil)
+
+	// Final phase ended.
+	rewind()
+	markTime()
+	if !ts.stopped {
+		fmt.Fprintf(&ts.log, "PASS\n")
+	}
+}
+
+func (ts *TestScript) applyScriptUpdates() {
+	if len(ts.scriptUpdates) == 0 {
+		return
+	}
+	for name, content := range ts.scriptUpdates {
+		found := false
+		for i := range ts.archive.Files {
+			f := &ts.archive.Files[i]
+			if f.Name != name {
+				continue
+			}
+			data := []byte(content)
+			if txtar.NeedsQuote(data) {
+				data1, err := txtar.Quote(data)
+				if err != nil {
+					ts.t.Fatal(fmt.Sprintf("cannot update script file %q: %v", f.Name, err))
+					continue
+				}
+				data = data1
+			}
+			f.Data = data
+			found = true
+		}
+		// Sanity check.
+		if !found {
+			panic("script update file not found")
+		}
+	}
+	if err := ioutil.WriteFile(ts.file, txtar.Format(ts.archive), 0666); err != nil {
+		ts.t.Fatal("cannot update script: ", err)
+	}
+	ts.Logf("%s updated", ts.file)
+}
+
+// condition reports whether the given condition is satisfied.
+func (ts *TestScript) condition(cond string) (bool, error) {
+	switch cond {
+	case "short":
+		return testing.Short(), nil
+	case "net":
+		return testenv.HasExternalNetwork(), nil
+	case "link":
+		return testenv.HasLink(), nil
+	case "symlink":
+		return testenv.HasSymlink(), nil
+	case runtime.GOOS, runtime.GOARCH:
+		return true, nil
+	default:
+		if imports.KnownArch[cond] || imports.KnownOS[cond] {
+			return false, nil
+		}
+		if strings.HasPrefix(cond, "exec:") {
+			prog := cond[len("exec:"):]
+			ok := execCache.Do(prog, func() interface{} {
+				_, err := execpath.Look(prog, ts.Getenv)
+				return err == nil
+			}).(bool)
+			return ok, nil
+		}
+		if ts.params.Condition != nil {
+			return ts.params.Condition(cond)
+		}
+		ts.Fatalf("unknown condition %q", cond)
+		panic("unreachable")
+	}
+}
+
+// Helpers for command implementations.
+
+// abbrev abbreviates the actual work directory in the string s to the literal string "$WORK".
+func (ts *TestScript) abbrev(s string) string {
+	s = strings.Replace(s, ts.workdir, "$WORK", -1)
+	if *testWork {
+		// Expose actual $WORK value in environment dump on first line of work script,
+		// so that the user can find out what directory -testwork left behind.
+		s = "WORK=" + ts.workdir + "\n" + strings.TrimPrefix(s, "WORK=$WORK\n")
+	}
+	return s
+}
+
+// Defer arranges for f to be called at the end
+// of the test. If Defer is called multiple times, the
+// defers are executed in reverse order (similar
+// to Go's defer statement)
+func (ts *TestScript) Defer(f func()) {
+	old := ts.deferred
+	ts.deferred = func() {
+		defer old()
+		f()
+	}
+}
+
+// Check calls ts.Fatalf if err != nil.
+func (ts *TestScript) Check(err error) {
+	if err != nil {
+		ts.Fatalf("%v", err)
+	}
+}
+
+// Logf appends the given formatted message to the test log transcript.
+func (ts *TestScript) Logf(format string, args ...interface{}) {
+	format = strings.TrimSuffix(format, "\n")
+	fmt.Fprintf(&ts.log, format, args...)
+	ts.log.WriteByte('\n')
+}
+
+// exec runs the given command line (an actual subprocess, not simulated)
+// in ts.cd with environment ts.env and then returns collected standard output and standard error.
+func (ts *TestScript) exec(command string, args ...string) (stdout, stderr string, err error) {
+	cmd, err := ts.buildExecCmd(command, args...)
+	if err != nil {
+		return "", "", err
+	}
+	cmd.Dir = ts.cd
+	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	cmd.Stdin = strings.NewReader(ts.stdin)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	if err = cmd.Start(); err == nil {
+		err = ctxWait(ts.ctxt, cmd)
+	}
+	ts.stdin = ""
+	return stdoutBuf.String(), stderrBuf.String(), err
+}
+
+// execBackground starts the given command line (an actual subprocess, not simulated)
+// in ts.cd with environment ts.env.
+func (ts *TestScript) execBackground(command string, args ...string) (*exec.Cmd, error) {
+	cmd, err := ts.buildExecCmd(command, args...)
+	if err != nil {
+		return nil, err
+	}
+	cmd.Dir = ts.cd
+	cmd.Env = append(ts.env, "PWD="+ts.cd)
+	var stdoutBuf, stderrBuf strings.Builder
+	cmd.Stdin = strings.NewReader(ts.stdin)
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	ts.stdin = ""
+	return cmd, cmd.Start()
+}
+
+func (ts *TestScript) buildExecCmd(command string, args ...string) (*exec.Cmd, error) {
+	if filepath.Base(command) == command {
+		if lp, err := execpath.Look(command, ts.Getenv); err != nil {
+			return nil, err
+		} else {
+			command = lp
+		}
+	}
+	return exec.Command(command, args...), nil
+}
+
+// BackgroundCmds returns a slice containing all the commands that have
+// been started in the background since the most recent wait command, or
+// the start of the script if wait has not been called.
+func (ts *TestScript) BackgroundCmds() []*exec.Cmd {
+	cmds := make([]*exec.Cmd, len(ts.background))
+	for i, b := range ts.background {
+		cmds[i] = b.cmd
+	}
+	return cmds
+}
+
+// ctxWait is like cmd.Wait, but terminates cmd with os.Interrupt if ctx becomes done.
+//
+// This differs from exec.CommandContext in that it prefers os.Interrupt over os.Kill.
+// (See https://golang.org/issue/21135.)
+func ctxWait(ctx context.Context, cmd *exec.Cmd) error {
+	errc := make(chan error, 1)
+	go func() { errc <- cmd.Wait() }()
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		interruptProcess(cmd.Process)
+		return <-errc
+	}
+}
+
+// interruptProcess sends os.Interrupt to p if supported, or os.Kill otherwise.
+func interruptProcess(p *os.Process) {
+	if err := p.Signal(os.Interrupt); err != nil {
+		// Per https://golang.org/pkg/os/#Signal, “Interrupt is not implemented on
+		// Windows; using it with os.Process.Signal will return an error.”
+		// Fall back to Kill instead.
+		p.Kill()
+	}
+}
+
+// Exec runs the given command and saves its stdout and stderr so
+// they can be inspected by subsequent script commands.
+func (ts *TestScript) Exec(command string, args ...string) error {
+	var err error
+	ts.stdout, ts.stderr, err = ts.exec(command, args...)
+	if ts.stdout != "" {
+		ts.Logf("[stdout]\n%s", ts.stdout)
+	}
+	if ts.stderr != "" {
+		ts.Logf("[stderr]\n%s", ts.stderr)
+	}
+	return err
+}
+
+// expand applies environment variable expansion to the string s.
+func (ts *TestScript) expand(s string) string {
+	return os.Expand(s, func(key string) string {
+		if key1 := strings.TrimSuffix(key, "@R"); len(key1) != len(key) {
+			return regexp.QuoteMeta(ts.Getenv(key1))
+		}
+		return ts.Getenv(key)
+	})
+}
+
+// fatalf aborts the test with the given failure message.
+func (ts *TestScript) Fatalf(format string, args ...interface{}) {
+	fmt.Fprintf(&ts.log, "FAIL: %s:%d: %s\n", ts.file, ts.lineno, fmt.Sprintf(format, args...))
+	ts.t.FailNow()
+}
+
+// MkAbs interprets file relative to the test script's current directory
+// and returns the corresponding absolute path.
+func (ts *TestScript) MkAbs(file string) string {
+	if filepath.IsAbs(file) {
+		return file
+	}
+	return filepath.Join(ts.cd, file)
+}
+
+// ReadFile returns the contents of the file with the
+// given name, intepreted relative to the test script's
+// current directory. It interprets "stdout" and "stderr" to
+// mean the standard output or standard error from
+// the most recent exec or wait command respectively.
+//
+// If the file cannot be read, the script fails.
+func (ts *TestScript) ReadFile(file string) string {
+	switch file {
+	case "stdout":
+		return ts.stdout
+	case "stderr":
+		return ts.stderr
+	default:
+		file = ts.MkAbs(file)
+		data, err := ioutil.ReadFile(file)
+		ts.Check(err)
+		return string(data)
+	}
+}
+
+// Setenv sets the value of the environment variable named by the key.
+func (ts *TestScript) Setenv(key, value string) {
+	ts.env = append(ts.env, key+"="+value)
+	ts.envMap[envvarname(key)] = value
+}
+
+// Getenv gets the value of the environment variable named by the key.
+func (ts *TestScript) Getenv(key string) string {
+	return ts.envMap[envvarname(key)]
+}
+
+// parse parses a single line as a list of space-separated arguments
+// subject to environment variable expansion (but not resplitting).
+// Single quotes around text disable splitting and expansion.
+// To embed a single quote, double it: 'Don''t communicate by sharing memory.'
+func (ts *TestScript) parse(line string) []string {
+	ts.line = line
+
+	var (
+		args   []string
+		arg    string  // text of current arg so far (need to add line[start:i])
+		start  = -1    // if >= 0, position where current arg text chunk starts
+		quoted = false // currently processing quoted text
+	)
+	for i := 0; ; i++ {
+		if !quoted && (i >= len(line) || line[i] == ' ' || line[i] == '\t' || line[i] == '\r' || line[i] == '#') {
+			// Found arg-separating space.
+			if start >= 0 {
+				arg += ts.expand(line[start:i])
+				args = append(args, arg)
+				start = -1
+				arg = ""
+			}
+			if i >= len(line) || line[i] == '#' {
+				break
+			}
+			continue
+		}
+		if i >= len(line) {
+			ts.Fatalf("unterminated quoted argument")
+		}
+		if line[i] == '\'' {
+			if !quoted {
+				// starting a quoted chunk
+				if start >= 0 {
+					arg += ts.expand(line[start:i])
+				}
+				start = i + 1
+				quoted = true
+				continue
+			}
+			// 'foo''bar' means foo'bar, like in rc shell and Pascal.
+			if i+1 < len(line) && line[i+1] == '\'' {
+				arg += line[start:i]
+				start = i + 1
+				i++ // skip over second ' before next iteration
+				continue
+			}
+			// ending a quoted chunk
+			arg += line[start:i]
+			start = i + 1
+			quoted = false
+			continue
+		}
+		// found character worth saving; make sure we're saving
+		if start < 0 {
+			start = i
+		}
+	}
+	return args
+}
+
+func removeAll(dir string) error {
+	// module cache has 0444 directories;
+	// make them writable in order to remove content.
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // ignore errors walking in file system
+		}
+		if info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
+	return os.RemoveAll(dir)
+}
+
+func homeEnvName() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "USERPROFILE"
+	case "plan9":
+		return "home"
+	default:
+		return "HOME"
+	}
+}
+
+func tempEnvName() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "TMP"
+	case "plan9":
+		return "TMPDIR" // actually plan 9 doesn't have one at all but this is fine
+	default:
+		return "TMPDIR"
+	}
+}
+-- testscript_test.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package testscript
+
+import (
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"reflect"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+)
+
+func printArgs() int {
+	fmt.Printf("%q\n", os.Args)
+	return 0
+}
+
+func echo() int {
+	s := strings.Join(os.Args[2:], " ")
+	switch os.Args[1] {
+	case "stdout":
+		fmt.Println(s)
+	case "stderr":
+		fmt.Fprintln(os.Stderr, s)
+	}
+	return 0
+}
+
+func exitWithStatus() int {
+	n, _ := strconv.Atoi(os.Args[1])
+	return n
+}
+
+func signalCatcher() int {
+	// Note: won't work under Windows.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	// Create a file so that the test can know that
+	// we will catch the signal.
+	if err := ioutil.WriteFile("catchsignal", nil, 0666); err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	<-c
+	fmt.Println("caught interrupt")
+	return 0
+}
+
+func TestMain(m *testing.M) {
+	os.Exit(RunMain(m, map[string]func() int{
+		"printargs":     printArgs,
+		"echo":          echo,
+		"status":        exitWithStatus,
+		"signalcatcher": signalCatcher,
+	}))
+}
+
+func TestCRLFInput(t *testing.T) {
+	td, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatalf("failed to create TempDir: %v", err)
+	}
+	defer func() {
+		os.RemoveAll(td)
+	}()
+	tf := filepath.Join(td, "script.txt")
+	contents := []byte("exists output.txt\r\n-- output.txt --\r\noutput contents")
+	if err := ioutil.WriteFile(tf, contents, 0644); err != nil {
+		t.Fatalf("failed to write to %v: %v", tf, err)
+	}
+	t.Run("_", func(t *testing.T) {
+		Run(t, Params{Dir: td})
+	})
+}
+
+func TestScripts(t *testing.T) {
+	// TODO set temp directory.
+	testDeferCount := 0
+	var setupFilenames []string
+	Run(t, Params{
+		Dir: "testdata",
+		Cmds: map[string]func(ts *TestScript, neg bool, args []string){
+			"setSpecialVal":    setSpecialVal,
+			"ensureSpecialVal": ensureSpecialVal,
+			"interrupt":        interrupt,
+			"waitfile":         waitFile,
+			"testdefer": func(ts *TestScript, neg bool, args []string) {
+				testDeferCount++
+				n := testDeferCount
+				ts.Defer(func() {
+					if testDeferCount != n {
+						t.Errorf("defers not run in reverse order; got %d want %d", testDeferCount, n)
+					}
+					testDeferCount--
+				})
+			},
+			"setup-filenames": func(ts *TestScript, neg bool, args []string) {
+				if !reflect.DeepEqual(args, setupFilenames) {
+					ts.Fatalf("setup did not see expected files; got %q want %q", setupFilenames, args)
+				}
+			},
+			"test-values": func(ts *TestScript, neg bool, args []string) {
+				if ts.Value("somekey") != 1234 {
+					ts.Fatalf("test-values did not see expected value")
+				}
+			},
+			"testreadfile": func(ts *TestScript, neg bool, args []string) {
+				if len(args) != 1 {
+					ts.Fatalf("testreadfile <filename>")
+				}
+				got := ts.ReadFile(args[0])
+				want := args[0] + "\n"
+				if got != want {
+					ts.Fatalf("reading %q; got %q want %q", args[0], got, want)
+				}
+			},
+			"testscript-update": func(ts *TestScript, neg bool, args []string) {
+				// Run testscript in testscript. Oooh! Meta!
+				if len(args) != 1 {
+					ts.Fatalf("testscript <dir>")
+				}
+				t := &fakeT{ts: ts}
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+							if err != errAbort {
+								panic(err)
+							}
+						}
+					}()
+					RunT(t, Params{
+						Dir:           ts.MkAbs(args[0]),
+						UpdateScripts: true,
+					})
+				}()
+				if neg {
+					if len(t.failMsgs) == 0 {
+						ts.Fatalf("testscript-update unexpectedly succeeded")
+					}
+					return
+				}
+				if len(t.failMsgs) > 0 {
+					ts.Fatalf("testscript-update unexpectedly failed with errors: %q", t.failMsgs)
+				}
+			},
+		},
+		Setup: func(env *Env) error {
+			infos, err := ioutil.ReadDir(env.WorkDir)
+			if err != nil {
+				return fmt.Errorf("cannot read workdir: %v", err)
+			}
+			setupFilenames = nil
+			for _, info := range infos {
+				setupFilenames = append(setupFilenames, info.Name())
+			}
+			env.Values["somekey"] = 1234
+			env.Vars = append(env.Vars,
+				"GONOSUMDB=*",
+			)
+			return nil
+		},
+	})
+	if testDeferCount != 0 {
+		t.Fatalf("defer mismatch; got %d want 0", testDeferCount)
+	}
+	// TODO check that the temp directory has been removed.
+}
+
+// TestTestwork tests that using the flag -testwork will make sure the work dir isn't removed
+// after the test is done. It uses an empty testscript file that doesn't do anything.
+func TestTestwork(t *testing.T) {
+	out, err := exec.Command("go", "test", ".", "-testwork", "-v", "-run", "TestScripts/^nothing$").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	re := regexp.MustCompile(`\s+WORK=(\S+)`)
+	match := re.FindAllStringSubmatch(string(out), -1)
+
+	// Ensure that there is only one line with one match
+	if len(match) != 1 || len(match[0]) != 2 {
+		t.Fatalf("failed to extract WORK directory")
+	}
+
+	var fi os.FileInfo
+	if fi, err = os.Stat(match[0][1]); err != nil {
+		t.Fatalf("failed to stat expected work directory %v: %v", match[0][1], err)
+	}
+
+	if !fi.IsDir() {
+		t.Fatalf("expected persisted workdir is not a directory: %v", match[0][1])
+	}
+}
+
+func setSpecialVal(ts *TestScript, neg bool, args []string) {
+	ts.Setenv("SPECIALVAL", "42")
+}
+
+func ensureSpecialVal(ts *TestScript, neg bool, args []string) {
+	want := "42"
+	if got := ts.Getenv("SPECIALVAL"); got != want {
+		ts.Fatalf("expected SPECIALVAL to be %q; got %q", want, got)
+	}
+}
+
+// interrupt interrupts the current background command.
+// Note that this will not work under Windows.
+func interrupt(ts *TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("interrupt does not support neg")
+	}
+	if len(args) > 0 {
+		ts.Fatalf("unexpected args found")
+	}
+	bg := ts.BackgroundCmds()
+	if got, want := len(bg), 1; got != want {
+		ts.Fatalf("unexpected background cmd count; got %d want %d", got, want)
+	}
+	bg[0].Process.Signal(os.Interrupt)
+}
+
+func waitFile(ts *TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("waitfile does not support neg")
+	}
+	if len(args) != 1 {
+		ts.Fatalf("usage: waitfile file")
+	}
+	path := ts.MkAbs(args[0])
+	for i := 0; i < 100; i++ {
+		_, err := os.Stat(path)
+		if err == nil {
+			return
+		}
+		if !os.IsNotExist(err) {
+			ts.Fatalf("unexpected stat error: %v", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	ts.Fatalf("timed out waiting for %q to be created", path)
+}
+
+type fakeT struct {
+	ts       *TestScript
+	failMsgs []string
+}
+
+var errAbort = errors.New("abort test")
+
+func (t *fakeT) Skip(args ...interface{}) {
+	panic(errAbort)
+}
+
+func (t *fakeT) Fatal(args ...interface{}) {
+	t.failMsgs = append(t.failMsgs, fmt.Sprint(args...))
+	panic(errAbort)
+}
+
+func (t *fakeT) Parallel() {}
+
+func (t *fakeT) Log(args ...interface{}) {
+	t.ts.Logf("testscript: %v", fmt.Sprint(args...))
+}
+
+func (t *fakeT) FailNow() {
+	t.Fatal("failed")
+}
+
+func (t *fakeT) Run(name string, f func(T)) {
+	f(t)
+}
+
+func (t *fakeT) Verbose() bool {
+	return false
+}
+-- txtar/archive.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package txtar implements a trivial text-based file archive format.
+//
+// The goals for the format are:
+//
+//	- be trivial enough to create and edit by hand.
+//	- be able to store trees of text files describing go command test cases.
+//	- diff nicely in git history and code reviews.
+//
+// Non-goals include being a completely general archive format,
+// storing binary data, storing file modes, storing special files like
+// symbolic links, and so on.
+//
+// Txtar format
+//
+// A txtar archive is zero or more comment lines and then a sequence of file entries.
+// Each file entry begins with a file marker line of the form "-- FILENAME --"
+// and is followed by zero or more file content lines making up the file data.
+// The comment or file content ends at the next file marker line.
+// The file marker line must begin with the three-byte sequence "-- "
+// and end with the three-byte sequence " --", but the enclosed
+// file name can be surrounding by additional white space,
+// all of which is stripped.
+//
+// If the txtar file is missing a trailing newline on the final line,
+// parsers should consider a final newline to be present anyway.
+//
+// There are no possible syntax errors in a txtar archive.
+package txtar
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+	"unicode/utf8"
+)
+
+// An Archive is a collection of files.
+type Archive struct {
+	Comment []byte
+	Files   []File
+}
+
+// A File is a single file in an archive.
+type File struct {
+	Name string // name of file ("foo/bar.txt")
+	Data []byte // text content of file
+}
+
+// Format returns the serialized form of an Archive.
+// It is assumed that the Archive data structure is well-formed:
+// a.Comment and all a.File[i].Data contain no file marker lines,
+// and all a.File[i].Name is non-empty.
+func Format(a *Archive) []byte {
+	var buf bytes.Buffer
+	buf.Write(fixNL(a.Comment))
+	for _, f := range a.Files {
+		fmt.Fprintf(&buf, "-- %s --\n", f.Name)
+		buf.Write(fixNL(f.Data))
+	}
+	return buf.Bytes()
+}
+
+// ParseFile parses the named file as an archive.
+func ParseFile(file string) (*Archive, error) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(data), nil
+}
+
+// Parse parses the serialized form of an Archive.
+// The returned Archive holds slices of data.
+func Parse(data []byte) *Archive {
+	a := new(Archive)
+	var name string
+	a.Comment, name, data = findFileMarker(data)
+	for name != "" {
+		f := File{name, nil}
+		f.Data, name, data = findFileMarker(data)
+		a.Files = append(a.Files, f)
+	}
+	return a
+}
+
+// NeedsQuote reports whether the given data needs to
+// be quoted before it's included as a txtar file.
+func NeedsQuote(data []byte) bool {
+	_, _, after := findFileMarker(data)
+	return after != nil
+}
+
+// Quote quotes the data so that it can be safely stored in a txtar
+// file. This copes with files that contain lines that look like txtar
+// separators.
+//
+// The original data can be recovered with Unquote. It returns an error
+// if the data cannot be quoted (for example because it has no final
+// newline or it holds unprintable characters)
+func Quote(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	if data[len(data)-1] != '\n' {
+		return nil, errors.New("data has no final newline")
+	}
+	if !utf8.Valid(data) {
+		return nil, fmt.Errorf("data contains non-UTF-8 characters")
+	}
+	var nd []byte
+	prev := byte('\n')
+	for _, b := range data {
+		if prev == '\n' {
+			nd = append(nd, '>')
+		}
+		nd = append(nd, b)
+		prev = b
+	}
+	return nd, nil
+}
+
+// Unquote unquotes data as quoted by Quote.
+func Unquote(data []byte) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	if data[0] != '>' || data[len(data)-1] != '\n' {
+		return nil, errors.New("data does not appear to be quoted")
+	}
+	data = bytes.Replace(data, []byte("\n>"), []byte("\n"), -1)
+	data = bytes.TrimPrefix(data, []byte(">"))
+	return data, nil
+}
+
+var (
+	newlineMarker = []byte("\n-- ")
+	marker        = []byte("-- ")
+	markerEnd     = []byte(" --")
+)
+
+// findFileMarker finds the next file marker in data,
+// extracts the file name, and returns the data before the marker,
+// the file name, and the data after the marker.
+// If there is no next marker, findFileMarker returns before = fixNL(data), name = "", after = nil.
+func findFileMarker(data []byte) (before []byte, name string, after []byte) {
+	var i int
+	for {
+		if name, after = isMarker(data[i:]); name != "" {
+			return data[:i], name, after
+		}
+		j := bytes.Index(data[i:], newlineMarker)
+		if j < 0 {
+			return fixNL(data), "", nil
+		}
+		i += j + 1 // positioned at start of new possible marker
+	}
+}
+
+// isMarker checks whether data begins with a file marker line.
+// If so, it returns the name from the line and the data after the line.
+// Otherwise it returns name == "" with an unspecified after.
+func isMarker(data []byte) (name string, after []byte) {
+	if !bytes.HasPrefix(data, marker) {
+		return "", nil
+	}
+	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+		data, after = data[:i], data[i+1:]
+		if data[i-1] == '\r' {
+			data = data[:len(data)-1]
+		}
+	}
+	if !bytes.HasSuffix(data, markerEnd) {
+		return "", nil
+	}
+	return strings.TrimSpace(string(data[len(marker) : len(data)-len(markerEnd)])), after
+}
+
+// If data is empty or ends in \n, fixNL returns data.
+// Otherwise fixNL returns a new slice consisting of data with a final \n added.
+func fixNL(data []byte) []byte {
+	if len(data) == 0 || data[len(data)-1] == '\n' {
+		return data
+	}
+	d := make([]byte, len(data)+1)
+	copy(d, data)
+	d[len(data)] = '\n'
+	return d
+}
+
+// Write writes each File in an Archive to the given directory, returning any
+// errors encountered. An error is also returned in the event a file would be
+// written outside of dir.
+func Write(a *Archive, dir string) error {
+	for _, f := range a.Files {
+		fp := filepath.Clean(filepath.FromSlash(f.Name))
+		if isAbs(fp) || strings.HasPrefix(fp, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("%q: outside parent directory", f.Name)
+		}
+		fp = filepath.Join(dir, fp)
+
+		if err := os.MkdirAll(filepath.Dir(fp), 0777); err != nil {
+			return err
+		}
+		// Avoid overwriting existing files by using O_EXCL.
+		out, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+		if err != nil {
+			return err
+		}
+
+		_, err = out.Write(f.Data)
+		cerr := out.Close()
+		if err != nil {
+			return err
+		}
+		if cerr != nil {
+			return cerr
+		}
+	}
+	return nil
+}
+
+func isAbs(p string) bool {
+	// Note: under Windows, filepath.IsAbs(`\foo`) returns false,
+	// so we need to check for that case specifically.
+	return filepath.IsAbs(p) || strings.HasPrefix(p, string(filepath.Separator))
+}
