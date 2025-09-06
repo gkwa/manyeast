@@ -14,6 +14,7 @@
 </testscript_source>
 ```
 
+{{/* 
 ## Here are some example testscripts
 
 ```
@@ -22,6 +23,7 @@
 </testscript_example>
 ```
 
+*/}}
 ## Here is a blog post demonstrating testscript with stdout
 
 ```
