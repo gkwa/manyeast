@@ -22,3 +22,10 @@
 </testscript_example>
 ```
 
+## Here is a blog post demonstrating testscript with stdout
+
+```
+<testscript_blog_post>
+{{ include (printf "%s/../prompt-add-golang-testscript/blogpost-about-testscript.txt" (templateFolder)) . | trim}}
+</testscript_blog_post>
+```
