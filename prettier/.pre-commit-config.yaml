@@ -46,6 +46,7 @@ repos:
           - ts
           - tsx
           - yaml
+        exclude: ^(docker-)?compose\.ya?ml$
         additional_dependencies:
           - prettier@latest
   - repo: https://github.com/pre-commit/pre-commit-hooks
