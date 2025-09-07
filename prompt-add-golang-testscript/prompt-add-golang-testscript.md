@@ -1,10 +1,7 @@
 ## Here is testscript api
 
-```
-<testscript_api>
-{{ include (printf "%s/../prompt-add-golang-testscript/testscript.txt" (templateFolder)) . | trim}}
-</testscript_api>
-```
+Online API docs:
+https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript
 
 ## Here is tescript source for more context
 
