@@ -1,11 +1,14 @@
 repos:
-  - repo: https://github.com/docker-compose-linter/pre-commit-dclint
-    rev: v3.1.0 # Matches the dclint version, use the sha or tag you want to point at
+  - repo: local
     hooks:
       - id: dclint
+        name: dclint
+        description: docker copose file linter
+        language: docker_image
+        entry: zavoloklom/dclint
         files: ^(docker-)?compose\.ya?ml$
-        # Optional: enable autofix on commit
         args: 
+          - --verbose
           - --fix 
   - repo: local
     hooks:
@@ -22,9 +25,11 @@ repos:
   - repo: local
     hooks:
       - id: gofumpt
+        language: docker_image
         name: gofumpt
-        entry: docker run --rm -v $(pwd):/data -w /data qmcgaw/binpot:gofumpt
-        language: system
+        description: Runs gofumpt on go files
+        verbose: true
+        entry: qmcgaw/binpot:gofumpt 
         types:
           - go
         args:
