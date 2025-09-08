@@ -120,10 +120,15 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-  - repo: https://github.com/ComPWA/taplo-pre-commit
-    rev: v0.9.3
+  - repo: local
     hooks:
       - id: taplo-format
+        name: taplo-format
+        language: docker_image
+        entry: tamasfe/taplo:0.10.0
+        args:
+          - fmt
+        files: '.*\.toml$'
   - repo: https://github.com/instrumentl/pre-commit-just
     rev: v0.1
     hooks:
