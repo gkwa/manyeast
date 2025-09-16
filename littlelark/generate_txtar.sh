@@ -82,7 +82,7 @@ txtar-c {{ $subsetDir }} >{{ $txtarFile }}
 du -sh {{ $txtarFile }}
 echo
 
-echo nvim {{ $mimeTypesFile }}
+echo zed {{ $mimeTypesFile }}
 echo
 
 echo \#run this again
