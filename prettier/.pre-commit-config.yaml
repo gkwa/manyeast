@@ -129,12 +129,18 @@ repos:
         pass_filenames: false
         types:
           - file
-  - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.7
+  - repo: local
     hooks:
       - id: actionlint
+        name: actionlint
+        description: Static checker for GitHub Actions workflow files
         language: docker_image
-        files: .github/workflows/
+        entry: rhysd/actionlint:latest
+        args:
+          - -verbose
+        files: ^\.github/workflows/.*\.(yml|yaml)$
+        stages:
+          - pre-commit
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
     hooks:
