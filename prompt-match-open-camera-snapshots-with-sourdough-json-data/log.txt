@@ -1,0 +1,45 @@
+➜  mac prettier git:(master) ✗ rg --files ~/android | sort | head -5
+/Users/mtm/android/IMG_20250910_131722.jpg
+/Users/mtm/android/IMG_20250910_131752.jpg
+/Users/mtm/android/IMG_20250910_131823.jpg
+/Users/mtm/android/IMG_20250910_131853.jpg
+/Users/mtm/android/IMG_20250910_131924.jpg
+➜  mac prettier git:(master) ✗ jq '.videos |= map(select(.active_time != "" and .feed_time != "" and .peak_time != "" and .active_end_time != "")) | .videos |= .[-1:]' /Users/mtm/pdev/taylormonacelli/wackywolffish/sourdough-starter-manifest.json
+
+{
+  "description": "Time-lapse documentation of sourdough starter fermentation process",
+  "project": "Sourdough Starter Time-lapse",
+  "recipes": {
+    "arachnophobia": {
+      "description": "Standard flour mixture used for most experiments",
+      "flours": {
+        "all_purpose": {
+          "percentage": 30,
+          "type": "all purpose"
+        },
+        "rye": {
+          "percentage": 40,
+          "type": "rye"
+        },
+        "whole_wheat": {
+          "percentage": 30,
+          "type": "whole wheat"
+        }
+      },
+      "name": "Standard Mix"
+    }
+  },
+  "videos": [
+    {
+      "incomplete_record": true,
+      "active_end_time": "2025-09-20T22:38:17",
+      "active_time": "2025-09-20T04:42:46",
+      "feed_time": "2025-09-19T21:14:10",
+      "peak_time": "2025-09-20T20:00:40",
+      "ratio": "1:5.2:5.2",
+      "recipe": "arachnophobia",
+      "starter_grams": "10"
+    }
+  ]
+}
+➜  mac prettier git:(master) ✗
