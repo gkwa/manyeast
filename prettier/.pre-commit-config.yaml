@@ -50,6 +50,20 @@ repos:
           - -w
   - repo: local
     hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        description: Fast linters runner for Go
+        language: docker_image
+        entry: golangci/golangci-lint:v2.5.0
+        args:
+          - golangci-lint
+          - run
+          - --fix
+        types:
+          - go
+        pass_filenames: false
+  - repo: local
+    hooks:
       - id: prettier
         name: prettier
         entry: prettier --ignore-path={{ outputFolder }}/.prettierignore --config={{ outputFolder }}/.prettierrc.json --write
