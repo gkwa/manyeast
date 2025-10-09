@@ -38,16 +38,18 @@ repos:
           - hadolint
   - repo: local
     hooks:
-      - id: gofumpt
+      - id: golangci-lint
+        name: golangci-lint
+        description: Fast linters runner for Go
         language: docker_image
-        name: gofumpt
-        description: Runs gofumpt on go files
-        verbose: true
-        entry: qmcgaw/binpot:gofumpt 
+        entry: golangci/golangci-lint:v2.5.0
+        args:
+          - golangci-lint
+          - run
+          - --fix
         types:
           - go
-        args:
-          - -w
+        pass_filenames: false
   - repo: local
     hooks:
       - id: golangci-lint
