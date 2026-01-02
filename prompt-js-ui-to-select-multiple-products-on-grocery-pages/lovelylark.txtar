@@ -1,0 +1,1013 @@
+-- package.json --
+{
+  "name": "lovelylark",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chrome extension to copy product cards from grocery sites",
+  "scripts": {
+    "build": "shx rm -rf dist && shx mkdir -p dist && pnpm run build:all && pnpm run copy:assets",
+    "build:all": "pnpm run build:content && pnpm run build:popup",
+    "build:content": "vite build --config vite.content.config.ts",
+    "build:popup": "vite build --config vite.popup.config.ts",
+    "copy:assets": "shx cp src/manifest.json src/popup/popup.html src/popup/popup.css dist/",
+    "dev": "pnpm run build && pnpm run build:content -- --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.323",
+    "jsdom": "^27.3.0",
+    "shx": "^0.3.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vite-plugin-checker": "^0.9.1",
+    "vitest": "^3.1.4"
+  }
+}
+-- src/content/content.ts --
+import { siteConfigs, urlExtractors } from "@shared/stores"
+import { createProductCardCopier } from "@shared/copier"
+
+const copier = createProductCardCopier(siteConfigs, urlExtractors)
+copier.init()
+-- src/manifest.json --
+{
+  "manifest_version": 3,
+  "name": "Lovelylark",
+  "version": "1.0.0",
+  "description": "Copy product cards from grocery sites with x + click",
+  "permissions": ["clipboardWrite", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lovelylark Settings"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.target.com/*", "*://*.wholefoodsmarket.com/*", "*://*.amazon.com/*", "*://seattle.lamsseafood.com/*", "*://*.safeway.com/*", "*://*.qfc.com/*", "*://*.fredmeyer.com/*", "*://*.hmart.com/*", "*://*.pccmarkets.com/*", "*://*.instacart.com/*", "*://*.traderjoes.com/*", "*://*.walmart.com/*", "*://*.chefstore.com/*", "*://shop.groceryoutlet.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
+-- src/popup/popup.css --
+* {
+  box-sizing: border-box;
+}
+body {
+  width: 300px;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  margin: 0;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+h1 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  color: #333;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+label {
+  font-weight: 500;
+  color: #555;
+}
+input[type="url"] {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+input[type="url"]:focus {
+  outline: none;
+  border-color: #0066cc;
+}
+button {
+  padding: 10px 16px;
+  background: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover {
+  background: #0055aa;
+}
+#status {
+  font-size: 12px;
+  color: #00cc00;
+  min-height: 16px;
+}
+-- src/popup/popup.html --
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Lovelylark Settings</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Lovelylark</h1>
+      <div class="field">
+        <label for="endpoint">POST Endpoint</label>
+        <input type="url" id="endpoint" placeholder="http://127.0.0.1:8000/products" />
+      </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="enabled" />
+          Enable HTTP POST
+        </label>
+      </div>
+      <button id="save">Save</button>
+      <div id="status"></div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
+-- src/popup/popup.ts --
+import { getSettings, saveSettings, DEFAULT_SETTINGS } from "@shared/settings"
+
+const endpointInput = document.getElementById("endpoint") as HTMLInputElement
+const enabledCheckbox = document.getElementById("enabled") as HTMLInputElement
+const saveButton = document.getElementById("save") as HTMLButtonElement
+const statusDiv = document.getElementById("status") as HTMLDivElement
+
+async function loadSettings(): Promise<void> {
+  const settings = await getSettings()
+  endpointInput.value = settings.endpoint
+  enabledCheckbox.checked = settings.httpEnabled
+}
+
+async function handleSave(): Promise<void> {
+  const endpoint = endpointInput.value.trim() || DEFAULT_SETTINGS.endpoint
+  const httpEnabled = enabledCheckbox.checked
+
+  await saveSettings({ endpoint, httpEnabled })
+
+  statusDiv.textContent = "Saved!"
+  setTimeout(() => {
+    statusDiv.textContent = ""
+  }, 2000)
+}
+
+saveButton.addEventListener("click", handleSave)
+loadSettings()
+-- src/shared/actions.ts --
+import type { Action, CardPayload } from "./types"
+import { getSettings } from "./settings"
+import { showNotification } from "./notification"
+
+export const clipboardAction: Action = {
+  name: "clipboard",
+  onTrigger: async (_card: Element, payload: CardPayload): Promise<void> => {
+    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2))
+  },
+}
+
+export const consoleAction: Action = {
+  name: "console",
+  onTrigger: async (_card: Element, payload: CardPayload): Promise<void> => {
+    console.log(`✓ [${payload.site}] Copied`, payload.productUrl || "(no URL)")
+  },
+}
+
+export const httpAction: Action = {
+  name: "http",
+  onTrigger: async (_card: Element, payload: CardPayload): Promise<void> => {
+    const settings = await getSettings()
+    if (!settings.httpEnabled) return
+
+    try {
+      const response = await fetch(settings.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      console.log(`✓ [${payload.site}] Posted to ${settings.endpoint}`)
+      showNotification(`✓ Posted to ${settings.endpoint}`, { type: "success", duration: 2000 })
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error"
+      console.error(`Action "http" failed:`, err)
+      showNotification(`✗ Failed to post: ${errorMessage}`, { type: "error", duration: 3000 })
+      throw err
+    }
+  },
+}
+
+export const defaultActions: Action[] = [clipboardAction, consoleAction, httpAction]
+-- src/shared/copier.ts --
+import type {
+  SiteConfig,
+  SiteWithExtractor,
+  UrlExtractor,
+  Action,
+  CopierOptions,
+  CopierInstance,
+  CardPayload,
+} from "./types"
+import { defaultActions } from "./actions"
+import { createKeyTracker, KeyTracker } from "./key-tracker"
+import { injectStyles } from "./style-injector"
+import { hashPayload } from "./hash"
+
+export function createProductCardCopier(
+  configs: Record<string, SiteConfig>,
+  extractors: Record<string, UrlExtractor>,
+  options: CopierOptions = {},
+): CopierInstance {
+  const {
+    actions = defaultActions,
+    triggerKey = "x",
+    flashClass = "copied",
+    flashDuration = 300,
+    onInit = (label, count) => console.log(`🛒 ${label}: ${count} products found`),
+    hostname = window.location.hostname,
+  } = options
+
+  const activeConfigs = filterByHostname(configs, hostname)
+  if (Object.keys(activeConfigs).length === 0) {
+    console.log(`⚠️ No site config matches hostname: ${hostname}`)
+    return { sites: {}, init: () => {} }
+  }
+
+  validateExtractors(activeConfigs, extractors)
+  const sites = buildSiteRegistry(activeConfigs, extractors)
+
+  let keyTracker: KeyTracker | null = null
+
+  return { sites, init }
+
+  function init(): void {
+    if (actions.length === 0) {
+      console.log("⚠️ No actions configured")
+      return
+    }
+
+    keyTracker = createKeyTracker(triggerKey)
+    injectStyles(sites, flashClass)
+    attachDelegatedHandler(sites, keyTracker, actions, flashClass, flashDuration)
+    logSummary(sites, onInit)
+
+    console.log(`🎯 Trigger: hold "${triggerKey}" + click`)
+    console.log(`📋 Actions: ${actions.map((a) => a.name).join(", ")}`)
+  }
+}
+
+function filterByHostname(
+  configs: Record<string, SiteConfig>,
+  hostname: string,
+): Record<string, SiteConfig> {
+  return Object.entries(configs).reduce(
+    (acc, [name, config]) => {
+      if (config.hostnames.includes(hostname)) {
+        acc[name] = config
+      }
+      return acc
+    },
+    {} as Record<string, SiteConfig>,
+  )
+}
+
+function validateExtractors(
+  configs: Record<string, SiteConfig>,
+  extractors: Record<string, UrlExtractor>,
+): void {
+  const missing = Object.keys(configs).filter((key) => !(key in extractors))
+  if (missing.length > 0) {
+    console.error("Missing URL extractors for:", missing)
+  }
+}
+
+function buildSiteRegistry(
+  configs: Record<string, SiteConfig>,
+  extractors: Record<string, UrlExtractor>,
+): Record<string, SiteWithExtractor> {
+  return Object.entries(configs).reduce(
+    (acc, [name, config]) => {
+      acc[name] = { ...config, getUrl: extractors[name] || (() => null) }
+      return acc
+    },
+    {} as Record<string, SiteWithExtractor>,
+  )
+}
+
+function findMatchingCard(
+  target: Element,
+  sites: Record<string, SiteWithExtractor>,
+): { card: Element; site: SiteWithExtractor } | null {
+  for (const site of Object.values(sites)) {
+    const card = target.closest(site.selector)
+    if (card) return { card, site }
+  }
+  return null
+}
+
+function getCardIndex(card: Element, selector: string): number {
+  const allCards = document.querySelectorAll(selector)
+  return Array.from(allCards).indexOf(card)
+}
+
+function toBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str)
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("")
+  return btoa(binString)
+}
+
+function attachDelegatedHandler(
+  sites: Record<string, SiteWithExtractor>,
+  keyTracker: KeyTracker,
+  actions: Action[],
+  flashClass: string,
+  flashDuration: number,
+): void {
+  document.addEventListener(
+    "click",
+    async (e) => {
+      if (!keyTracker.isHeld()) return
+
+      const target = e.target as Element
+      const match = findMatchingCard(target, sites)
+      if (!match) return
+
+      const { card, site } = match
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      const cardHtml = card.outerHTML
+      const productUrl = site.getUrl(card)
+      const hash = await hashPayload(productUrl, cardHtml)
+
+      const payload: CardPayload = {
+        html: toBase64(cardHtml),
+        productUrl,
+        parentPageUrl: window.location.href,
+        site: site.label,
+        index: getCardIndex(card, site.selector),
+        hash,
+        capturedAt: new Date().toISOString(),
+      }
+
+      for (const action of actions) {
+        try {
+          await action.onTrigger(card, payload)
+        } catch (err) {
+          console.error(`Action "${action.name}" failed:`, err)
+        }
+      }
+
+      card.classList.add(flashClass)
+      setTimeout(() => card.classList.remove(flashClass), flashDuration)
+    },
+    true,
+  )
+}
+
+function logSummary(
+  sites: Record<string, SiteWithExtractor>,
+  onInit: (label: string, count: number) => void,
+): void {
+  Object.values(sites).forEach(({ selector, label }) => {
+    const count = document.querySelectorAll(selector).length
+    if (count > 0) onInit(label, count)
+  })
+}
+-- src/shared/hash.ts --
+export async function hashPayload(productUrl: string | null, html: string): Promise<string> {
+  const input = `${productUrl || ""}${html}`
+  const encoder = new TextEncoder()
+  const data = encoder.encode(input)
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+  return hashHex
+}
+-- src/shared/key-tracker.ts --
+export interface KeyTracker {
+  isHeld: () => boolean
+  destroy: () => void
+}
+
+export function createKeyTracker(triggerKey: string): KeyTracker {
+  let held = false
+
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (e.key !== triggerKey || e.repeat) return
+    held = true
+    document.body.classList.add("trigger-mode-active")
+  }
+
+  const onKeyUp = (e: KeyboardEvent): void => {
+    if (e.key !== triggerKey) return
+    held = false
+    document.body.classList.remove("trigger-mode-active")
+  }
+
+  const onBlur = (): void => {
+    held = false
+    document.body.classList.remove("trigger-mode-active")
+  }
+
+  document.addEventListener("keydown", onKeyDown)
+  document.addEventListener("keyup", onKeyUp)
+  window.addEventListener("blur", onBlur)
+
+  return {
+    isHeld: () => held,
+    destroy: () => {
+      document.removeEventListener("keydown", onKeyDown)
+      document.removeEventListener("keyup", onKeyUp)
+      window.removeEventListener("blur", onBlur)
+    },
+  }
+}
+-- src/shared/notification.ts --
+export interface NotificationOptions {
+  duration?: number
+  type?: "success" | "error"
+}
+
+export function showNotification(message: string, options: NotificationOptions = {}): void {
+  const { duration = 2000, type = "success" } = options
+
+  const notification = document.createElement("div")
+  notification.className = "lovelylark-notification"
+  notification.textContent = message
+
+  const styles = document.createElement("style")
+  styles.textContent = `
+    .lovelylark-notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      z-index: 999999;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      animation: lovelylark-slide-in 0.3s ease-out;
+    }
+
+    .lovelylark-notification.success {
+      background-color: #00cc00;
+      color: white;
+    }
+
+    .lovelylark-notification.error {
+      background-color: #cc0000;
+      color: white;
+    }
+
+    @keyframes lovelylark-slide-in {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes lovelylark-slide-out {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+    }
+
+    .lovelylark-notification.removing {
+      animation: lovelylark-slide-out 0.3s ease-in forwards;
+    }
+  `
+
+  if (!document.querySelector("style[data-lovelylark-notification]")) {
+    styles.setAttribute("data-lovelylark-notification", "")
+    document.head.appendChild(styles)
+  }
+
+  notification.classList.add(type)
+  document.body.appendChild(notification)
+
+  setTimeout(() => {
+    notification.classList.add("removing")
+    setTimeout(() => {
+      notification.remove()
+    }, 300)
+  }, duration)
+}
+-- src/shared/settings.ts --
+export interface Settings {
+  endpoint: string
+  httpEnabled: boolean
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+  endpoint: "http://127.0.0.1:8000/products",
+  httpEnabled: false,
+}
+
+export async function getSettings(): Promise<Settings> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
+      resolve(result as Settings)
+    })
+  })
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.set(settings, resolve)
+  })
+}
+-- src/shared/stores.ts --
+import type { SiteConfig, UrlExtractor } from "./types"
+
+interface StoreDefinition {
+  config: SiteConfig
+  extractor: UrlExtractor
+}
+
+function extractWithSelector(
+  card: Element,
+  selector: string,
+  baseUrl: string,
+  attr: "href" | "pathname" = "href",
+): string | null {
+  const link = card.querySelector<HTMLAnchorElement>(selector)
+  if (!link) return null
+  const value = attr === "pathname" ? link.pathname : link.getAttribute("href")
+  if (!value) return null
+  return `${baseUrl}${value}`
+}
+
+// =============================================================================
+// STORE DEFINITIONS - Add new stores here
+// =============================================================================
+
+const stores: Record<string, StoreDefinition> = {
+  target: {
+    config: {
+      hostnames: ["www.target.com", "target.com"],
+      selector: '[data-test="@web/site-top-of-funnel/ProductCardWrapper"]',
+      label: "TARGET",
+    },
+    extractor: (card) =>
+      extractWithSelector(card, 'a[href*="/p/"]', "https://www.target.com", "pathname"),
+  },
+
+  wholefoods: {
+    config: {
+      hostnames: ["www.wholefoodsmarket.com", "wholefoodsmarket.com"],
+      selector: ".w-pie--product-tile",
+      label: "WHOLE FOODS",
+    },
+    extractor: (card) => {
+      const link = card.querySelector<HTMLAnchorElement>('a[href*="/product/"]')
+      return link?.href ?? null
+    },
+  },
+
+  amazon: {
+    config: {
+      hostnames: ["www.amazon.com", "amazon.com"],
+      selector: '[data-component-type="s-search-result"]',
+      label: "AMAZON",
+    },
+    extractor: (card) => {
+      const asin = (card as HTMLElement).dataset.asin
+      if (!asin) return null
+      return `https://www.amazon.com/dp/${asin}`
+    },
+  },
+
+  lamsseafood: {
+    config: {
+      hostnames: ["seattle.lamsseafood.com"],
+      selector: '[class*="ProductCardWrapper"]',
+      label: "LAMS SEAFOOD",
+    },
+    extractor: (card) => {
+      const title = card.querySelector('[class*="ProductTitle"]')?.textContent?.trim()
+      if (!title) return null
+      return `https://seattle.lamsseafood.com/search?filter%5Betext%5D=${btoa(title)}&filter%5Bwidget%5D=1`
+    },
+  },
+
+  safeway: {
+    config: {
+      hostnames: ["www.safeway.com", "safeway.com"],
+      selector: 'product-item-al-v2[data-qa="prd-itm"]',
+      label: "SAFEWAY",
+    },
+    extractor: (card) => {
+      const link = card.querySelector<HTMLAnchorElement>('a[href*="/shop/product-details"]')
+      if (link) return `https://www.safeway.com${link.getAttribute("href")}`
+
+      const bpn = card.querySelector("[data-bpn]")?.getAttribute("data-bpn")
+      if (!bpn) return null
+      return `https://www.safeway.com/shop/product-details.${bpn}.html`
+    },
+  },
+
+  qfc: {
+    config: {
+      hostnames: ["www.qfc.com", "qfc.com"],
+      selector: '[data-testid="auto-grid-cell"] .ProductCard',
+      label: "QFC",
+    },
+    extractor: (card) => extractWithSelector(card, 'a[href*="/p/"]', "https://www.qfc.com"),
+  },
+
+  fredmeyer: {
+    config: {
+      hostnames: ["www.fredmeyer.com", "fredmeyer.com"],
+      selector: '[data-testid="auto-grid-cell"] .ProductCard',
+      label: "FRED MEYER",
+    },
+    extractor: (card) => extractWithSelector(card, 'a[href*="/p/"]', "https://www.fredmeyer.com"),
+  },
+
+  hmart: {
+    config: {
+      hostnames: ["www.hmart.com", "hmart.com"],
+      selector: '[class*="galleryItem"]',
+      label: "HMART",
+    },
+    extractor: (card) => extractWithSelector(card, 'a[href*="/p"]', "https://www.hmart.com"),
+  },
+
+  pcc: {
+    config: {
+      hostnames: ["delivery.pccmarkets.com", "www.instacart.com", "instacart.com"],
+      selector: '[role="group"][aria-label$="product card"]',
+      label: "PCC",
+    },
+    extractor: (card) => {
+      const link = card.querySelector<HTMLAnchorElement>('a[href*="/products/"]')
+      if (!link) return null
+      return `https://www.instacart.com${link.getAttribute("href")}`
+    },
+  },
+
+  groceryoutlet: {
+    config: {
+      hostnames: ["shop.groceryoutlet.com"],
+      selector: '[role="group"][aria-label$="product card"]',
+      label: "GROCERY OUTLET",
+    },
+    extractor: (card) => {
+      const link = card.querySelector<HTMLAnchorElement>('a[href*="/products/"]')
+      if (!link) return null
+      return `https://shop.groceryoutlet.com/store${link.getAttribute("href")}`
+    },
+  },
+
+  traderjoes: {
+    config: {
+      hostnames: ["www.traderjoes.com", "traderjoes.com"],
+      selector: 'article[class*="SearchResultCard_searchResultCard"]',
+      label: "TRADER JOES",
+    },
+    extractor: (card) =>
+      extractWithSelector(card, 'a[href*="/home/products/pdp/"]', "https://www.traderjoes.com"),
+  },
+
+  walmart: {
+    config: {
+      hostnames: ["www.walmart.com", "walmart.com"],
+      selector: '[role="group"][data-item-id]',
+      label: "WALMART",
+    },
+    extractor: (card) => {
+      const link = card.querySelector<HTMLAnchorElement>("a[link-identifier]")
+      if (!link) return null
+      const href = link.getAttribute("href")
+      if (!href) return null
+
+      const rdMatch = href.match(/[?&]rd=([^&]+)/)
+      if (rdMatch) return decodeURIComponent(rdMatch[1]).split("?")[0]
+
+      if (href.includes("/ip/")) {
+        const cleanUrl = href.split("?")[0]
+        // If relative URL, prepend domain
+        return cleanUrl.startsWith("/") ? `https://www.walmart.com${cleanUrl}` : cleanUrl
+      }
+
+      return null
+    },
+  },
+
+  chefstore: {
+    config: {
+      hostnames: ["www.chefstore.com", "chefstore.com"],
+      selector: ".product-tile[data-tile]",
+      label: "CHEF STORE",
+    },
+    extractor: (card) =>
+      extractWithSelector(card, 'a.product-tile-link[href*="/p/"]', "https://www.chefstore.com"),
+  },
+}
+
+// =============================================================================
+// EXPORTS - Derived from store definitions
+// =============================================================================
+
+export const siteConfigs: Record<string, SiteConfig> = Object.fromEntries(
+  Object.entries(stores).map(([key, { config }]) => [key, config]),
+)
+
+export const urlExtractors: Record<string, UrlExtractor> = Object.fromEntries(
+  Object.entries(stores).map(([key, { extractor }]) => [key, extractor]),
+)
+-- src/shared/style-injector.ts --
+import type { SiteWithExtractor } from "./types"
+
+export function injectStyles(sites: Record<string, SiteWithExtractor>, flashClass: string): void {
+  const selectors = Object.values(sites).map((s) => s.selector)
+  const hover = selectors.map((s) => `body.trigger-mode-active ${s}:hover`).join(", ")
+  const flash = selectors.map((s) => `${s}.${flashClass}`).join(", ")
+
+  const style = document.createElement("style")
+  style.textContent = `
+    ${hover} {
+      outline: 3px solid #0066cc !important;
+      outline-offset: 2px !important;
+      background-color: rgba(0, 102, 204, 0.05) !important;
+      transition: all 0.2s ease !important;
+      position: relative !important;
+      z-index: 10 !important;
+      cursor: pointer !important;
+    }
+    ${flash} {
+      outline: 3px solid #00cc00 !important;
+      outline-offset: 2px !important;
+    }
+  `
+  document.head.appendChild(style)
+}
+-- src/shared/types.ts --
+export interface SiteConfig {
+  hostnames: string[]
+  selector: string
+  label: string
+}
+
+export interface SiteWithExtractor extends SiteConfig {
+  getUrl: UrlExtractor
+}
+
+export interface CardPayload {
+  html: string
+  productUrl: string | null
+  parentPageUrl: string
+  site: string
+  index: number
+  hash: string
+  capturedAt: string
+}
+
+export type UrlExtractor = (card: Element) => string | null
+
+export interface Action {
+  name: string
+  onTrigger: (card: Element, payload: CardPayload) => Promise<void>
+}
+
+export interface CopierOptions {
+  actions?: Action[]
+  triggerKey?: string
+  flashClass?: string
+  flashDuration?: number
+  onInit?: (label: string, count: number) => void
+  hostname?: string
+}
+
+export interface CopierInstance {
+  sites: Record<string, SiteWithExtractor>
+  init: () => void
+}
+-- tests/copier.test.ts --
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { createProductCardCopier } from "@shared/copier"
+import type { SiteConfig, UrlExtractor } from "@shared/types"
+
+describe("createProductCardCopier", () => {
+  const testConfigs: Record<string, SiteConfig> = {
+    testsite: {
+      hostnames: ["test.com"],
+      selector: ".product-card",
+      label: "TEST",
+    },
+  }
+
+  const testExtractors: Record<string, UrlExtractor> = {
+    testsite: () => "https://test.com/product/1",
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = ""
+  })
+
+  it("returns empty sites for non-matching hostname", () => {
+    const copier = createProductCardCopier(testConfigs, testExtractors, {
+      hostname: "other.com",
+    })
+    expect(Object.keys(copier.sites)).toHaveLength(0)
+  })
+
+  it("builds site registry for matching hostname", () => {
+    const copier = createProductCardCopier(testConfigs, testExtractors, {
+      hostname: "test.com",
+    })
+    expect(copier.sites.testsite).toBeDefined()
+    expect(copier.sites.testsite.label).toBe("TEST")
+  })
+
+  it("logs warning for missing extractors", () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    createProductCardCopier(testConfigs, {}, { hostname: "test.com" })
+    expect(consoleSpy).toHaveBeenCalledWith("Missing URL extractors for:", ["testsite"])
+    consoleSpy.mockRestore()
+  })
+})
+-- tests/url-extractors.test.ts --
+import { describe, it, expect, beforeEach } from "vitest"
+import { urlExtractors } from "@shared/stores"
+
+describe("urlExtractors", () => {
+  let container: HTMLDivElement
+
+  beforeEach(() => {
+    container = document.createElement("div")
+    document.body.appendChild(container)
+  })
+
+  describe("target", () => {
+    it("extracts URL from target product card", () => {
+      container.innerHTML = '<div><a href="/p/some-product/-/A-12345">Link</a></div>'
+      const card = container.querySelector("div")!
+      const url = urlExtractors.target(card)
+      expect(url).toBe("https://www.target.com/p/some-product/-/A-12345")
+    })
+
+    it("returns null when no matching link", () => {
+      container.innerHTML = "<div><a href='/other'>Link</a></div>"
+      const card = container.querySelector("div")!
+      expect(urlExtractors.target(card)).toBeNull()
+    })
+  })
+
+  describe("amazon", () => {
+    it("extracts URL from ASIN", () => {
+      container.innerHTML = '<div data-asin="B08N5WRWNW"></div>'
+      const card = container.querySelector("div")!
+      const url = urlExtractors.amazon(card)
+      expect(url).toBe("https://www.amazon.com/dp/B08N5WRWNW")
+    })
+
+    it("returns null when no ASIN", () => {
+      container.innerHTML = "<div></div>"
+      const card = container.querySelector("div")!
+      expect(urlExtractors.amazon(card)).toBeNull()
+    })
+  })
+
+  describe("walmart", () => {
+    it("extracts URL from rd parameter", () => {
+      container.innerHTML =
+        '<div><a link-identifier href="/?rd=https%3A%2F%2Fwww.walmart.com%2Fip%2F123">Link</a></div>'
+      const card = container.querySelector("div")!
+      const url = urlExtractors.walmart(card)
+      expect(url).toBe("https://www.walmart.com/ip/123")
+    })
+
+    it("extracts URL from /ip/ path", () => {
+      container.innerHTML =
+        '<div><a link-identifier href="/ip/Product/123?query=foo">Link</a></div>'
+      const card = container.querySelector("div")!
+      const url = urlExtractors.walmart(card)
+      expect(url).toBe("/ip/Product/123")
+    })
+  })
+})
+-- tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": ["chrome", "vitest/globals"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["src/shared/*"]
+    }
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+-- vite.content.config.ts --
+import { defineConfig } from "vite"
+import { resolve } from "path"
+import checker from "vite-plugin-checker"
+
+export default defineConfig({
+  plugins: [checker({ typescript: true })],
+  build: {
+    emptyOutDir: false,
+    sourcemap: true,
+    rollupOptions: {
+      input: resolve(__dirname, "src/content/content.ts"),
+      output: {
+        entryFileNames: "content.js",
+        dir: "dist",
+        format: "iife",
+        inlineDynamicImports: true,
+      },
+    },
+    target: "es2020",
+  },
+  resolve: {
+    alias: {
+      "@shared": resolve(__dirname, "src/shared"),
+    },
+  },
+  define: {
+    "process.env": {},
+    global: "globalThis",
+  },
+})
+-- vite.popup.config.ts --
+import { defineConfig } from "vite"
+import { resolve } from "path"
+import checker from "vite-plugin-checker"
+
+export default defineConfig({
+  plugins: [checker({ typescript: true })],
+  build: {
+    emptyOutDir: false,
+    sourcemap: true,
+    rollupOptions: {
+      input: resolve(__dirname, "src/popup/popup.ts"),
+      output: {
+        entryFileNames: "popup.js",
+        dir: "dist",
+        format: "iife",
+        inlineDynamicImports: true,
+      },
+    },
+    target: "es2020",
+  },
+  resolve: {
+    alias: {
+      "@shared": resolve(__dirname, "src/shared"),
+    },
+  },
+  define: {
+    "process.env": {},
+    global: "globalThis",
+  },
+})
+-- vitest.config.ts --
+import { defineConfig } from "vitest/config"
+import { resolve } from "path"
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: "jsdom",
+  },
+  resolve: {
+    alias: {
+      "@shared": resolve(__dirname, "src/shared"),
+    },
+  },
+})

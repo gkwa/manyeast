@@ -1,5 +1,6 @@
+I have JavaScript project named {{ .ProjectName }} that I used to paste into Chrome DevTools, and this is working fine. 
 
-I have JavaScript that I used to paste into Chrome DevTools, and this is working fine. However, what I need is a Chrome extension. So I'd like my chrome etension  to use TypeScript.  so we need to convert JavaScript to TypeScript and make an extension 
+However, what I need is a Chrome extension. So I'd like my chrome etension  to use TypeScript.  so we need to convert JavaScript to TypeScript and make an extension 
 
 I've included a spec here as the README. 
 
@@ -13,5 +14,3 @@ I've included a spec here as the README.
 
 // webui example scaffold
 {{ include "../webui-common/webui-common.md" . | trim }}"
-
-
