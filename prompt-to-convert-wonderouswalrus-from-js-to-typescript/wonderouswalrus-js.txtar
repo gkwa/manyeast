@@ -1,0 +1,905 @@
+-- app.js --
+document.addEventListener("DOMContentLoaded", function () {
+  // Initialize application
+  const stores = StoreFactory.createStores()
+  const searchService = new SearchService(stores)
+  const configService = new ConfigurationService()
+  const uiController = new UIController(searchService, configService)
+})
+-- controllers/UIController.js --
+class UIController {
+  constructor(searchService, configService) {
+    this.searchService = searchService
+    this.configService = configService
+    this.searchInput = document.getElementById("searchInput")
+    this.openAllBtn = document.getElementById("openAllBtn")
+    this.storesContainer = document.getElementById("storesContainer")
+    this.storeBtnTemplate = document.getElementById("storeBtnTemplate")
+    this.configSelect = document.getElementById("configSelect")
+    this.zeroBtn = document.getElementById("zeroBtn")
+    this.saveConfigBtn = document.getElementById("saveConfigBtn")
+    this.deleteConfigBtn = document.getElementById("deleteConfigBtn")
+    this.storeDelays = {}
+    this.initialize()
+  }
+
+  initialize() {
+    // Get last search term from localStorage or use default
+    const lastSearchTerm = localStorage.getItem("lastSearchTerm") || "romaine lettuce"
+    this.searchInput.value = lastSearchTerm
+    // Populate configuration dropdown first
+    this.populateConfigurationSelect()
+    // Load the last used configuration
+    this.loadLastUsedConfiguration()
+    // Create store buttons
+    this.createStoreButtons()
+
+    // Set up event listeners
+    this.setupEventListeners()
+
+    // Focus and select the search input text
+    this.searchInput.focus()
+    this.searchInput.select()
+  }
+  loadLastUsedConfiguration() {
+    const lastConfigName = this.configService.getCurrentConfigurationName()
+
+    if (lastConfigName === "custom") {
+      // For custom config, check if we have a saved custom config in the service
+      const customConfig = this.configService.getCustomConfiguration()
+      if (customConfig) {
+        this.storeDelays = { ...customConfig.delays }
+      } else {
+        this.setDefaultDelays()
+      }
+    } else {
+      // Load the saved configuration
+      const config = this.configService.getConfiguration(lastConfigName)
+      if (config) {
+        this.storeDelays = { ...config.delays }
+      } else {
+        // Configuration doesn't exist anymore, fall back to custom with defaults
+        this.setDefaultDelays()
+        this.configService.setCurrentConfigurationName("custom")
+      }
+    }
+
+    // Set the select to show the current config
+    this.configSelect.value = this.configService.getCurrentConfigurationName()
+  }
+  setDefaultDelays() {
+    const defaultDelays = {
+      "H Mart": 0,
+      Walmart: 0,
+      "Trader Joe's": 0,
+      Uwajimaya: 0,
+      Target: 0,
+      Meijer: 0,
+      "Lam's Seafood": 0,
+      "Fred Meyer": 0,
+      QFC: 0,
+      Amazon: 0,
+      Safeway: 0,
+      "PCC Markets": 0,
+      "Whole Foods": 0,
+      "Grocery Outlet": 0,
+      "Central Co-op": 0,
+      "Chef Store": 0,
+      Costco: 0,
+    }
+    this.storeDelays = { ...defaultDelays }
+    this.configService.saveCustomConfiguration(this.storeDelays)
+  }
+  zeroAllDelays() {
+    // Set all delays to 0
+    Object.keys(this.storeDelays).forEach((storeName) => {
+      this.storeDelays[storeName] = 0
+    })
+
+    // Save to the current configuration
+    const currentConfig = this.configService.getCurrentConfigurationName()
+    if (currentConfig === "custom") {
+      this.configService.saveCustomConfiguration(this.storeDelays)
+    } else {
+      this.configService.saveConfiguration(currentConfig, this.storeDelays)
+    }
+
+    // Update all delay inputs
+    this.updateDelayInputs()
+  }
+  populateConfigurationSelect() {
+    const configs = this.configService.getAllConfigurations()
+    const currentConfig = this.configService.getCurrentConfigurationName()
+
+    // Clear existing options except "Custom"
+    this.configSelect.innerHTML = '<option value="custom">Custom</option>'
+
+    // Add saved configurations
+    configs.forEach((config) => {
+      const option = document.createElement("option")
+      option.value = config.name
+      option.textContent = config.name
+      this.configSelect.appendChild(option)
+    })
+
+    // Set the current configuration
+    this.configSelect.value = currentConfig
+  }
+  createStoreButtons() {
+    this.searchService.stores.forEach((store) => {
+      const btnClone = this.storeBtnTemplate.content.cloneNode(true)
+      const storeItem = btnClone.querySelector(".store-item")
+      const storeBtn = btnClone.querySelector(".store-btn")
+      const delayInput = btnClone.querySelector(".delay-input")
+
+      storeBtn.textContent = store.name
+      storeBtn.dataset.storeName = store.name
+
+      // Set delay input value from stored delays
+      delayInput.value = this.storeDelays[store.name] || 0
+      delayInput.dataset.storeName = store.name
+
+      this.storesContainer.appendChild(btnClone)
+    })
+  }
+
+  setupEventListeners() {
+    // Individual store button clicks
+    this.storesContainer.addEventListener("click", (e) => {
+      if (e.target.classList.contains("store-btn")) {
+        const storeName = e.target.dataset.storeName
+        const store = this.searchService.stores.find((s) => s.name === storeName)
+        if (store) {
+          this.searchService.searchSingleStore(store, this.getSearchTerm())
+        }
+      }
+    })
+
+    // Open all button click
+    this.openAllBtn.addEventListener("click", () => {
+      this.searchService.searchAllStores(this.getSearchTerm(), this.storeDelays)
+    })
+
+    // Delay input changes
+    this.storesContainer.addEventListener("change", (e) => {
+      if (e.target.classList.contains("delay-input")) {
+        const storeName = e.target.dataset.storeName
+        const delay = parseInt(e.target.value)
+
+        // Validate and update the store delay
+        if (!isNaN(delay) && delay >= 0) {
+          this.storeDelays[storeName] = delay
+          // Save to current configuration
+          const currentConfig = this.configService.getCurrentConfigurationName()
+          if (currentConfig === "custom") {
+            this.configService.saveCustomConfiguration(this.storeDelays)
+          } else {
+            this.configService.saveConfiguration(currentConfig, this.storeDelays)
+          }
+        } else {
+          // Reset to default if invalid
+          e.target.value = this.storeDelays[storeName]
+        }
+      }
+    })
+    // Configuration select change
+    this.configSelect.addEventListener("change", (e) => {
+      const configName = e.target.value
+      if (configName === "custom") {
+        // Load custom configuration
+        const customConfig = this.configService.getCustomConfiguration()
+        if (customConfig) {
+          this.storeDelays = { ...customConfig.delays }
+        } else {
+          this.setDefaultDelays()
+        }
+        this.configService.setCurrentConfigurationName("custom")
+        this.updateDelayInputs()
+      } else {
+        // Load the selected configuration
+        const config = this.configService.getConfiguration(configName)
+        if (config) {
+          this.storeDelays = { ...config.delays }
+          this.configService.setCurrentConfigurationName(configName)
+          // Update all delay inputs
+          this.updateDelayInputs()
+        }
+      }
+    })
+    // Zero all button
+    this.zeroBtn.addEventListener("click", () => {
+      this.zeroAllDelays()
+    })
+    // Save configuration button
+    this.saveConfigBtn.addEventListener("click", () => {
+      const configName = prompt("Enter a name for this configuration:")
+      if (configName && configName.trim() && configName.toLowerCase() !== "custom") {
+        this.configService.saveConfiguration(configName.trim(), this.storeDelays)
+        this.populateConfigurationSelect()
+        this.configSelect.value = configName.trim()
+      }
+    })
+    // Delete configuration button
+    this.deleteConfigBtn.addEventListener("click", () => {
+      const configName = this.configSelect.value
+      if (configName !== "custom") {
+        this.configService.deleteConfiguration(configName)
+        this.populateConfigurationSelect()
+        this.configSelect.value = "custom"
+      }
+    })
+  }
+  updateDelayInputs() {
+    const delayInputs = this.storesContainer.querySelectorAll(".delay-input")
+    delayInputs.forEach((input) => {
+      const storeName = input.dataset.storeName
+      input.value = this.storeDelays[storeName] || 0
+    })
+  }
+
+  getSearchTerm() {
+    const term = this.searchInput.value.trim()
+    if (!term) {
+      return ""
+    }
+    return term
+  }
+}
+-- index.html --
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grocery Store Search</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Grocery Store Search</h1>
+      <div class="search-container">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Enter search term (e.g., romaine lettuce)"
+        />
+        <button id="openAllBtn">Open All Stores</button>
+      </div>
+      <div class="config-container">
+        <label for="configSelect">Configuration:</label>
+        <select id="configSelect">
+          <option value="custom">Custom</option>
+        </select>
+        <button id="zeroBtn">Zero All</button>
+        <button id="saveConfigBtn">Save Config</button>
+        <button id="deleteConfigBtn">Delete Config</button>
+      </div>
+      <div class="stores-container" id="storesContainer">
+        <template id="storeBtnTemplate">
+          <div class="store-item">
+            <button class="store-btn"></button>
+            <div class="store-delay">
+              <label>Delay (s):</label>
+              <input type="number" class="delay-input" min="0" value="0" />
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- Model classes -->
+    <script src="models/Store.js"></script>
+    <script src="models/HMartStore.js"></script>
+    <!-- Services -->
+    <script src="services/ConfigurationService.js"></script>
+    <script src="services/SearchService.js"></script>
+    <!-- Specialized Store Implementations -->
+    <script src="services/LamsSeafoodStore.js"></script>
+    <!-- Factory -->
+    <script src="services/StoreFactory.js"></script>
+    <!-- Controllers -->
+    <script src="controllers/UIController.js"></script>
+    <!-- Main Application -->
+    <script src="app.js"></script>
+  </body>
+</html>
+-- models/HMartStore.js --
+// Custom implementation for H Mart
+class HMartStore extends Store {
+  constructor() {
+    // Pass null as we'll override the URL generation
+    super("H Mart", null)
+  }
+
+  // Override to implement custom behavior for H Mart
+  getUrl(searchTerm) {
+    const encodedTerm = encodeURIComponent(searchTerm)
+    return `https://www.hmart.com/${encodedTerm}?_q=${encodedTerm}&map=ft`
+  }
+}
+-- models/Store.js --
+// Base Store class
+class Store {
+  constructor(name, searchUrlTemplate) {
+    this.name = name
+    this.searchUrlTemplate = searchUrlTemplate
+  }
+
+  getUrl(searchTerm) {
+    return this.searchUrlTemplate.replace("{term}", encodeURIComponent(searchTerm))
+  }
+
+  // Method that can be overridden by specialized store classes
+  processSearch(searchTerm) {
+    const url = this.getUrl(searchTerm)
+    return { url, openMethod: "standard" }
+  }
+}
+-- script.js --
+document.addEventListener("DOMContentLoaded", function () {
+  // Base Store class
+  class Store {
+    constructor(name, searchUrlTemplate) {
+      this.name = name
+      this.searchUrlTemplate = searchUrlTemplate
+    }
+
+    getUrl(searchTerm) {
+      return this.searchUrlTemplate.replace("{term}", encodeURIComponent(searchTerm))
+    }
+
+    // Method that can be overridden by specialized store classes
+    processSearch(searchTerm) {
+      const url = this.getUrl(searchTerm)
+      return { url, openMethod: "standard" }
+    }
+  }
+  // Custom store implementations can extend the base Store class
+  class HMartStore extends Store {
+    constructor() {
+      // Pass null as we'll override the URL generation
+      super("H Mart", null)
+    }
+
+    // Override to implement custom behavior for H Mart
+    getUrl(searchTerm) {
+      const encodedTerm = encodeURIComponent(searchTerm)
+      return `https://www.hmart.com/${encodedTerm}?_q=${encodedTerm}&map=ft`
+    }
+  }
+
+  // Store Factory - centralizes creation of store instances
+  class StoreFactory {
+    static createStores() {
+      const standardStores = [
+        new Store("Walmart", "https://www.walmart.com/search?q={term}"),
+        new Store("Trader Joe's", "https://www.traderjoes.com/home/search?q={term}"),
+        new Store("Uwajimaya", "https://www.uwajimaya.com/?s={term}"),
+        new Store("Target", "https://www.target.com/s?searchTerm={term}"),
+        new Store(
+          "Lam's Seafood",
+          "https://seattle.lamsseafood.com/search?filter%5Btext%5D={term}",
+        ),
+        new Store("Fred Meyer", "https://www.fredmeyer.com/search?query={term}"),
+        new Store("QFC", "https://www.qfc.com/search?query={term}"),
+        new Store("Amazon", "https://www.amazon.com/s?k={term}"),
+        new Store("Safeway", "https://www.safeway.com/shop/search-results.html?q={term}"),
+        new Store("Whole Foods", "https://www.wholefoodsmarket.com/search?text={term}"),
+        new Store(
+          "PCC Markets",
+          "https://delivery.pccmarkets.com/store/pcc-community-markets/s?k={term}",
+        ),
+      ]
+      // Add any specialized store implementations
+      const specializedStores = [new HMartStore()]
+      return [...standardStores, ...specializedStores]
+    }
+  }
+  // SearchService - handles the search operations
+  class SearchService {
+    constructor(stores) {
+      this.stores = stores
+    }
+
+    searchSingleStore(store, searchTerm) {
+      if (!searchTerm) {
+        throw new Error("Search term required")
+      }
+      const result = store.processSearch(searchTerm)
+      this.openWindow(result.url, result.openMethod, result.data)
+    }
+    searchAllStores(searchTerm) {
+      if (!searchTerm) {
+        throw new Error("Search term required")
+      }
+      this.stores.forEach((store, index) => {
+        setTimeout(() => {
+          const result = store.processSearch(searchTerm)
+          this.openWindow(result.url, result.openMethod, result.data)
+        }, index * 50) // Add a small delay to avoid popup blocking
+      })
+    }
+    openWindow(url, method = "standard", data = null) {
+      if (method === "standard") {
+        window.open(url, "_blank")
+      } else if (method === "custom") {
+        // Example of custom window opening behavior
+        const newWindow = window.open(url, "_blank", "width=800,height=600")
+        if (newWindow) newWindow.focus()
+      } else if (method === "post") {
+        // Handle POST request by creating a form and submitting it
+        this.submitPostForm(url, data)
+      }
+      // Can add more opening methods as needed
+    }
+
+    submitPostForm(url, data) {
+      // Create a temporary form element
+      const form = document.createElement("form")
+      form.method = "POST"
+      form.action = url
+      form.target = "_blank"
+
+      // Add form fields for each data property
+      if (data) {
+        Object.keys(data).forEach((key) => {
+          const input = document.createElement("input")
+          input.type = "hidden"
+          input.name = key
+          input.value = data[key]
+          form.appendChild(input)
+        })
+      }
+
+      // Add the form to the document, submit it, and remove it
+      document.body.appendChild(form)
+      form.submit()
+      document.body.removeChild(form)
+    }
+  }
+  // UI Controller - manages the interface
+  class UIController {
+    constructor(searchService) {
+      this.searchService = searchService
+      this.searchInput = document.getElementById("searchInput")
+      this.openAllBtn = document.getElementById("openAllBtn")
+      this.storesContainer = document.getElementById("storesContainer")
+      this.storeBtnTemplate = document.getElementById("storeBtnTemplate")
+      this.initialize()
+    }
+    initialize() {
+      // Set default search term
+      this.searchInput.value = "romaine lettuce"
+      // Create store buttons
+      this.createStoreButtons()
+      // Set up event listeners
+      this.setupEventListeners()
+    }
+    createStoreButtons() {
+      this.searchService.stores.forEach((store) => {
+        const btnClone = this.storeBtnTemplate.content.cloneNode(true)
+        const storeBtn = btnClone.querySelector(".store-btn")
+        storeBtn.textContent = store.name
+        storeBtn.dataset.storeName = store.name
+        this.storesContainer.appendChild(btnClone)
+      })
+    }
+    setupEventListeners() {
+      // Individual store button clicks
+      this.storesContainer.addEventListener("click", (e) => {
+        if (e.target.classList.contains("store-btn")) {
+          const storeName = e.target.dataset.storeName
+          const store = this.searchService.stores.find((s) => s.name === storeName)
+          if (store) {
+            try {
+              this.searchService.searchSingleStore(store, this.getSearchTerm())
+            } catch (error) {
+              alert(error.message)
+            }
+          }
+        }
+      })
+      // Open all button click
+      this.openAllBtn.addEventListener("click", () => {
+        try {
+          this.searchService.searchAllStores(this.getSearchTerm())
+        } catch (error) {
+          alert(error.message)
+        }
+      })
+    }
+    getSearchTerm() {
+      const term = this.searchInput.value.trim()
+      if (!term) {
+        throw new Error("Please enter a search term")
+      }
+      return term
+    }
+  }
+  // Application initialization
+  const stores = StoreFactory.createStores()
+  const searchService = new SearchService(stores)
+  const uiController = new UIController(searchService)
+})
+-- services/ConfigurationService.js --
+class ConfigurationService {
+  constructor() {
+    this.storageKey = "delayConfigurations"
+    this.currentConfigKey = "currentConfiguration"
+    this.customConfigKey = "customConfiguration"
+  }
+  getAllConfigurations() {
+    const saved = localStorage.getItem(this.storageKey)
+    return saved ? JSON.parse(saved) : []
+  }
+  getConfiguration(name) {
+    const configs = this.getAllConfigurations()
+    return configs.find((c) => c.name === name)
+  }
+  getCustomConfiguration() {
+    const saved = localStorage.getItem(this.customConfigKey)
+    return saved ? JSON.parse(saved) : null
+  }
+  saveCustomConfiguration(delays) {
+    const config = {
+      name: "custom",
+      delays: { ...delays },
+    }
+    localStorage.setItem(this.customConfigKey, JSON.stringify(config))
+  }
+  saveConfiguration(name, delays) {
+    const configs = this.getAllConfigurations()
+    const existingIndex = configs.findIndex((c) => c.name === name)
+    const newConfig = {
+      name: name,
+      delays: { ...delays },
+    }
+    if (existingIndex >= 0) {
+      configs[existingIndex] = newConfig
+    } else {
+      configs.push(newConfig)
+    }
+    localStorage.setItem(this.storageKey, JSON.stringify(configs))
+    this.setCurrentConfigurationName(name)
+  }
+  deleteConfiguration(name) {
+    const configs = this.getAllConfigurations()
+    const filtered = configs.filter((c) => c.name !== name)
+    localStorage.setItem(this.storageKey, JSON.stringify(filtered))
+    // If we deleted the current config, reset to custom
+    if (this.getCurrentConfigurationName() === name) {
+      this.setCurrentConfigurationName("custom")
+    }
+  }
+  getCurrentConfigurationName() {
+    return localStorage.getItem(this.currentConfigKey) || "custom"
+  }
+  setCurrentConfigurationName(name) {
+    localStorage.setItem(this.currentConfigKey, name)
+  }
+}
+-- services/LamsSeafoodStore.js --
+class LamsSeafoodStore extends Store {
+  constructor() {
+    super("Lam's Seafood", "https://seattle.lamsseafood.com/search")
+  }
+  processSearch(searchTerm) {
+    // Encode the search term to base64
+    const encodedTerm = btoa(searchTerm)
+    // Build URL with base64 encoded etext parameter and widget parameter
+    const url = `${this.searchUrlTemplate}?filter%5Betext%5D=${encodedTerm}&filter%5Bwidget%5D=1`
+    return {
+      url: url,
+      openMethod: "standard",
+    }
+  }
+}
+-- services/SearchService.js --
+class SearchService {
+  constructor(stores) {
+    this.stores = stores
+  }
+
+  searchSingleStore(store, searchTerm) {
+    if (!searchTerm) {
+      return
+    }
+
+    // Save the search term to localStorage
+    localStorage.setItem("lastSearchTerm", searchTerm)
+
+    const result = store.processSearch(searchTerm)
+    this.openWindow(result.url, result.openMethod, result.data)
+  }
+
+  searchAllStores(searchTerm, storeDelays) {
+    if (!searchTerm) {
+      return
+    }
+
+    // Save the search term to localStorage
+    localStorage.setItem("lastSearchTerm", searchTerm)
+
+    console.log("=== Starting searchAllStores ===")
+    console.log("Search term:", searchTerm)
+    console.log("Store delays:", storeDelays)
+
+    // Create an array of stores with their delays
+    const storesWithDelays = this.stores.map((store) => ({
+      store: store,
+      delay: storeDelays[store.name] || 0,
+    }))
+
+    console.log(
+      "Stores before sorting:",
+      storesWithDelays.map((s) => `${s.store.name}: ${s.delay}s`),
+    )
+
+    // Sort by delay (shortest to longest)
+    storesWithDelays.sort((a, b) => a.delay - b.delay)
+
+    console.log(
+      "Stores after sorting:",
+      storesWithDelays.map((s) => `${s.store.name}: ${s.delay}s`),
+    )
+
+    // Calculate cumulative delays
+    let cumulativeDelay = 0
+
+    console.log("=== Scheduling stores ===")
+    // Open windows in order of delay time
+    storesWithDelays.forEach((item, index) => {
+      const scheduleTime = cumulativeDelay // Capture current value before it changes!
+      console.log(
+        `[${index}] Scheduling ${item.store.name} to open at ${scheduleTime}s (delay: ${item.delay}s)`,
+      )
+
+      setTimeout(() => {
+        console.log(`[${index}] OPENING ${item.store.name} now (scheduled for ${scheduleTime}s)`)
+        const result = item.store.processSearch(searchTerm)
+        this.openWindow(result.url, result.openMethod, result.data)
+      }, scheduleTime * 1000) // Use the captured value
+
+      // Add this store's delay to the cumulative delay
+      cumulativeDelay += item.delay
+      console.log(`   Cumulative delay is now: ${cumulativeDelay}s`)
+    })
+
+    console.log("=== All stores scheduled ===")
+    console.log(`Total time to open all stores: ${cumulativeDelay}s`)
+  }
+
+  openWindow(url, method = "standard", data = null) {
+    if (method === "standard") {
+      window.open(url, "_blank")
+    } else if (method === "custom") {
+      // Example of custom window opening behavior
+      const newWindow = window.open(url, "_blank", "width=800,height=600")
+      if (newWindow) newWindow.focus()
+    } else if (method === "post") {
+      // Handle POST request by creating a form and submitting it
+      this.submitPostForm(url, data)
+    }
+    // Can add more opening methods as needed
+  }
+
+  submitPostForm(url, data) {
+    // Create a temporary form element
+    const form = document.createElement("form")
+    form.method = "POST"
+    form.action = url
+    form.target = "_blank"
+
+    // Add form fields for each data property
+    if (data) {
+      Object.keys(data).forEach((key) => {
+        const input = document.createElement("input")
+        input.type = "hidden"
+        input.name = key
+        input.value = data[key]
+        form.appendChild(input)
+      })
+    }
+
+    // Add the form to the document, submit it, and remove it
+    document.body.appendChild(form)
+    form.submit()
+    document.body.removeChild(form)
+  }
+}
+-- services/StoreFactory.js --
+// Store Factory - centralizes creation of store instances
+class StoreFactory {
+  static createStores() {
+    const standardStores = [
+      new Store("Walmart", "https://www.walmart.com/search?q={term}"),
+      new Store(
+        "Trader Joe's",
+        "https://www.traderjoes.com/home/search?section=products&global=yes&q={term}",
+      ),
+      new Store("Target", "https://www.target.com/s?searchTerm={term}"),
+      new Store("Meijer", "https://www.meijer.com/shopping/search.html?text={term}"),
+      new Store("Chef Store", "https://www.chefstore.com/search/fullsearch/{term}/"),
+      new Store("Fred Meyer", "https://www.fredmeyer.com/search?query={term}"),
+      new Store("QFC", "https://www.qfc.com/search?query={term}"),
+      new Store("Amazon", "https://www.amazon.com/s?k={term}"),
+      new Store("Safeway", "https://www.safeway.com/shop/search-results.html?q={term}"),
+      new Store("Whole Foods", "https://www.wholefoodsmarket.com/search?text={term}"),
+      new Store("PCC Markets", "https://www.instacart.com/store/pcc-community-markets/s?k={term}"),
+      new Store("Grocery Outlet", "https://www.instacart.com/store/grocery-outlet/s?k={term}"),
+      new Store("Uwajimaya", "https://www.instacart.com/store/uwajimaya/s?k={term}"),
+      new Store("Central Co-op", "https://www.instacart.com/store/central-coop/s?k={term}"),
+      new Store("Costco", "https://www.instacart.com/store/costco/s?k={term}"),
+    ]
+    // Add any specialized store implementations
+    const specializedStores = [new HMartStore(), new LamsSeafoodStore()]
+    return [...specializedStores, ...standardStores]
+  }
+}
+-- styles.css --
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.search-container {
+  display: flex;
+  margin-bottom: 20px;
+  gap: 10px;
+  align-items: center;
+}
+
+#searchInput {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+#openAllBtn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+#openAllBtn:hover {
+  background-color: #2980b9;
+}
+
+.config-container {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+.config-container label {
+  font-weight: bold;
+  color: #2c3e50;
+}
+#configSelect {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+#zeroBtn {
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+#zeroBtn:hover {
+  background-color: #7f8c8d;
+}
+#saveConfigBtn,
+#deleteConfigBtn {
+  background-color: #9b59b6;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+}
+#saveConfigBtn:hover {
+  background-color: #8e44ad;
+}
+#deleteConfigBtn {
+  background-color: #e74c3c;
+}
+#deleteConfigBtn:hover {
+  background-color: #c0392b;
+}
+.stores-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.store-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.store-btn {
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  padding: 15px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition:
+    transform 0.1s,
+    background-color 0.2s;
+}
+
+.store-btn:hover {
+  background-color: #27ae60;
+  transform: translateY(-2px);
+}
+
+.store-delay {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.delay-input {
+  width: 50px;
+  padding: 4px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .search-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stores-container {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}

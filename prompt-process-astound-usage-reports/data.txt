@@ -1,0 +1,28 @@
+I have lots of json files with this structure
+
+
+```
+// astound-data-usage-2025-10-29T17-17-48-309Z.json
+{
+  "date": "2025-10-29",
+  "amount": 341.07,
+  "amountUnits": "GB",
+  "total": 400,
+  "totalUnits": "GB",
+  "overage": 0,
+  "overageUnits": "GB",
+  "scrapedAt": "2025-10-29T17:17:48.741Z"
+}
+```
+
+The files are in paths similar to this:
+
+```
+/Users/mtm/pdev/taylormonacelli/springingshrimp/data-backup/2025/10/29/astound-data-usage-2025-10-29T16-00-44-253Z.json
+```
+
+but we should support finding data files in multiple discontiguous directores.
+
+We should use argparse where apprpprite.
+
+We should write python to aggregate these files into parquet format.
