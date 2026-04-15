@@ -2,7 +2,7 @@ terraform {
   required_providers {
     incus = {
       source  = "lxc/incus"
-      version = "0.5.1"
+      version = "1.0.2"
     }
   }
 }
